@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contact & Booking — ComplianceLoop</title>
+  <meta name="description" content="ComplianceLoop — coordinated property compliance services in CT" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=League+Spartan:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/styles.css" />
+  <!-- Cal.com embed (replace data-cal-link with your handle later) -->
+  <script defer src="https://embed.cal.com/embed.js"></script>
+  <script defer src="/assets/js/main.js"></script>
+</head>
+
+<body>
+
+<header class="site-header">
+  <div class="container nav-wrap">
+    <a class="brand" href="/"><span class="brand-mark">⟳</span> ComplianceLoop</a>
+    <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">☰</button>
+    <nav class="nav" data-nav>
+      <a href="/">Home</a>
+      <a href="/services.html">Services</a>
+      <a href="/pricing.html">Pricing</a>
+      <a class="btn btn-primary" href="/contact.html">Contact / Book</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <section class="page-head">
+    <h1>Contact / Book</h1>
+    <p class="muted">Prefer to book directly? Use the widget below. Or email <a href="mailto:info@complianceloop.com">info@complianceloop.com</a>.</p>
+  </section>
+
+  <section class="grid-2">
+    <div>
+      <div class="card">
+        <h2 class="h5">Book a time</h2>
+        <div class="cal-embed" data-cal-link="cal.com/complianceloop/compliance-appointment" data-cal-config='{"layout":"month_view"}'>
+          <div class="placeholder">Booking widget goes here</div>
+        </div>
+        <p class="tiny muted">Replace <code>YOUR_CAL_HANDLE/compliance</code> in the HTML with your Cal.com link.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h2 class="h5">Message us</h2>
+        <form class="contact-form" action="#" method="post" onsubmit="alert('This is a static demo. Wire this to Airtable/Tally.'); return false;">
+          <label>Full name<input type="text" required></label>
+          <label>Email<input type="email" required></label>
+          <label>Property address(es)<textarea rows="4"></textarea></label>
+          <label>Services needed<select><option>Fire extinguisher</option><option>Emergency lighting & exit signs</option><option>Backflow testing</option><option>Other (describe)</option></select></label>
+          <button class="btn btn-primary" type="submit">Send</button>
+          <p class="tiny muted">To make this live, replace this form with your Tally embed or an Airtable form.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container foot-grid">
+    <div>
+      <div class="brand tiny"><span class="brand-mark">⟳</span> ComplianceLoop</div>
+      <p class="muted">One coordinator, one schedule, one invoice, zero missed deadlines.</p>
+    </div>
+    <div class="foot-links">
+      <a href="/services.html">Services</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/contact.html">Contact</a>
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+    </div>
+  </div>
+  <div class="container foot-bottom">
+    <small>© ComplianceLoop And done.</small>
+  </div>
+</footer>
+</body>
+</html>
+
