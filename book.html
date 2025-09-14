@@ -1,1 +1,124 @@
-<!DOCTYPE html> <html lang="en"> <head> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1"> <title>Book an Appointment — ComplianceLoop</title> <meta name="description" content="Book your compliance services appointment with ComplianceLoop"> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=League+Spartan:wght@600;700&amp;display=swap" rel="stylesheet"> <link rel="stylesheet" href="/assets/css/styles.css"> <!-- Cal.com embed script --> <script src="https://embed.cal.com/embed.js" async></script> <script defer src="/assets/js/main.js"></script> </head> <body> <header class="site-header"> <div class="container nav-wrap"> <a class="brand" href="/"><span class="brand-mark">⟳</span> ComplianceLoop</a> <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">☰</button> <nav class="nav" data-nav> <a href="/">Home</a> <a href="/services.html">Services</a> <a href="/pricing.html">Pricing</a> <a class="btn btn-primary" href="/book">Contact / Book</a> </nav> </div> </header> <main class="container"> <section class="page-head"> <h1>Book an Appointment</h1> <p class="muted">Enter your details to schedule a compliance service.</p> </section> <section class="grid-2"> <div> <div class="card"> <h2 class="h5">Book Online</h2> <div class="cal-embed" data-cal-link="cal.com/complianceloop/compliance-appointment" data-cal-config='{"layout":"month_view"}'> <div class="placeholder">Booking widget goes here</div> </div> <p class="tiny muted">Replace <code>YOUR_CAL_HANDLE/compliance</code> in the HTML with your Cal.com link.</p> </div> </div> <div> <div class="card"> <h2 class="h5">Request a Quote</h2> <form class="contact-form" action="https://hook.us2.make.com/mu7rg50azw9g81kvkcwchc7niap8BzaZ5" method="post"> <!-- Honeypot field to deter bots --> <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;"> <label>Full name<input type="text" name="name" required></label> <label>Email<input type="email" name="email" required></label> <label>Phone<input type="tel" name="phone"></label> <label>Property address(es)<textarea name="addresses" rows="4"></textarea></label> <label>Services needed<select name="services"> <option>Fire extinguisher</option> <option>Emergency lighting &amp; exit signs</option> <option>Backflow testing</option> <option>Other</option> </select></label> <button class="btn btn-primary" type="submit">Submit</button> </form> </div> </div> </section> </main> <footer class="site-footer"> <div class="container foot-grid"> <div> <div class="brand tiny"><span class="brand-mark">⟳</span> ComplianceLoop</div> <p class="muted">One coordinator, one schedule, one invoice, zero missed deadlines.</p> </div> <div class="foot-links"> <a href="/services.html">Services</a> <a href="/pricing.html">Pricing</a> <a href="/book">Contact</a> <a href="#">Privacy</a> <a href="#">Terms</a> </div> </div> <div class="container foot-bottom"> <small>© ComplianceLoop</small> </div> </footer> </body> </html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Book a visit | ComplianceLoop</title>
+  <meta name="description" content="Book a visit with ComplianceLoop – coordinated property compliance services in CT" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=League+Spartan:wght@800;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <!-- Cal.com inline embed -->
+  <script src="https://embed.cal.com/embed.js" async></script>
+  <script defer src="/assets/js/main.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="container nav-wrap">
+    <a class="brand" href="/"><span class="brand-mark">○</span> ComplianceLoop</a>
+    <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false"></button>
+    <nav class="nav">
+      <a href="/">Home</a>
+      <a href="/services.html">Services</a>
+      <a href="/pricing.html">Pricing</a>
+      <a class="btn btn-primary" href="/book">Contact / Book</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <section class="page-head">
+    <h1>Book a visit</h1>
+    <p class="muted">Fast intake on the left, live availability on the right. Pick what works for you.</p>
+  </section>
+
+  <!-- Hidden iframe so the page does not navigate on submit -->
+  <iframe name="book_iframe" id="book_iframe" style="display:none"></iframe>
+
+  <section class="grid-2">
+    <!-- Left: intake form (posts to Make) -->
+    <div class="card">
+      <h2 class="h5">Fast intake</h2>
+
+      <form action="https://hook.us2.make.com/mu7rg50azw9g81kvkcwchc7niap8BzaZ5"
+            method="POST"
+            target="book_iframe"
+            onsubmit="document.getElementById('book_thanks').style.display='block'">
+
+        <!-- Honeypot -->
+        <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true"
+               style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
+
+        <label>Full name<input type="text" name="full_name" required></label>
+        <label>Email<input type="email" name="email" required></label>
+        <label>Phone<input type="text" name="phone" required></label>
+        <label>Property address<input type="text" name="address" required></label>
+        <label>City<input type="text" name="city" required></label>
+
+        <label>Services needed
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <label><input type="checkbox" name="services[]" value="Fire extinguisher"> Fire extinguisher</label>
+            <label><input type="checkbox" name="services[]" value="Emergency lighting & exit signs"> Emergency lighting &amp; exit signs</label>
+            <label><input type="checkbox" name="services[]" value="Backflow"> Backflow</label>
+            <label><input type="checkbox" name="services[]" value="Other"> Other</label>
+          </div>
+        </label>
+
+        <label>Preferred window
+          <div style="display:flex;gap:12px">
+            <label><input type="radio" name="preferred_window" value="AM" checked> Morning</label>
+            <label><input type="radio" name="preferred_window" value="PM"> Afternoon</label>
+            <label><input type="radio" name="preferred_window" value="ANY"> Any</label>
+          </div>
+        </label>
+
+        <label>Earliest acceptable date<input type="date" name="earliest_date"></label>
+        <label>Access instructions<textarea name="access_instructions" rows="3"></textarea></label>
+
+        <!-- Hidden metadata -->
+        <input type="hidden" name="source" value="book_page">
+        <input type="hidden" name="referer_path" value="/book">
+        <input type="hidden" name="returning" value="0">
+
+        <button class="btn btn-primary" type="submit">Send & prepare booking</button>
+      </form>
+
+      <div id="book_thanks" class="muted-card" style="display:none;margin-top:8px">
+        Thanks! We’ll prepare your visit details while you pick a time.
+      </div>
+    </div>
+
+    <!-- Right: Cal.com inline embed -->
+    <div class="card">
+      <h2 class="h5">Choose a time</h2>
+      <div class="cal-embed"
+           data-cal-link="cal.com/complianceloop/compliance-appointment"
+           data-cal-config='{"layout":"month_view"}'>
+        <div class="placeholder" style="height:520px">Booking widget</div>
+      </div>
+      <p class="tiny muted">You will receive confirmations and reminders automatically.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container foot-grid">
+    <div>
+      <div class="brand tiny"><span class="brand-mark">○</span> ComplianceLoop</div>
+      <p class="muted">One coordinator, one schedule, one invoice, zero missed deadlines.</p>
+    </div>
+    <div class="foot-links">
+      <a href="/services.html">Services</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/book">Contact</a>
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+    </div>
+    <div class="container foot-bottom">
+      <small>© ComplianceLoop and done.</small>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
