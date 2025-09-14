@@ -1,1 +1,84 @@
-<!DOCTYPE html> <html lang="en"> <head> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1"> <title>Returning Customer Login — ComplianceLoop</title> <meta name="description" content="Access your account or request a magic link to manage existing ComplianceLoop services"> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=League+Spartan:wght@600;700&amp;display=swap" rel="stylesheet"> <link rel="stylesheet" href="/assets/css/styles.css"> <script src="https://embed.cal.com/embed.js" async></script> <script defer src="/assets/js/main.js"></script> </head> <body> <header class="site-header"> <div class="container nav-wrap"> <a class="brand" href="/"><span class="brand-mark">⟳</span> ComplianceLoop</a> <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">☰</button> <nav class="nav" data-nav> <a href="/">Home</a> <a href="/services.html">Services</a> <a href="/pricing.html">Pricing</a> <a class="btn btn-primary" href="/book">Contact / Book</a> </nav> </div> </header> <main class="container"> <section class="page-head"> <h1>Returning Customer</h1> <p class="muted">Need to manage your existing jobs? Enter your email below and we’ll send you a magic link.</p> </section> <section> <div class="card"> <h2 class="h5">Request Magic Link</h2> <form class="contact-form" action="https://hook.us2.make.com/qbd5im1lit1l10xpeo1e1fmnlxya32q81" method="post"> <!-- Honeypot field to deter spam bots --> <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;"> <label>Email<input type="email" name="email" required></label> <button class="btn btn-primary" type="submit">Send Magic Link</button> </form> </div> </section> </main> <footer class="site-footer"> <div class="container foot-grid"> <div> <div class="brand tiny"><span class="brand-mark">⟳</span> ComplianceLoop</div> <p class="muted">One coordinator, one schedule, one invoice, zero missed deadlines.</p> </div> <div class="foot-links"> <a href="/services.html">Services</a> <a href="/pricing.html">Pricing</a> <a href="/book">Contact</a> <a href="#">Privacy</a> <a href="#">Terms</a> </div> </div> <div class="container foot-bottom"> <small>© ComplianceLoop</small> </div> </footer> </body> </html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Returning customer | ComplianceLoop</title>
+  <meta name="description" content="Request a magic login link for your ComplianceLoop account" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=League+Spartan:wght@800;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <script defer src="/assets/js/main.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="container nav-wrap">
+    <a class="brand" href="/"><span class="brand-mark">○</span> ComplianceLoop</a>
+    <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false"></button>
+    <nav class="nav">
+      <a href="/">Home</a>
+      <a href="/services.html">Services</a>
+      <a href="/pricing.html">Pricing</a>
+      <a class="btn btn-primary" href="/book">Contact / Book</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <section class="page-head">
+    <h1>Returning customer</h1>
+    <p class="muted">Enter your email and we’ll send you a magic login link.</p>
+  </section>
+
+  <iframe name="returning_iframe" id="returning_iframe" style="display:none"></iframe>
+
+  <section class="grid-1">
+    <div class="card">
+      <form action="https://hook.us2.make.com/qbd5im1lit1l10xpeo1e1fmnlxya32q81"
+            method="POST"
+            target="returning_iframe"
+            onsubmit="document.getElementById('returning_thanks').style.display='block'">
+
+        <!-- Honeypot -->
+        <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true"
+               style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
+
+        <label>Email<input type="email" name="email" required></label>
+
+        <label style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="remember_device"
+                 onchange="localStorage.setItem('cl_returning', this.checked ? '1' : '0')">
+          Remember this device
+        </label>
+
+        <input type="hidden" name="source" value="returning_page">
+        <input type="hidden" name="referer_path" value="/returning">
+
+        <button class="btn btn-primary" type="submit">Send magic link</button>
+      </form>
+      <div id="returning_thanks" class="muted-card" style="display:none;margin-top:8px">
+        Check your email! Your magic link will arrive shortly.
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container foot-grid">
+    <div>
+      <div class="brand tiny"><span class="brand-mark">○</span> ComplianceLoop</div>
+      <p class="muted">One coordinator, one schedule, one invoice, zero missed deadlines.</p>
+    </div>
+    <div class="foot-links">
+      <a href="/services.html">Services</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/book">Contact</a>
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+    </div>
+    <div class="container foot-bottom"><small>© ComplianceLoop and done.</small></div>
+  </div>
+</footer>
+</body>
+</html>
