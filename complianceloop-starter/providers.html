@@ -10,13 +10,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=League+Spartan:wght@800;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/assets/css/styles.css">
   <script defer src="/assets/js/main.js"></script>
+  <script defer src="/assets/js/providers.js"></script>
 </head>
 <body>
 <header class="site-header">
   <div class="container nav-wrap">
-    <a class="brand" href="/"><span class="brand-mark">○</span> ComplianceLoop</a>
-    <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false"></button>
-    <nav class="nav">
+    <a class="brand" href="/"><img src="/assets/img/logo.svg" alt="" class="logo"><span class="brand-name"><span class="c-semi">Compliance</span><span class="l-bold">Loop</span></span></a>
+    <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">☰</button>
+    <nav class="nav" data-nav>
       <a href="/">Home</a>
       <a href="/services.html">Services</a>
       <a href="/pricing.html">Pricing</a>
@@ -31,45 +32,35 @@
     <p class="muted">Apply to join our vendor network. We vet every provider for safety and reliability.</p>
   </section>
 
-  <iframe name="provider_iframe" id="provider_iframe" style="display:none"></iframe>
+  <iframe name="provider_iframe" id="provider_iframe" hidden></iframe>
 
   <section class="grid-2">
     <div class="card">
       <h2 class="h5">Tell us about your company</h2>
-      <form action="https://hook.us2.make.com/7osbc6q7eay1ccdcad7sh2vgkq0046k9"
-            method="POST"
-            target="provider_iframe"
-            onsubmit="document.getElementById('provider_thanks').style.display='block'">
-
-        <!-- Honeypot -->
-        <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true"
-               style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
-
+      <form action="/api/ingest" method="POST" target="provider_iframe" id="provider_form">
+        <input type="text" name="_hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
         <label>Business name<input type="text" name="business_name" required></label>
         <label>Contact name<input type="text" name="contact_name" required></label>
         <label>Email<input type="email" name="email" required></label>
-        <label>Phone<input type="text" name="phone"></label>
-        <label>Service areas (cities/regions you serve)<textarea name="service_areas" rows="2"></textarea></label>
-
+        <label>Phone<input type="tel" name="phone"></label>
+        <label>Service areas<select id="service_areas" name="service_areas[]" multiple></select></label>
         <label>Services offered
           <div style="display:flex;flex-wrap:wrap;gap:12px">
             <label><input type="checkbox" name="services_offered[]" value="Fire extinguisher"> Fire extinguisher</label>
             <label><input type="checkbox" name="services_offered[]" value="Emergency lighting & exit signs"> Emergency lighting &amp; exit signs</label>
             <label><input type="checkbox" name="services_offered[]" value="Backflow"> Backflow</label>
-            <label><input type="checkbox" name="services_offered[]" value="Other"> Other</label>
+            <label><input type="checkbox" id="service_other_chk" name="services_offered[]" value="Other"> Other</label>
           </div>
         </label>
-
+        <label id="services_other_wrap" style="display:none">Other service<input type="text" name="services_other"></label>
         <label>Insurance on file?<input type="checkbox" name="insurance_on_file" value="yes"></label>
-
+        <input type="hidden" name="type" value="provider">
         <input type="hidden" name="source" value="providers_page">
         <input type="hidden" name="referer_path" value="/providers">
-
+        <input type="hidden" name="submitted_at" id="provider_submitted_at">
         <button class="btn btn-primary" type="submit">Apply</button>
       </form>
-      <div id="provider_thanks" class="muted-card" style="display:none;margin-top:8px">
-        Thank you! We’ll review your application and reach out shortly.
-      </div>
+      <div id="provider_thanks" class="muted-card" style="display:none;margin-top:8px">Reviewing now… Thanks!</div>
     </div>
   </section>
 </main>
@@ -77,7 +68,7 @@
 <footer class="site-footer">
   <div class="container foot-grid">
     <div>
-      <div class="brand tiny"><span class="brand-mark">○</span> ComplianceLoop</div>
+      <div class="brand tiny"><img src="/assets/img/logo.svg" alt="" class="logo"><span class="brand-name"><span class="c-semi">Compliance</span><span class="l-bold">Loop</span></span></div>
       <p class="muted">One coordinator, one schedule, one invoice, zero missed deadlines.</p>
     </div>
     <div class="foot-links">

@@ -16,9 +16,9 @@
 <body>
 <header class="site-header">
   <div class="container nav-wrap">
-    <a class="brand" href="/"><span class="brand-mark">○</span> ComplianceLoop</a>
-    <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false"></button>
-    <nav class="nav">
+    <a class="brand" href="/"><img src="/assets/img/logo.svg" alt="" class="logo"><span class="brand-name"><span class="c-semi">Compliance</span><span class="l-bold">Loop</span></span></a>
+    <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">☰</button>
+    <nav class="nav" data-nav>
       <a href="/">Home</a>
       <a href="/services.html">Services</a>
       <a href="/pricing.html">Pricing</a>
@@ -30,82 +30,60 @@
 <main class="container">
   <section class="page-head">
     <h1>Book a visit</h1>
-    <p class="muted">Fast intake on the left, live availability on the right. Pick what works for you.</p>
+    <p class="muted" id="returning-note" style="display:none">We’ll prefill if we recognize you.</p>
   </section>
-
-  <!-- Hidden iframe so the page does not navigate on submit -->
-  <iframe name="book_iframe" id="book_iframe" style="display:none"></iframe>
-
-  <section class="grid-2">
-    <!-- Left: intake form (posts to Make) -->
-    <div class="card">
-      <h2 class="h5">Fast intake</h2>
-
-      <form action="https://hook.us2.make.com/uge93vam4rshl6esvpvhkg2m6l5b1v94"
-            method="POST"
-            target="book_iframe"
-            onsubmit="document.getElementById('book_thanks').style.display='block'">
-
-        <!-- Honeypot -->
-        <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true"
-               style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
-
-        <label>Full name<input type="text" name="full_name" required></label>
-        <label>Email<input type="email" name="email" required></label>
-        <label>Phone<input type="text" name="phone" required></label>
-        <label>Property address<input type="text" name="address" required></label>
-        <label>City<input type="text" name="city" required></label>
-
-        <label>Services needed
-          <div style="display:flex;gap:12px;flex-wrap:wrap">
-            <label><input type="checkbox" name="services[]" value="Fire extinguisher"> Fire extinguisher</label>
-            <label><input type="checkbox" name="services[]" value="Emergency lighting & exit signs"> Emergency lighting &amp; exit signs</label>
-            <label><input type="checkbox" name="services[]" value="Backflow"> Backflow</label>
-            <label><input type="checkbox" name="services[]" value="Other"> Other</label>
-          </div>
-        </label>
-
-        <label>Preferred window
-          <div style="display:flex;gap:12px">
-            <label><input type="radio" name="preferred_window" value="AM" checked> Morning</label>
-            <label><input type="radio" name="preferred_window" value="PM"> Afternoon</label>
-            <label><input type="radio" name="preferred_window" value="ANY"> Any</label>
-          </div>
-        </label>
-
-        <label>Earliest acceptable date<input type="date" name="earliest_date"></label>
-        <label>Access instructions<textarea name="access_instructions" rows="3"></textarea></label>
-
-        <!-- Hidden metadata -->
-        <input type="hidden" name="source" value="book_page">
-        <input type="hidden" name="referer_path" value="/book">
-        <input type="hidden" name="returning" value="0">
-
-        <button class="btn btn-primary" type="submit">Send & prepare booking</button>
-      </form>
-
-      <div id="book_thanks" class="muted-card" style="display:none;margin-top:8px">
-        Thanks! We’ll prepare your visit details while you pick a time.
+  <iframe name="book_iframe" id="book_iframe" hidden></iframe>
+  <form id="book_form" action="/api/ingest" method="POST" target="book_iframe">
+    <div id="step1">
+      <label>Email<input type="email" name="email" required></label>
+      <label>Full name<input type="text" name="full_name" required></label>
+      <label>Phone<input type="tel" name="phone"></label>
+      <div id="properties">
+        <div class="property">
+          <label>Address<input type="text" name="properties[0][address]" required></label>
+          <label>City<input type="text" name="properties[0][city]" required></label>
+        </div>
       </div>
+      <button type="button" class="btn" id="add_property">Add another property</button>
+      <label>Services needed
+        <div style="display:flex;flex-wrap:wrap;gap:12px">
+          <label><input type="checkbox" name="services[]" value="Fire extinguisher"> Fire extinguisher</label>
+          <label><input type="checkbox" name="services[]" value="Emergency lighting & exit signs"> Emergency lighting &amp; exit signs</label>
+          <label><input type="checkbox" name="services[]" value="Backflow"> Backflow</label>
+          <label><input type="checkbox" name="services[]" value="Other"> Other</label>
+        </div>
+      </label>
+      <label>Feature request<textarea name="request_future_service" rows="3"></textarea></label>
+      <button type="button" class="btn btn-primary" id="to_step2">Next: Pick time</button>
     </div>
-
-    <!-- Right: Cal.com inline embed -->
-    <div class="card">
-      <h2 class="h5">Choose a time</h2>
-      <div class="cal-embed"
-           data-cal-link="cal.com/complianceloop/compliance-appointment"
-           data-cal-config='{"layout":"month_view"}'>
-        <div class="placeholder" style="height:520px">Booking widget</div>
-      </div>
-      <p class="tiny muted">You will receive confirmations and reminders automatically.</p>
+    <div id="step2" style="display:none">
+      <div id="cal_container" class="cal-embed" data-cal-link="cal.com/complianceloop/compliance-appointment"></div>
+      <p><a id="cal_fallback" target="_blank" rel="noopener">Open scheduler in new tab</a></p>
+      <button type="button" class="btn btn-primary" id="to_step3">Next: Checkout</button>
     </div>
-  </section>
+    <div id="step3" style="display:none">
+      <div id="summary"></div>
+      <input type="hidden" name="type" value="book">
+      <input type="hidden" name="returning" id="returning" value="0">
+      <input type="hidden" name="properties_json" id="properties_json">
+      <input type="hidden" name="services_json" id="services_json">
+      <input type="hidden" name="request_future_service" id="future_service">
+      <input type="hidden" name="primary_time" id="primary_time">
+      <input type="hidden" name="source" value="book_page">
+      <input type="hidden" name="referer_path" value="/book">
+      <input type="hidden" name="submitted_at" id="submitted_at">
+      <input type="text" name="_hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
+      <button type="submit" class="btn btn-primary">Confirm</button>
+    </div>
+  </form>
+  <div id="book_thanks" class="muted-card" style="display:none">Thanks!</div>
 </main>
+<script src="/assets/js/book.js" defer></script>
 
 <footer class="site-footer">
   <div class="container foot-grid">
     <div>
-      <div class="brand tiny"><span class="brand-mark">○</span> ComplianceLoop</div>
+      <div class="brand tiny"><img src="/assets/img/logo.svg" alt="" class="logo"><span class="brand-name"><span class="c-semi">Compliance</span><span class="l-bold">Loop</span></span></div>
       <p class="muted">One coordinator, one schedule, one invoice, zero missed deadlines.</p>
     </div>
     <div class="foot-links">

@@ -1,3 +1,9 @@
 {
-  "cleanUrls": true
+  "cleanUrls": true,
+  "redirects": [
+    { "source": "/returning", "destination": "/book?returning=1", "permanent": true },
+    { "source": "/returning.html", "destination": "/book?returning=1", "permanent": true },
+    { "source": "/multi-property", "destination": "/book?multi=1", "permanent": true },
+    { "source": "/multi-property.html", "destination": "/book?multi=1", "permanent": true }
+  ]
 }
