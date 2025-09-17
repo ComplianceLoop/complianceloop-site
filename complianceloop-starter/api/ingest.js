@@ -1,4 +1,6 @@
 // complianceloop-starter/api/ingest.js
+// CommonJS export; used by pages/api/ingest.js
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.statusCode = 405;
@@ -13,19 +15,21 @@ module.exports = async function handler(req, res) {
   let requestOrigin = originHeader;
   if (!requestOrigin && req.headers.referer) {
     try {
-      const u = new URL(req.headers.referer);
-      requestOrigin = `${u.protocol}//${u.host}`;
-    } catch (_) {}
+      const url = new URL(req.headers.referer);
+      requestOrigin = `${url.protocol}//${url.host}`;
+    } catch (_) {
+      requestOrigin = '';
+    }
   }
-  const isAllowed =
-    allowed.length === 0 ||
-    allowed.some(pat => {
-      if (pat.includes('*')) {
-        const re = new RegExp('^' + pat.replace(/[-/\\^$+?.()|[\\]{}]/g, '\\$&').replace(/\\\*/g, '.*') + '$');
-        return re.test(requestOrigin);
-      }
-      return pat === requestOrigin;
-    });
+  const isAllowed = allowed.length === 0 || allowed.some(pattern => {
+    if (pattern.includes('*')) {
+      const regex = new RegExp('^' + pattern
+        .replace(/[-/\\^$+?.()|[\\]{}]/g, '\\$&')
+        .replace(/\\*/g, '.*') + '$');
+      return regex.test(requestOrigin);
+    }
+    return pattern === requestOrigin;
+  });
   if (!isAllowed) {
     res.statusCode = 403;
     res.setHeader('Content-Type', 'application/json');
@@ -33,24 +37,27 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const raw = await new Promise((resolve, reject) => {
+  const body = await new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', c => (data += c.toString()));
+    req.on('data', chunk => { data += chunk.toString(); });
     req.on('end', () => resolve(data));
-    req.on('error', reject);
+    req.on('error', err => reject(err));
   });
-  const params = new URLSearchParams(raw);
+
+  const params = new URLSearchParams(body);
   const data = {};
-  for (const [k, v] of params.entries()) {
-    if (k.endsWith('[]')) {
-      const key = k.slice(0, -2);
-      data[key] = data[key] ? data[key].concat(v) : [v];
-    } else if (Object.prototype.hasOwnProperty.call(data, k)) {
-      data[k] = Array.isArray(data[k]) ? data[k].concat(v) : [data[k], v];
+  for (const [key, value] of params.entries()) {
+    if (key.endsWith('[]')) {
+      const k = key.slice(0, -2);
+      data[k] = data[k] ? data[k].concat(value) : [value];
+    } else if (Object.prototype.hasOwnProperty.call(data, key)) {
+      data[key] = Array.isArray(data[key]) ? data[key].concat(value) : [data[key], value];
     } else {
-      data[k] = v;
+      data[key] = value;
     }
   }
+
+  // Honeypot
   if (data._hp) {
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json');
@@ -61,17 +68,22 @@ module.exports = async function handler(req, res) {
   async function timeoutFetch(url, options = {}) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), 5000);
-    try { return await fetch(url, { ...options, signal: controller.signal }); }
-    finally { clearTimeout(id); }
+    try {
+      const r = await fetch(url, { ...options, signal: controller.signal });
+      return r;
+    } finally {
+      clearTimeout(id);
+    }
   }
 
+  // Airtable-first
   const apiKey = process.env.AIRTABLE_API_KEY;
   const baseId = process.env.AIRTABLE_BASE_ID;
-  const table = process.env.AIRTABLE_TABLE;
-  if (apiKey && baseId && table) {
+  const tableName = process.env.AIRTABLE_TABLE;
+  if (apiKey && baseId && tableName) {
     try {
-      const r = await timeoutFetch(
-        `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(table)}`,
+      const response = await timeoutFetch(
+        `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`,
         {
           method: 'POST',
           headers: {
@@ -81,15 +93,16 @@ module.exports = async function handler(req, res) {
           body: JSON.stringify({ fields: data })
         }
       );
-      if (r.ok) {
+      if (response.ok) {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ ok: true, route: 'airtable' }));
         return;
       }
-    } catch (_) {}
+    } catch (_) { /* fall through to Make */ }
   }
 
+  // Two Make fallbacks: 'book' and 'provider'
   const type = data.type === 'provider' ? 'provider' : 'book';
   const webhookMap = {
     book: process.env.MAKE_WEBHOOK_BOOK,
@@ -104,7 +117,7 @@ module.exports = async function handler(req, res) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: params.toString()
       });
-    } catch (_) {}
+    } catch (_) { /* ignore */ }
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({ ok: true, route: 'make' }));
