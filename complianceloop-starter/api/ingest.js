@@ -1,105 +1,107 @@
 // complianceloop-starter/api/ingest.js
-// Next.js API route to receive form submissions.
-// - Checks ORIGIN_ALLOWLIST (comma-separated). Supports '*' wildcards.
-// - Accepts application/x-www-form-urlencoded bodies.
-// - Honeypot field: _hp (if present -> ignore).
-// - Tries Airtable if creds exist; otherwise posts to Make.com webhook(s).
+// Accepts form POSTs and forwards to Airtable or Make webhooks.
+// Fixes wildcard origin matching (e.g. https://*.vercel.app).
 
 export default async function handler(req, res) {
-  // 1) Only allow POST
+  // Only allow POST
   if (req.method !== 'POST') {
     res.status(405).json({ ok: false, error: 'method_not_allowed' });
     return;
   }
 
-  // 2) Resolve the request origin (Origin header or Referer -> origin)
-  let requestOrigin = req.headers.origin || '';
+  // ---- Origin allow-list ----------------------------------------------------
+  const allowEnv = process.env.ORIGIN_ALLOWLIST || '';
+  const allowed = allowEnv.split(',').map(s => s.trim()).filter(Boolean);
+
+  // Normalize to compare without trailing slash
+  const norm = s => (s || '').replace(/\/$/, '');
+
+  // Convert a pattern with * to a RegExp that actually matches subdomains
+  const toWildcardRegex = (pattern) => {
+    // Escape regex special chars EXCEPT the asterisk, then convert * -> .*
+    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+    const regexStr = '^' + escaped.replace(/\*/g, '.*') + '$';
+    return new RegExp(regexStr);
+  };
+
+  // Figure out the request's origin
+  const originHeader = req.headers.origin || '';
+  let requestOrigin = originHeader;
   if (!requestOrigin && req.headers.referer) {
     try {
-      requestOrigin = new URL(req.headers.referer).origin;
-    } catch (_) {
-      requestOrigin = '';
-    }
+      const url = new URL(req.headers.referer);
+      requestOrigin = `${url.protocol}//${url.host}`;
+    } catch (_e) {}
   }
 
-  // 3) Allowlist with wildcards
-  const allowEnv = process.env.ORIGIN_ALLOWLIST || '';
-  const allowlist = allowEnv.split(',').map(s => s.trim()).filter(Boolean);
-
-  const escapeForRegex = (s) =>
-    s.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&');
-
-  // IMPORTANT: the '\\*' sequence must be matched as a literal backslash + asterisk in the regex,
-  // which requires three backslashes in a JS regex literal: /\\\*/g
-  const patternToRegex = (p) =>
-    new RegExp('^' + escapeForRegex(p).replace(/\\\*/g, '.*') + '$');
-
+  // Decide if this origin is allowed
   const isAllowed =
-    allowlist.length === 0 ||
-    allowlist.some(p =>
-      p.includes('*') ? patternToRegex(p).test(requestOrigin) : p === requestOrigin
-    );
+    allowed.length === 0 ||
+    allowed.some((p) => {
+      const pat = norm(p);
+      const ori = norm(requestOrigin);
+      if (pat.includes('*')) return toWildcardRegex(pat).test(ori);
+      return pat === ori;
+    });
 
   if (!isAllowed) {
     res.status(403).json({
       ok: false,
       error: 'forbidden',
       origin: requestOrigin,
-      allowlist
+      allowlist: allowed
     });
     return;
   }
 
-  // 4) Read urlencoded body
-  const rawBody = await new Promise((resolve, reject) => {
+  // ---- Read x-www-form-urlencoded body -------------------------------------
+  const bodyText = await new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', chunk => (data += chunk));
+    req.on('data', (chunk) => (data += chunk.toString()));
     req.on('end', () => resolve(data));
     req.on('error', reject);
   });
 
-  const params = new URLSearchParams(rawBody);
+  const params = new URLSearchParams(bodyText);
+  const data = {};
+  for (const [k, v] of params.entries()) {
+    if (k.endsWith('[]')) {
+      const key = k.slice(0, -2);
+      data[key] = Array.isArray(data[key]) ? data[key].concat(v) : (data[key] ? [data[key], v] : [v]);
+    } else if (k in data) {
+      data[k] = Array.isArray(data[k]) ? data[k].concat(v) : [data[k], v];
+    } else {
+      data[k] = v;
+    }
+  }
 
-  // 5) Honeypot
-  if (params.get('_hp')) {
+  // Simple honeypot
+  if (data._hp) {
     res.status(200).json({ ok: true, route: 'ignored' });
     return;
   }
 
-  // 6) Determine type (used for routing to different webhooks)
-  const type = params.get('type') || 'book';
+  const type = data.type || 'book';
 
-  // 7) Try Airtable if configured; otherwise fall back to Make.com webhook(s)
-  const apiKey = process.env.AIRTABLE_API_KEY;
-  const baseId = process.env.AIRTABLE_BASE_ID;
-  const tableName = process.env.AIRTABLE_TABLE;
-
-  const timeoutFetch = async (url, options = {}) => {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 5000);
+  // Small helper for timeouts on outbound fetch
+  async function timeoutFetch(url, options = {}) {
+    const ctrl = new AbortController();
+    const id = setTimeout(() => ctrl.abort(), 5000);
     try {
-      const r = await fetch(url, { ...options, signal: controller.signal });
+      const r = await fetch(url, { ...options, signal: ctrl.signal });
       return r;
     } finally {
       clearTimeout(id);
     }
-  };
+  }
 
-  try {
-    if (apiKey && baseId && tableName) {
-      const fields = {};
-      for (const [k, v] of params.entries()) {
-        // Collapse multi-value keys ending with [] into arrays
-        if (k.endsWith('[]')) {
-          const key = k.slice(0, -2);
-          fields[key] = fields[key] ? [...fields[key], v] : [v];
-        } else if (fields[k] !== undefined) {
-          fields[k] = Array.isArray(fields[k]) ? [...fields[k], v] : [fields[k], v];
-        } else {
-          fields[k] = v;
-        }
-      }
+  // ---- If Airtable creds exist, try Airtable first --------------------------
+  const apiKey = process.env.AIRTABLE_API_KEY;
+  const baseId = process.env.AIRTABLE_BASE_ID;
+  const tableName = process.env.AIRTABLE_TABLE;
 
+  if (apiKey && baseId && tableName) {
+    try {
       const r = await timeoutFetch(
         `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`,
         {
@@ -108,42 +110,40 @@ export default async function handler(req, res) {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ fields })
+          body: JSON.stringify({ fields: data })
         }
       );
-
       if (r.ok) {
         res.status(200).json({ ok: true, route: 'airtable' });
         return;
       }
-      // If Airtable fails, fall through to webhook
+    } catch (_e) {
+      // fall through to Make
     }
-  } catch (_) {
-    // ignore and fall through
   }
 
+  // ---- Else, send to Make webhook (by type) ---------------------------------
   const webhookMap = {
     book: process.env.MAKE_WEBHOOK_BOOK,
     provider: process.env.MAKE_WEBHOOK_PROVIDER,
     magic: process.env.MAKE_WEBHOOK_MAGIC,
     planner: process.env.MAKE_WEBHOOK_PLANNER
   };
-
   const webhookUrl = webhookMap[type] || webhookMap.book;
 
-  try {
-    if (webhookUrl) {
+  if (webhookUrl) {
+    try {
       await timeoutFetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: params.toString()
       });
-      res.status(200).json({ ok: true, route: 'make' });
-      return;
+    } catch (_e) {
+      // ignore network errors to keep UX simple
     }
-  } catch (_) {
-    // ignore
+    res.status(200).json({ ok: true, route: 'make' });
+    return;
   }
 
-  res.status(200).json({ ok: true, route: 'none' });
+  res.status(500).json({ ok: false, error: 'no_route' });
 }
