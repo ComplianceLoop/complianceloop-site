@@ -23,3 +23,4 @@ Replace the demo form with a Tally embed or an Airtable form and connect your au
 ## Quick deploy options
 - **Netlify Drop:** go to `https://app.netlify.com/drop` and drag the whole folder (or the zip).
 - **Vercel:** create a new project, select "Other" or "Static", and import this folder (or push to Git and import).
+(chore) trigger Vercel preview redeploy

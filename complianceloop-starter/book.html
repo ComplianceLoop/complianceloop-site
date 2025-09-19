@@ -4,121 +4,172 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Book a visit | ComplianceLoop</title>
-  <meta name="description" content="Book a visit with ComplianceLoop – coordinated property compliance services in CT" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=League+Spartan:wght@800;700&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/assets/css/styles.css">
-  <!-- Cal.com inline embed -->
-  <script src="https://embed.cal.com/embed.js" async></script>
-  <script defer src="/assets/js/main.js"></script>
+
+  <!-- Minimal, self-contained styles (keeps us independent of blocked Google Fonts) -->
+  <style>
+    :root {
+      --navy:#0b2a3f;
+      --teal:#0bb3a7;
+      --ink:#132a38;
+      --muted:#667085;
+      --card:#fff;
+      --bg:#f7f9fb;
+      --border:#e5e7eb;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; background:var(--bg); color:var(--ink); }
+    body { font: 16px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; }
+    a { color: var(--teal); text-decoration: none; }
+    header { background:#fff; border-bottom:1px solid var(--border); }
+    .site-header { max-width:1100px; margin:0 auto; padding:16px; display:flex; align-items:center; gap:16px; }
+    .site-header .brand { font-weight: 800; color: var(--navy); font-size: 20px; }
+    main.container { max-width:1100px; margin:40px auto; padding:0 16px; }
+    h1 { font-size: 44px; line-height:1.1; margin:0 0 12px 0; color:var(--navy); }
+    .muted { color:var(--muted); }
+
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 28px; }
+    @media (max-width: 900px){ .grid{ grid-template-columns: 1fr; } }
+
+    .card { background:var(--card); border:1px solid var(--border); border-radius: 10px; padding: 18px; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0 0; }
+    .row > div { display: grid; gap: 6px; }
+    label { font-weight: 600; font-size: 14px; color: var(--ink); }
+    input[type="text"], input[type="email"], input[type="tel"], textarea {
+      width: 100%; padding: 10px 12px; border:1px solid var(--border); border-radius: 8px;
+      font: inherit; background:#fff;
+    }
+    textarea { min-height: 70px; resize: vertical; }
+    .checks { display:grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-top:6px; }
+    .btn {
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      padding:12px 16px; border-radius:10px; border:1px solid var(--navy);
+      background: var(--teal); color:#fff; font-weight:700; cursor:pointer; margin-top:14px;
+    }
+    .pill { display:none; margin-top:10px; padding:10px 12px; border-radius:8px; background:#e6fbf8; color:#0b6e67; }
+    .fine { font-size: 12px; color: var(--muted); }
+
+    /* hide iframe target that keeps the page in place */
+    #book_iframe { display:none; width:0; height:0; border:0; }
+  </style>
 </head>
 <body>
-<header class="site-header">
-  <div class="container nav-wrap">
-    <a class="brand" href="/"><span class="brand-mark">○</span> ComplianceLoop</a>
-    <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false"></button>
-    <nav class="nav">
-      <a href="/">Home</a>
-      <a href="/services.html">Services</a>
-      <a href="/pricing.html">Pricing</a>
-      <a class="btn btn-primary" href="/book">Contact / Book</a>
-    </nav>
-  </div>
-</header>
+  <header>
+    <div class="site-header">
+      <div class="brand">ComplianceLoop</div>
+      <nav style="margin-left:auto; display:flex; gap:16px;">
+        <a href="/">Home</a>
+        <a href="/book.html">Contact / Book</a>
+      </nav>
+    </div>
+  </header>
 
-<main class="container">
-  <section class="page-head">
+  <main class="container">
     <h1>Book a visit</h1>
     <p class="muted">Fast intake on the left, live availability on the right. Pick what works for you.</p>
-  </section>
 
-  <!-- Hidden iframe so the page does not navigate on submit -->
-  <iframe name="book_iframe" id="book_iframe" style="display:none"></iframe>
+    <section class="grid">
+      <!-- LEFT: FAST INTAKE (form posts to /api/ingest and stays on page via hidden iframe) -->
+      <div class="card">
+        <h2 style="margin:0 0 8px 0;">Fast intake</h2>
 
-  <section class="grid-2">
-    <!-- Left: intake form (posts to Make) -->
-    <div class="card">
-      <h2 class="h5">Fast intake</h2>
+        <form id="book_form"
+              action="/api/ingest"
+              method="POST"
+              target="book_iframe"
+              onsubmit="document.getElementById('book_thanks').style.display='block'">
 
-      <form action="https://hook.us2.make.com/uge93vam4rshl6esvpvhkg2m6l5b1v94"
-            method="POST"
-            target="book_iframe"
-            onsubmit="document.getElementById('book_thanks').style.display='block'">
-
-        <!-- Honeypot -->
-        <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true"
-               style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
-
-        <label>Full name<input type="text" name="full_name" required></label>
-        <label>Email<input type="email" name="email" required></label>
-        <label>Phone<input type="text" name="phone" required></label>
-        <label>Property address<input type="text" name="address" required></label>
-        <label>City<input type="text" name="city" required></label>
-
-        <label>Services needed
-          <div style="display:flex;gap:12px;flex-wrap:wrap">
-            <label><input type="checkbox" name="services[]" value="Fire extinguisher"> Fire extinguisher</label>
-            <label><input type="checkbox" name="services[]" value="Emergency lighting & exit signs"> Emergency lighting &amp; exit signs</label>
-            <label><input type="checkbox" name="services[]" value="Backflow"> Backflow</label>
-            <label><input type="checkbox" name="services[]" value="Other"> Other</label>
+          <div class="row">
+            <div>
+              <label>Full name</label>
+              <input type="text" name="name" />
+            </div>
+            <div>
+              <label>Phone</label>
+              <input type="tel" name="phone" />
+            </div>
           </div>
-        </label>
 
-        <label>Preferred window
-          <div style="display:flex;gap:12px">
-            <label><input type="radio" name="preferred_window" value="AM" checked> Morning</label>
-            <label><input type="radio" name="preferred_window" value="PM"> Afternoon</label>
-            <label><input type="radio" name="preferred_window" value="ANY"> Any</label>
+          <div class="row">
+            <div>
+              <label>Email</label>
+              <input type="email" name="email" required />
+            </div>
+            <div>
+              <label>City</label>
+              <input type="text" name="properties[]" />
+            </div>
           </div>
-        </label>
 
-        <label>Earliest acceptable date<input type="date" name="earliest_date"></label>
-        <label>Access instructions<textarea name="access_instructions" rows="3"></textarea></label>
+          <label>Property address</label>
+          <input type="text" name="properties[]" />
 
-        <!-- Hidden metadata -->
-        <input type="hidden" name="source" value="book_page">
-        <input type="hidden" name="referer_path" value="/book">
-        <input type="hidden" name="returning" value="0">
+          <label style="margin-top:10px;">Services needed</label>
+          <div class="checks">
+            <label><input type="checkbox" name="services[]" value="Fire extinguisher" /> Fire extinguisher</label>
+            <label><input type="checkbox" name="services[]" value="Emergency lighting &amp; exit signs" /> Emergency lighting &amp; exit signs</label>
+            <label><input type="checkbox" name="services[]" value="Backflow" /> Backflow</label>
+            <label><input type="checkbox" name="services[]" value="Other" /> Other</label>
+          </div>
 
-        <button class="btn btn-primary" type="submit">Send & prepare booking</button>
-      </form>
+          <!-- Honeypot -->
+          <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off" />
 
-      <div id="book_thanks" class="muted-card" style="display:none;margin-top:8px">
-        Thanks! We’ll prepare your visit details while you pick a time.
+          <!-- Identify submission type explicitly -->
+          <input type="hidden" name="type" value="book" />
+
+          <button class="btn" type="submit">Send &amp; prepare booking</button>
+
+          <div id="book_thanks" class="pill">Thanks! We’re preparing matches now…</div>
+          <p class="fine">We’ll email you back with options.</p>
+        </form>
+
+        <!-- Target to keep the page in place after submit -->
+        <iframe name="book_iframe" id="book_iframe"></iframe>
       </div>
-    </div>
 
-    <!-- Right: Cal.com inline embed -->
-    <div class="card">
-      <h2 class="h5">Choose a time</h2>
-      <div class="cal-embed"
-           data-cal-link="cal.com/complianceloop/compliance-appointment"
-           data-cal-config='{"layout":"month_view"}'>
-        <div class="placeholder" style="height:520px">Booking widget</div>
+      <!-- RIGHT: Live availability (Cal.com) -->
+      <div class="card">
+        <h2 style="margin:0 0 8px 0;">Choose a time</h2>
+        <div id="cal" style="min-height:600px"></div>
+        <script src="https://embed.cal.com/embed.js" async></script>
+        <cal-inline style="width:100%;height:600px" data-cal-link="complianceloop/intro"></cal-inline>
       </div>
-      <p class="tiny muted">You will receive confirmations and reminders automatically.</p>
-    </div>
-  </section>
-</main>
+    </section>
+  </main>
 
-<footer class="site-footer">
-  <div class="container foot-grid">
-    <div>
-      <div class="brand tiny"><span class="brand-mark">○</span> ComplianceLoop</div>
-      <p class="muted">One coordinator, one schedule, one invoice, zero missed deadlines.</p>
-    </div>
-    <div class="foot-links">
-      <a href="/services.html">Services</a>
-      <a href="/pricing.html">Pricing</a>
-      <a href="/book">Contact</a>
-      <a href="#">Privacy</a>
-      <a href="#">Terms</a>
-    </div>
-    <div class="container foot-bottom">
-      <small>© ComplianceLoop and done.</small>
-    </div>
-  </div>
-</footer>
+  <!-- Small helper to (re)wire the form in case the DOM loads slowly -->
+  <script>
+    (function wire() {
+      function attach() {
+        const form =
+          document.querySelector('form[target="book_iframe"]') ||
+          document.querySelector('#book_form') ||
+          document.querySelector('form');
+
+        if (!form) { console.warn('Form not found yet, retrying…'); return; }
+
+        // Normalize action/method just in case
+        form.action = '/api/ingest';
+        form.method = 'POST';
+
+        // Ensure the submission type is present
+        let t = form.querySelector('input[name="type"]');
+        if (!t) {
+          t = document.createElement('input');
+          t.type = 'hidden';
+          t.name = 'type';
+          t.value = 'book';
+          form.appendChild(t);
+        }
+        console.log('✅ Wired form to POST /api/ingest');
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attach);
+      } else {
+        attach();
+      }
+    })();
+  </script>
 </body>
 </html>
