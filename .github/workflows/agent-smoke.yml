@@ -1,0 +1,61 @@
+name: Agent smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: 'Optional: override preview URL (e.g., https://<deployment>.vercel.app)'
+        required: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install jq (for JSON parsing)
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Determine latest Preview URL from Vercel (unless provided)
+        id: geturl
+        env:
+          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -n "${{ github.event.inputs.preview_url }}" ]; then
+            echo "url=${{ github.event.inputs.preview_url }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          url=$(curl -fsSL "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&state=READY&target=preview&limit=1" \
+            -H "Authorization: Bearer ${VERCEL_API_TOKEN}" \
+            | jq -r '.deployments[0].url')
+          if [ "$url" = "null" ] || [ -z "$url" ]; then
+            echo "No READY preview deployment found." >&2
+            exit 1
+          fi
+          echo "url=https://${url}" >> $GITHUB_OUTPUT
+          echo "Latest preview: https://${url}"
+
+      - name: Run smoke script
+        env:
+          # Base/preview URL for the script
+          PREVIEW_URL: ${{ steps.geturl.outputs.url }}
+          BASE_URL: ${{ steps.geturl.outputs.url }}
+
+          # Secrets the script expects
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          ORIGIN_ALLOWLIST: ${{ secrets.ORIGIN_ALLOWLIST }}
+
+        run: node scripts/smoke.mjs
