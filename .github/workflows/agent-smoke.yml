@@ -19,19 +19,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ⛔️ No caching here (avoids lockfile-required error)
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      # ✅ This makes the workflow robust: if there is no lockfile, we skip install
+      # Only install if a lockfile exists at repo root
       - name: Install deps at repo root (only if lockfile exists)
-        if: hashFiles('package-lock.json') != '' || hashFiles('npm-shrinkwrap.json') != ''
+        if: hashFiles('package-lock.json') != '' || hashFiles('npm-shrinkwrap.json') != '' || hashFiles('.pnpm-lock.yaml') != ''
         run: npm ci
 
+      # Only install if a lockfile exists in scripts/
       - name: Install deps in /scripts (only if lockfile exists)
-        if: hashFiles('scripts/package-lock.json') != '' || hashFiles('scripts/npm-shrinkwrap.json') != ''
+        if: hashFiles('scripts/package-lock.json') != '' || hashFiles('scripts/npm-shrinkwrap.json') != '' || hashFiles('scripts/.pnpm-lock.yaml') != ''
         run: npm ci --prefix scripts
 
       - name: Show Node info
@@ -39,12 +40,11 @@ jobs:
           node -v
           npm -v
 
-      # Run the smoke test script. It will use the env below.
       - name: Run smoke script
         env:
-          # Optional manual override if you filled the input when you clicked "Run workflow"
+          # Allow override when dispatching the workflow
           INPUT_PREVIEW_URL: ${{ github.event.inputs.preview_url }}
-          # Secrets you added earlier
+          # Secrets you added
           PREVIEW_URL: ${{ secrets.PREVIEW_URL }}
           BYPASS_URL: ${{ secrets.BYPASS_URL }}
           ORIGIN_ALLOWLIST: ${{ secrets.ORIGIN_ALLOWLIST }}
@@ -53,23 +53,26 @@ jobs:
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           BASE_URL: ${{ secrets.BASE_URL }}
         run: |
-          # If you provide an override when dispatching, prefer it; else use the secret
+          # Prefer manual override if provided when running the workflow
           if [ -n "$INPUT_PREVIEW_URL" ]; then
             export PREVIEW_URL="$INPUT_PREVIEW_URL"
           fi
 
-          # Fail early if we don't have a preview URL
           if [ -z "$PREVIEW_URL" ]; then
             echo "PREVIEW_URL is missing. Set it as a secret or pass an input when running the workflow."
             exit 1
           fi
 
-          # If your script is in /scripts, run from there. Otherwise, from repo root.
+          # Try known locations for the smoke script
           if [ -f "scripts/smoke.mjs" ]; then
             node scripts/smoke.mjs
           elif [ -f "scripts/smoke.js" ]; then
             node scripts/smoke.js
+          elif [ -f "smoke.mjs" ]; then
+            node smoke.mjs
+          elif [ -f "smoke.js" ]; then
+            node smoke.js
           else
-            # fallback if the script is at repo root
-            node smoke.mjs || node smoke.js
+            echo "Could not find smoke script (scripts/smoke.mjs|scripts/smoke.js|smoke.mjs|smoke.js)."
+            exit 1
           fi
