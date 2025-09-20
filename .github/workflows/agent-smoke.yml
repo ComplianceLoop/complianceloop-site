@@ -1,10 +1,14 @@
 name: Agent smoke
 
 on:
-  workflow_dispatch: {}           # run manually
-  push:
-    paths:
-      - 'scripts/**'              # also run if scripts change
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: 'Optional: preview URL (e.g. https://complianceloop-site-xxxxx.vercel.app)'
+        required: false
+        default: ''
+
+permissions: {}
 
 jobs:
   smoke:
@@ -14,35 +18,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # If you have a package.json, this installs deps; if not, it's harmless.
-      - name: Install deps (best effort)
-        run: npm ci || true
+      # No npm install on purpose — the script uses Node 20's built-in fetch.
+      # Fewer moving parts = fewer CI flakes.
 
-      - name: Get latest Preview deployment URL from Vercel
-        id: vercel
+      - name: Run smoke
         env:
-          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+          PREVIEW_URL: ${{ inputs.preview_url || secrets.PREVIEW_URL }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          set -euo pipefail
-          api="https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&target=preview&state=READY&limit=1"
-          url=$(curl -sS -H "Authorization: Bearer $VERCEL_API_TOKEN" "$api" | jq -r '.deployments[0].url')
-          if [ -z "$url" ] || [ "$url" = "null" ]; then
-            echo "No READY preview deployment found"; exit 1
-          fi
-          echo "url=https://$url" >> "$GITHUB_OUTPUT"
-          echo "Latest preview is https://$url"
-
-      - name: Run smoke script
-        env:
-          # The script reads these env vars:
-          PREVIEW_URL: ${{ steps.vercel.outputs.url }}
-          ORIGIN_ALLOWLIST: ${{ secrets.ORIGIN_ALLOWLIST }}
-          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-        run: |
-          node scripts/smoke.mjs
+          VERCEL_BYPASS_TOKEN: ${{ secrets.VERCEL_BYPASS_TOKEN }}
+        run: node scripts/agent-smoke.mjs
