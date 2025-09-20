@@ -1,0 +1,42 @@
+name: Agent maintenance
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 * * * *" # hourly; adjust as you like
+
+permissions:
+  contents: read
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Print playbook pointers
+        run: |
+          echo "Playbook:"
+          echo "  docs/playbook.md"
+          echo "Vercel project:"
+          echo "  https://vercel.com/compliance-loop/complianceloop-site"
+          echo "Deployments:"
+          echo "  https://vercel.com/compliance-loop/complianceloop-site/deployments"
+
+      - name: Minimal inventory (scaffold)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_SLUG: ${{ secrets.VERCEL_TEAM_SLUG }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          node -e "
+            const t=process.env.VERCEL_TOKEN, team=process.env.VERCEL_TEAM_SLUG, pid=process.env.VERCEL_PROJECT_ID;
+            if(!t||!team||!pid){ console.log('Missing Vercel secrets; skipping.'); process.exit(0); }
+            console.log('Vercel ready. Project:', pid, 'Team:', team);
+          "
