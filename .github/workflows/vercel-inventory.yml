@@ -3,8 +3,7 @@ name: Vercel + GitHub Inventory (Read-Only)
 on:
   workflow_dispatch: {}
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   inventory:
@@ -20,15 +19,13 @@ jobs:
 
       - name: Run inventory
         env:
+          # Owner/Repo from context; REPO_FULL = "Owner/Repo"
+          REPO_FULL: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          # Prefer your secret GH_TOKEN, fall back to GITHUB_TOKEN
+          GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
+          # Vercel is optional; if missing or blocked we'll continue gracefully
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_TEAM_SLUG: ${{ secrets.VERCEL_TEAM_SLUG }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_ORG: ComplianceLoop
-        run: node scripts/vercel-inventory.mjs
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: vercel-inventory
-          path: vercel-inventory.json
-          if-no-files-found: error
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          VERCEL_TEAM_SLUG: compliance-loop
+        run: node scripts/vercel-inventory.js
