@@ -4,11 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       preview_url:
-        description: 'Optional: preview URL (e.g. https://…vercel.app)'
+        description: 'Preview URL (e.g. https://complianceloop-site-xxxxx.vercel.app). Paste the latest preview here.'
         required: false
         default: ''
 
-permissions: {}
+permissions:
+  contents: read
+  deployments: read
 
 jobs:
   smoke:
@@ -27,6 +29,8 @@ jobs:
           PREVIEW_URL: ${{ inputs.preview_url || secrets.PREVIEW_URL }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          VERCEL_TEAM_SLUG: ${{ secrets.VERCEL_TEAM_SLUG }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_BYPASS_TOKEN: ${{ secrets.VERCEL_BYPASS_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: node scripts/agent-smoke.mjs
