@@ -1,4 +1,14 @@
-/* agent-smoke.mjs */
+// scripts/agent-smoke.mjs
+// CI-friendly smoke test for a protected Vercel Preview.
+//
+// Required GitHub Action envs (set in workflow or repo secrets):
+// - VERCEL_TOKEN
+// - VERCEL_TEAM_ID
+// - VERCEL_PROJECT_ID
+// - VERCEL_BYPASS_TOKEN  (the "Protection Bypass for Automation" secret value)
+// Optional:
+// - PREVIEW_URL          (if not provided, we auto-discover latest READY preview)
+
 const {
   PREVIEW_URL,
   VERCEL_TOKEN,
@@ -7,78 +17,127 @@ const {
   VERCEL_BYPASS_TOKEN,
 } = process.env;
 
-const log = (...a) => console.log('[smoke]', ...a);
-const fail = (msg, extra) => { console.error('\n[smoke:fail]', msg); if (extra) console.error(extra); process.exit(1); };
-
-async function jsonOrText(res){ const t=await res.text(); try{ return JSON.parse(t);}catch{ return t; } }
-function normalizeUrl(u){ if(!u) return ''; if(u.startsWith('http')) return u; return `https://${u}`; }
-
-async function discoverLatestPreview(){
-  if(!VERCEL_TOKEN || !VERCEL_PROJECT_ID){
-    fail('Missing VERCEL_TOKEN or VERCEL_PROJECT_ID for preview discovery. Set PREVIEW_URL secret or provide inputs.preview_url.');
-  }
-  const qs=new URLSearchParams({ projectId: VERCEL_PROJECT_ID, state:'READY', limit:'1' });
-  if(VERCEL_TEAM_ID) qs.set('teamId', VERCEL_TEAM_ID);
-  const url=`https://api.vercel.com/v6/deployments?${qs.toString()}`;
-  log('Discovering latest preview via:', url.replace(VERCEL_PROJECT_ID,'***'));
-  const res=await fetch(url,{ headers:{ Authorization:`Bearer ${VERCEL_TOKEN}` }});
-  if(!res.ok) fail(`Vercel API failed (${res.status})`, await jsonOrText(res));
-  const data=await res.json();
-  const dep=(data.deployments && data.deployments[0])||null;
-  if(!dep || !dep.url) fail('No READY deployments found for this project.');
-  const finalUrl=normalizeUrl(dep.url);
-  log('Latest preview:', finalUrl);
-  return finalUrl;
+function die(msg, extra) {
+  console.error(msg);
+  if (extra) console.error(extra);
+  process.exit(1);
 }
 
-async function setBypassCookie(baseUrl){
-  if(!VERCEL_BYPASS_TOKEN){ log('No VERCEL_BYPASS_TOKEN provided; skipping protection-bypass cookie.'); return; }
-  const u=new URL(baseUrl); u.pathname='/'; u.search=`x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=${encodeURIComponent(VERCEL_BYPASS_TOKEN)}`;
-  const res=await fetch(u.toString(),{ redirect:'manual' });
-  if(res.status>=400){ log('Bypass cookie attempt did not return 2xx/3xx; continuing anyway.', res.status); }
-  else { log('Bypass cookie set (or already set).'); }
-}
+if (!VERCEL_TOKEN)        die('Missing VERCEL_TOKEN.');
+if (!VERCEL_TEAM_ID)      die('Missing VERCEL_TEAM_ID.');
+if (!VERCEL_PROJECT_ID)   die('Missing VERCEL_PROJECT_ID.');
+if (!VERCEL_BYPASS_TOKEN) die('Missing VERCEL_BYPASS_TOKEN (automation bypass secret).');
 
-async function checkPing(baseUrl){
-  const res=await fetch(new URL('/api/ping',baseUrl));
-  const body=await jsonOrText(res);
-  if(!res.ok) fail(`GET /api/ping failed with ${res.status}`, body);
-  if(typeof body==='object' && body.pong===true){ log('GET /api/ping OK:', body); }
-  else { fail('GET /api/ping did not return expected shape', body); }
-}
+const API = 'https://api.vercel.com';
 
-async function probeIngest(baseUrl){
-  const res=await fetch(new URL('/api/ingest', baseUrl),{
-    method:'POST',
-    headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
-    body:new URLSearchParams({ type:'book', email:'test%40example.com', _hp:'' }),
-    redirect:'manual',
+async function vercelJson(url) {
+  const u = new URL(url);
+  if (VERCEL_TEAM_ID) u.searchParams.set('teamId', VERCEL_TEAM_ID);
+
+  const res = await fetch(u, {
+    headers: { Authorization: `Bearer ${VERCEL_TOKEN}` },
   });
-  const body=await jsonOrText(res);
-
-  if(res.status===200 || res.status===204){ log('POST /api/ingest OK:', res.status); return; }
-  if(res.status===401 || res.status===403){
-    log('POST /api/ingest denied', { status:res.status, body });
-    log('If this is a CORS/Origin allowlist issue, confirm ORIGIN_ALLOWLIST includes:', new URL(baseUrl).origin);
-    log('If this is preview protection, ensure bypass cookie step succeeded and token is valid.');
-    fail('Ingest blocked (401/403). See logs above for next actions.');
+  const text = await res.text();
+  try {
+    return { ok: res.ok, status: res.status, json: JSON.parse(text), raw: text };
+  } catch {
+    return { ok: res.ok, status: res.status, json: null, raw: text };
   }
-  if(res.status===405){ fail('POST /api/ingest returned 405 (Method Not Allowed). Verify route supports POST in preview.', body); }
-  if(res.status===504 || res.status===500){ fail('Server error from /api/ingest', { status:res.status, body }); }
-  fail(`Unexpected /api/ingest status ${res.status}`, body);
 }
 
-(async ()=>{
-  try{
-    let base=(PREVIEW_URL && PREVIEW_URL.trim()) || '';
-    if(!base){ log('PREVIEW_URL not provided; discovering latest READY deployment...'); base=await discoverLatestPreview(); }
-    else { base=normalizeUrl(base); log('Using provided PREVIEW_URL:', base); }
+async function getLatestReadyPreview() {
+  const url = `${API}/v6/deployments?projectId=${encodeURIComponent(
+    VERCEL_PROJECT_ID
+  )}&state=READY&limit=20`;
+  const { ok, status, json, raw } = await vercelJson(url);
+  if (!ok) die(`Failed to list deployments (${status}).`, raw);
 
-    await setBypassCookie(base);
-    await checkPing(base);
-    await probeIngest(base);
+  const byTime = (a, b) => b.created - a.created;
+  const ready = (json.deployments || []).sort(byTime);
 
-    log('✅ Smoke tests passed.');
-    process.exit(0);
-  }catch(err){ fail('Unhandled error', err?.stack || err); }
-})();
+  const target = ready.find(d => d.target === 'preview') || ready[0];
+  if (!target) die('No READY deployments found for project.');
+
+  // Return its canonical preview URL
+  return `https://${target.url}`;
+}
+
+function withBypass(url) {
+  const u = new URL(url);
+  // Attach bypass on EVERY request to avoid cookie persistence issues in CI
+  u.searchParams.set('x-vercel-protection-bypass', VERCEL_BYPASS_TOKEN);
+  return u.toString();
+}
+
+async function jsonFetch(url, opts = {}) {
+  const res = await fetch(withBypass(url), {
+    ...opts,
+    // Also send header version (duplicated for robustness)
+    headers: {
+      ...(opts.headers || {}),
+      'x-vercel-protection-bypass': VERCEL_BYPASS_TOKEN,
+    },
+  });
+
+  const text = await res.text();
+  try {
+    return { ok: res.ok, status: res.status, json: JSON.parse(text), raw: text };
+  } catch {
+    return { ok: res.ok, status: res.status, json: null, raw: text };
+  }
+}
+
+async function run() {
+  const base = PREVIEW_URL && PREVIEW_URL.trim()
+    ? PREVIEW_URL.trim()
+    : await getLatestReadyPreview();
+
+  console.log('🔎 Preview under test:', base);
+
+  // 1) /api/ping
+  {
+    const url = new URL('/api/ping', base).toString();
+    const { ok, status, json, raw } = await jsonFetch(url);
+    if (!ok) {
+      console.error('❌ ping failed', { status, raw: raw.slice(0, 800) });
+      die('Ping did not return 2xx.');
+    }
+    if (!json || json.pong !== true) {
+      console.error('❌ ping unexpected payload', json);
+      die('Ping payload mismatch.');
+    }
+    console.log('✅ ping OK', json);
+  }
+
+  // 2) /api/ingest CORS + POST
+  {
+    const url = new URL('/api/ingest', base).toString();
+
+    // Simple POST form body
+    const body = new URLSearchParams({
+      type: 'book',
+      email: 'test@example.com',
+      _hp: '', // honeypot empty
+    }).toString();
+
+    const { ok, status, json, raw } = await jsonFetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+
+    if (!ok) {
+      console.error('❌ ingest failed', { status, raw: raw.slice(0, 800) });
+      die('Ingest did not return 2xx.');
+    }
+    if (!json || json.ok !== true) {
+      console.error('❌ ingest unexpected payload', json);
+      die('Ingest payload mismatch.');
+    }
+    console.log('✅ ingest OK', json);
+  }
+
+  console.log('🎉 Smoke tests passed.');
+}
+
+run().catch(err => die('Unhandled error', err));
