@@ -1,0 +1,36 @@
+name: Vercel + GitHub Inventory (Read-Only)
+
+on:
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run inventory
+        env:
+          # Vercel Auth
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          # Accept either slug or id (script reads SLUG, so we fallback to ID)
+          VERCEL_TEAM_SLUG: ${{ secrets.VERCEL_TEAM_SLUG || secrets.VERCEL_TEAM_ID }}
+
+          # GitHub (optional, used if the script queries GitHub)
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: node scripts/vercel-inventory.js
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inventory-json
+          path: inventory.json
