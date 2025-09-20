@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       preview_url:
-        description: 'Optional: preview URL (e.g. https://complianceloop-site-xxxxx.vercel.app)'
+        description: 'Optional: preview URL (e.g. https://…vercel.app)'
         required: false
         default: ''
 
@@ -13,7 +13,6 @@ permissions: {}
 jobs:
   smoke:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,9 +21,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      # No npm install on purpose — the script uses Node 20's built-in fetch.
-      # Fewer moving parts = fewer CI flakes.
 
       - name: Run smoke
         env:
