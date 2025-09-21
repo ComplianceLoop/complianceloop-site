@@ -14,24 +14,41 @@ Operational home for the public site and CI checks.
 - Deployment Protection: https://vercel.com/compliance-loop/complianceloop-site/settings/deployment-protection  
 
 ### Workflows
-- Run **Agent smoke**: https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/agent-smoke.yml  
-- Run **Vercel + GitHub Inventory**: https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/vercel-inventory.yml  
+- **Agent smoke** (manual): https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/agent-smoke.yml  
+- **Vercel + GitHub Inventory** (manual): https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/vercel-inventory.yml  
 
 ---
 
-## How to re-run the smoke test
+## Playbook
 
-1. Open the workflow page: https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/agent-smoke.yml  
-2. Click **Run workflow** → keep defaults → **Run**.
+> One page procedures for agents and humans.
 
-The job uses the Vercel automation-bypass token and current preview URL to probe:
-- `GET /api/ping`
-- `POST /api/ingest` (form-encoded)
-and prints pass/fail in the logs.
+### A. Update the Origin Allowlist
+- Source of truth: **`playbook/allowlist.md`**  
+  https://github.com/ComplianceLoop/complianceloop-site/blob/main/playbook/allowlist.md
+- Vercel env var that powers CORS/ingest: typically **`ORIGIN_ALLOWLIST`**  
+  (Project → Settings → *Environment Variables*):  
+  https://vercel.com/compliance-loop/complianceloop-site/settings/environment-variables
+- If preview links change frequently, include a wildcard entry for preview deployments (example shown in the allowlist page).
+
+**Standard steps (quick):**
+1. Run **Inventory** to see the latest preview domains:  
+   https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/vercel-inventory.yml → **Run workflow**.
+2. Append any missing preview origins to the allowlist (see rules + examples in `playbook/allowlist.md`).
+3. Update the Vercel env var `ORIGIN_ALLOWLIST` **and** commit the same change to `playbook/allowlist.md` (keeps docs and runtime in sync).
+4. Re-run **Agent smoke** to verify:  
+   https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/agent-smoke.yml → **Run workflow**.
+
+### B. Re-run the smoke test
+1. Open: https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/agent-smoke.yml  
+2. **Run workflow** → keep defaults → **Run**.  
+   The job bypasses preview protection, hits `/api/ping` and `/api/ingest`, and logs pass/fail.
 
 ---
 
 ## Notes
 
-- Bypass secret is configured in Vercel (**Protection Bypass for Automation**) and mirrored in repo secrets.  
-- Inventory job lists Vercel projects and basic GitHub repo signals to help keep a single “source of truth”.
+- The bypass token is configured under **Protection Bypass for Automation** in Vercel and mirrored in GitHub repo secrets.  
+  Vercel: https://vercel.com/compliance-loop/complianceloop-site/settings/deployment-protection  
+  GitHub Secrets: https://github.com/ComplianceLoop/complianceloop-site/settings/secrets/actions
+- The **Inventory** workflow prints a readable JSON of projects and is the first step before adjusting allowlists.
