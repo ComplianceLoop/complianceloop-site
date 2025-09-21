@@ -78,4 +78,60 @@ with open(path, 'r', encoding='utf-8') as f: data = json.load(f)
 def add(key):
     if key in data:
         if isinstance(data[key], list):
-            data[key] = list(dict.fromkeys(data[key] + [v])
+            data[key] = list(dict.fromkeys(data[key] + [v]))
+        else:
+            data[key] = list(dict.fromkeys([data[key], v]))
+        return True
+    return False
+if not any(add(k) for k in ('allowlist','origins','domains','hosts')):
+    data['allowlist'] = [v]
+with open(path, 'w', encoding='utf-8') as f:
+    json.dump(data, f, indent=2, ensure_ascii=False); f.write('\n')
+PY
+fi
+
+git add "${FILE_PATH}"
+git commit -m "chore: add ${ALLOWLIST_ENTRY} to allowlist"
+
+# ---- Ensure pushes are authenticated in Actions --------------------------
+REPO_SLUG="${GITHUB_REPOSITORY:-}"
+if [[ -n "${REPO_SLUG}" && -n "${GITHUB_TOKEN:-}" ]]; then
+  git remote set-url origin "https://${GIT_USER}:${GITHUB_TOKEN}@github.com/${REPO_SLUG}.git"
+fi
+
+git push -u origin "${BRANCH}"
+
+# ---- Create PR via REST with strong error handling -----------------------
+PR_TITLE="chore: add ${ALLOWLIST_ENTRY} to allowlist"
+PR_BODY="Automated change: adds ${ALLOWLIST_ENTRY} to ${FILE_PATH}."
+TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+
+if [[ -z "${TOKEN}" ]]; then
+  echo "Branch pushed; GH token missing, open PR manually."
+  exit 0
+fi
+
+OWNER="${REPO_SLUG%%/*}"; REPO="${REPO_SLUG##*/}"
+API="https://api.github.com/repos/${OWNER}/${REPO}/pulls"
+REQ="/tmp/pr_request.json"
+RESP="/tmp/pr_response.json"
+
+printf '{"title":"%s","head":"%s","base":"%s","body":"%s"}' \
+  "${PR_TITLE}" "${BRANCH}" "${BASE_BRANCH}" "${PR_BODY}" > "$REQ"
+
+HTTP_CODE="$(curl -sS -o "$RESP" -w "%{http_code}" \
+  -H "Authorization: token ${TOKEN}" \
+  -H "Accept: application/vnd.github+json" \
+  -d @"$REQ" "${API}")"
+
+echo "PR API HTTP ${HTTP_CODE}"
+if [[ "${HTTP_CODE}" != 2* && "${HTTP_CODE}" != 3* ]]; then
+  echo "PR API error body:"
+  sed -n '1,200p' "$RESP" || true
+  exit 1
+fi
+
+python3 - <<'PY'
+import json, sys
+print(json.load(open("/tmp/pr_response.json")).get("html_url", "PR created"))
+PY
