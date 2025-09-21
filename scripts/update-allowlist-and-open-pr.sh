@@ -126,7 +126,7 @@ if [[ "${FALLBACK:-0}" == "1" ]]; then
   if [[ -z "${TOKEN}" ]]; then
     echo "No gh CLI and no GH_TOKEN/GITHUB_TOKEN available. Branch pushed; please open a PR manually."
     exit 0
-  }
+  fi
   ORIGIN_URL="$(git remote get-url origin)"
   if [[ "${ORIGIN_URL}" =~ github\.com[:/]{1}([^/]+)/([^/.]+)(\.git)?$ ]]; then
     OWNER="${BASH_REMATCH[1]}"; REPO="${BASH_REMATCH[2]}"
