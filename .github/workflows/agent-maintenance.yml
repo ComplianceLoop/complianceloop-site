@@ -1,14 +1,15 @@
 name: Agent maintenance (allowlist + preview health)
 
 on:
+  # Manual, when you want
   workflow_dispatch:
     inputs:
       preview_url:
         description: 'Optional: override preview URL (e.g. https://complianceloop-site-xxxxx.vercel.app)'
         required: false
         default: ''
+  # Nightly at 07:00 UTC (adjust as you like)
   schedule:
-    # nightly run @ 07:00 UTC (adjust if you like)
     - cron: '0 7 * * *'
 
 permissions:
@@ -27,7 +28,7 @@ jobs:
         with:
           node-version: 20
 
-      # Reuse your existing helper to resolve the latest READY preview when input is blank
+      # Auto-discover latest READY preview if no input is provided
       - name: Resolve latest preview URL
         if: ${{ inputs.preview_url == '' }}
         env:
@@ -53,14 +54,16 @@ jobs:
           elif [ -f preview.txt ]; then
             export PREVIEW_URL="$(cat preview.txt)"
           fi
+
           if [ -z "$PREVIEW_URL" ]; then
             echo "❌ No PREVIEW_URL available; cannot maintain allowlist."
             exit 1
           fi
+
           echo "Using preview: $PREVIEW_URL"
           node scripts/maintain-allowlist.mjs
 
-      # Quick sanity smoke (uses your existing script)
+      # Quick health check after maintenance
       - name: Smoke (post-maintenance)
         env:
           PREVIEW_URL: ${{ inputs.preview_url }}
@@ -73,4 +76,5 @@ jobs:
             echo "ℹ️ Skipping smoke: no preview URL available after maintenance."
             exit 0
           fi
+
           node scripts/agent-smoke.mjs
