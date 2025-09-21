@@ -1,3 +1,5 @@
 {
-  "allowlist": []
+  "allowlist": [
+    "https://complianceloop-site-l5fu9b6k2-compliance-loop.vercel.app"
+  ]
 }
