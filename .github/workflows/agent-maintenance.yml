@@ -1,15 +1,22 @@
-name: Agent maintenance
+name: Agent maintenance (allowlist + preview health)
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: 'Optional: override preview URL (e.g. https://complianceloop-site-xxxxx.vercel.app)'
+        required: false
+        default: ''
   schedule:
-    - cron: "0 * * * *" # hourly; adjust as you like
+    # nightly run @ 07:00 UTC (adjust if you like)
+    - cron: '0 7 * * *'
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
-  maintenance:
+  maintain:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,23 +27,50 @@ jobs:
         with:
           node-version: 20
 
-      - name: Print playbook pointers
-        run: |
-          echo "Playbook:"
-          echo "  docs/playbook.md"
-          echo "Vercel project:"
-          echo "  https://vercel.com/compliance-loop/complianceloop-site"
-          echo "Deployments:"
-          echo "  https://vercel.com/compliance-loop/complianceloop-site/deployments"
-
-      - name: Minimal inventory (scaffold)
+      # Reuse your existing helper to resolve the latest READY preview when input is blank
+      - name: Resolve latest preview URL
+        if: ${{ inputs.preview_url == '' }}
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
           VERCEL_TEAM_SLUG: ${{ secrets.VERCEL_TEAM_SLUG }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          node -e "
-            const t=process.env.VERCEL_TOKEN, team=process.env.VERCEL_TEAM_SLUG, pid=process.env.VERCEL_PROJECT_ID;
-            if(!t||!team||!pid){ console.log('Missing Vercel secrets; skipping.'); process.exit(0); }
-            console.log('Vercel ready. Project:', pid, 'Team:', team);
-          "
+          node scripts/fetch-latest-preview.mjs > preview.txt
+          echo "Resolved preview: $(cat preview.txt)"
+
+      - name: Maintain allowlist (append preview origin if missing)
+        env:
+          PREVIEW_URL_INPUT: ${{ inputs.preview_url }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          VERCEL_TEAM_SLUG: ${{ secrets.VERCEL_TEAM_SLUG }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          # Determine PREVIEW_URL (priority: input > resolved file)
+          if [ -n "$PREVIEW_URL_INPUT" ]; then
+            export PREVIEW_URL="$PREVIEW_URL_INPUT"
+          elif [ -f preview.txt ]; then
+            export PREVIEW_URL="$(cat preview.txt)"
+          fi
+          if [ -z "$PREVIEW_URL" ]; then
+            echo "❌ No PREVIEW_URL available; cannot maintain allowlist."
+            exit 1
+          fi
+          echo "Using preview: $PREVIEW_URL"
+          node scripts/maintain-allowlist.mjs
+
+      # Quick sanity smoke (uses your existing script)
+      - name: Smoke (post-maintenance)
+        env:
+          PREVIEW_URL: ${{ inputs.preview_url }}
+          VERCEL_BYPASS_TOKEN: ${{ secrets.VERCEL_BYPASS_TOKEN }}
+          PREVIEW_URL_SECRET: ${{ secrets.PREVIEW_URL }}
+        run: |
+          if [ -z "$PREVIEW_URL" ] && [ -f preview.txt ]; then PREVIEW_URL="$(cat preview.txt)"; fi
+          if [ -z "$PREVIEW_URL" ] && [ -n "$PREVIEW_URL_SECRET" ]; then PREVIEW_URL="$PREVIEW_URL_SECRET"; fi
+          if [ -z "$PREVIEW_URL" ]; then
+            echo "ℹ️ Skipping smoke: no preview URL available after maintenance."
+            exit 0
+          fi
+          node scripts/agent-smoke.mjs
