@@ -1,9 +1,17 @@
 name: Agent smoke
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: 'Optional: preview URL (e.g. https://complianceloop-site-xxxxx.vercel.app)'
+        required: false
+        default: ''
 
-permissions: {}
+# 👇 Allow the workflow to open PRs or commit tiny fixes if we add that later
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   smoke:
@@ -18,22 +26,31 @@ jobs:
         with:
           node-version: 20
 
+      # If preview_url input is empty, auto-discover the latest READY preview from Vercel
       - name: Resolve latest preview URL
+        if: ${{ inputs.preview_url == '' }}
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
           VERCEL_TEAM_SLUG: ${{ secrets.VERCEL_TEAM_SLUG }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
           node scripts/fetch-latest-preview.mjs > preview.txt
-          echo "PREVIEW_URL=$(cat preview.txt)" >> "$GITHUB_ENV"
-          echo "Resolved PREVIEW_URL=$(cat preview.txt)"
+          echo "Resolved preview: $(cat preview.txt)"
 
-      - name: Run smoke
+      - name: Run smoke (with bypass)
         env:
-          PREVIEW_URL: ${{ env.PREVIEW_URL }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          # Prefer manual input; else resolved file; else secret fallback
+          PREVIEW_URL: ${{ inputs.preview_url }}
           VERCEL_BYPASS_TOKEN: ${{ secrets.VERCEL_BYPASS_TOKEN }}
-        run: node scripts/agent-smoke.mjs
+          # optional fallback if you keep a static PREVIEW_URL secret
+          PREVIEW_URL_SECRET: ${{ secrets.PREVIEW_URL }}
+        run: |
+          if [ -z "$PREVIEW_URL" ] && [ -f preview.txt ]; then PREVIEW_URL="$(cat preview.txt)"; fi
+          if [ -z "$PREVIEW_URL" ] && [ -n "$PREVIEW_URL_SECRET" ]; then PREVIEW_URL="$PREVIEW_URL_SECRET"; fi
+          if [ -z "$PREVIEW_URL" ]; then
+            echo "❌ No PREVIEW_URL available. Provide it in the Run workflow form or keep the discovery step enabled."
+            exit 1
+          fi
+          echo "Using preview: $PREVIEW_URL"
+          node scripts/agent-smoke.mjs
