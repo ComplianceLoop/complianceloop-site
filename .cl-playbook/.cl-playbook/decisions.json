@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "canonical": {
+    "github_repo": "ComplianceLoop/complianceloop-site",
+    "default_branch": "main",
+    "vercel_team_slug": "compliance-loop",
+    "vercel_project": "complianceloop-site",
+    "domains": ["complianceloop.com", "www.complianceloop.com"]
+  },
+  "workflows": {
+    "smoke": {
+      "path": ".github/workflows/agent-smoke.yml",
+      "inputs": {
+        "preview_url": "optional",
+        "redeploy": true
+      }
+    }
+  },
+  "secrets": {
+    "github_actions": [
+      "VERCEL_TOKEN",
+      "VERCEL_PROJECT_ID",
+      "VERCEL_TEAM_ID",
+      "VERCEL_TEAM_SLUG",
+      "VERCEL_BYPASS_TOKEN",
+      "GH_TOKEN",
+      "PREVIEW_URL"
+    ],
+    "vercel": [
+      "VERCEL_AUTOMATION_BYPASS_SECRET"
+    ]
+  },
+  "preferences": {
+    "responses": {
+      "full_file_replacements": true,
+      "clickable_links": true,
+      "no_partial_snippets": true
+    },
+    "agent_prompts": {
+      "include_success_criteria": true,
+      "include_rollback": true
+    }
+  },
+  "operational": {
+    "preview_url_policy": "Auto-resolve latest READY preview unless user explicitly provides one.",
+    "protected_previews": "Use Vercel automation bypass token in requests as needed."
+  }
+}
