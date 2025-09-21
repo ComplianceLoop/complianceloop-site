@@ -28,4 +28,8 @@ This page is the **canonical list** of allowed origins for browser requests to `
 ---
 
 ## Current allowlist (one per line; mirrors the env var, sorted)
-
+https://complianceloop.com
+https://www.complianceloop.com
+https://complianceloop-site.vercel.app
+https://complianceloop-site-*-compliance-loop.vercel.app
+http://localhost:3000
