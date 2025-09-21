@@ -1,0 +1,38 @@
+name: Update allowlist and open PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      allowlist_entry:
+        description: 'Origin or domain to add (e.g., https://complianceloop-site-xxxxx.vercel.app)'
+        required: false
+        default: ''
+      preview_url:
+        description: 'Optional: derive ALLOWLIST_ENTRY from this preview URL'
+        required: false
+        default: ''
+      base_branch:
+        description: 'Base branch for the pull request'
+        required: false
+        default: 'main'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  allowlist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Make script executable
+        run: chmod +x scripts/update-allowlist-and-open-pr.sh
+      - name: Update allowlist and open PR
+        env:
+          ALLOWLIST_ENTRY: ${{ github.event.inputs.allowlist_entry }}
+          PREVIEW_URL: ${{ github.event.inputs.preview_url }}
+          BASE_BRANCH: ${{ github.event.inputs.base_branch }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/update-allowlist-and-open-pr.sh
