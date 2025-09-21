@@ -3,12 +3,12 @@
 
 set -euo pipefail
 
-# Inputs
+# ---- Inputs ---------------------------------------------------------------
 BASE_BRANCH="${BASE_BRANCH:-main}"
 ALLOWLIST_ENTRY="${ALLOWLIST_ENTRY:-}"
 PREVIEW_URL="${PREVIEW_URL:-}"
 
-# Derive entry from PREVIEW_URL if caller only provided a full link
+# Derive from PREVIEW_URL if only a full link is provided
 if [[ -z "${ALLOWLIST_ENTRY}" && -n "${PREVIEW_URL}" ]]; then
   ALLOWLIST_ENTRY="$(python3 - <<'PY'
 import os
@@ -25,7 +25,7 @@ if [[ -z "${ALLOWLIST_ENTRY}" ]]; then
   exit 0
 fi
 
-# Locate the allowlist file
+# ---- Locate allowlist file -----------------------------------------------
 FILE_PATH=""
 for candidate in "config/allowlist.json" "allowlist.json"; do
   [[ -f "$candidate" ]] && { FILE_PATH="$candidate"; break; }
@@ -40,19 +40,19 @@ echo "Using allowlist file: ${FILE_PATH}"
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "Not a git repository."; exit 1; }
 
-# --- FIX 1: identify the author so commits work in Actions ---
+# ---- Identify author so commits succeed in Actions -----------------------
 GIT_USER="${GITHUB_ACTOR:-github-actions}"
 GIT_EMAIL="${GIT_USER}@users.noreply.github.com"
 git config user.name "${GIT_USER}"
 git config user.email "${GIT_EMAIL}"
 
-# Make a branch for the change
+# ---- Create working branch -----------------------------------------------
 TS="$(date +%Y%m%d%H%M%S)"
 BRANCH="chore/allowlist-${TS}"
 git fetch origin "${BASE_BRANCH}" >/dev/null 2>&1 || true
 git checkout -B "${BRANCH}" "origin/${BASE_BRANCH}" 2>/dev/null || git checkout -B "${BRANCH}" "${BASE_BRANCH}"
 
-# Update JSON (jq if available, else Python)
+# ---- Update JSON (jq if available, else Python) --------------------------
 if command -v jq >/dev/null 2>&1; then
   TMP="$(mktemp)"
   jq --arg v "${ALLOWLIST_ENTRY}" '
@@ -78,44 +78,4 @@ with open(path, 'r', encoding='utf-8') as f: data = json.load(f)
 def add(key):
     if key in data:
         if isinstance(data[key], list):
-            data[key] = list(dict.fromkeys(data[key] + [v]))
-        else:
-            data[key] = list(dict.fromkeys([data[key], v]))
-        return True
-    return False
-if not any(add(k) for k in ('allowlist','origins','domains','hosts')):
-    data['allowlist'] = [v]
-with open(path, 'w', encoding='utf-8') as f:
-    json.dump(data, f, indent=2, ensure_ascii=False); f.write('\n')
-PY
-fi
-
-git add "${FILE_PATH}"
-git commit -m "chore: add ${ALLOWLIST_ENTRY} to allowlist"
-
-# --- FIX 2: ensure pushes are authenticated in Actions ---
-REPO_SLUG="${GITHUB_REPOSITORY:-}"
-if [[ -n "${REPO_SLUG}" && -n "${GITHUB_TOKEN:-}" ]]; then
-  git remote set-url origin "https://${GIT_USER}:${GITHUB_TOKEN}@github.com/${REPO_SLUG}.git"
-fi
-
-git push -u origin "${BRANCH}"
-
-PR_TITLE="chore: add ${ALLOWLIST_ENTRY} to allowlist"
-PR_BODY="Automated change: adds ${ALLOWLIST_ENTRY} to ${FILE_PATH}."
-
-# Create the PR via the REST API (no gh CLI required)
-TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
-if [[ -n "${TOKEN}" ]]; then
-  OWNER="${REPO_SLUG%%/*}"; REPO="${REPO_SLUG##*/}"
-  API="https://api.github.com/repos/${OWNER}/${REPO}/pulls"
-  JSON_PAYLOAD="$(printf '{"title":"%s","head":"%s","base":"%s","body":"%s"}' \
-    "${PR_TITLE}" "${BRANCH}" "${BASE_BRANCH}" "${PR_BODY}")"
-  RESP="$(curl -sS -H "Authorization: token ${TOKEN}" -H "Accept: application/vnd.github+json" \
-    -d "${JSON_PAYLOAD}" "${API}")"
-  echo "${RESP}" | python3 - <<'PY'
-import sys, json; print(json.load(sys.stdin).get("html_url","PR created"))
-PY
-else
-  echo "Branch pushed; open a PR manually."
-fi
+            data[key] = list(dict.fromkeys(data[key] + [v])
