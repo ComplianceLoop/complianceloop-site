@@ -10,7 +10,7 @@ Below are **full-file replacements** for the canonical Playbook artifacts. Copy/
 {
   "meta": {
     "updated_at": "2025-09-22",
-    "source": "User-provided business/operations update",
+    "source": "User-provided business/operations update (corrected)",
     "repo": {
       "owner": "ComplianceLoop",
       "name": "complianceloop-site",
@@ -61,14 +61,6 @@ Below are **full-file replacements** for the canonical Playbook artifacts. Copy/
       "Optional by request: boiler/pressure-vessel inspection coordination",
       "Optional by request: grease trap pumping (restaurant vertical later)"
     ]
-  },
-  "data_stack": {
-    "label": "Data collection & analytics layer (easy mode)",
-    "components": ["Airtable", "Tally", "Zapier/Make", "Plausible", "PostHog", "Looker Studio"],
-    "notes": {
-      "stack_name": "Standard Works LLC (legal) doing business as ComplianceLoop (customer-facing)",
-      "phase_1_scope": "Lead with fire extinguishers and emergency lighting; offer backflow where applicable"
-    }
   },
   "calendar_booking": {
     "vendor_calendar_integration": {
@@ -176,7 +168,7 @@ Below are **full-file replacements** for the canonical Playbook artifacts. Copy/
 ```md
 # ComplianceLoop Playbook
 
-_Last updated: 2025-09-22_
+_Last updated: 2025-09-22 (corrected)_
 
 ## Canonical Targets
 - **Repo:** `ComplianceLoop/complianceloop-site` (branch: `main`)  
@@ -209,13 +201,7 @@ _Last updated: 2025-09-22_
 - **Responsible party:** Raymond J. Sbrega II, Sole Member.  
 - **Address on file:** 54 Grist Mill Road, Monroe, CT 06468.
 
-## Data Collection & Analytics Layer (easy mode)
-- **Stack:** Airtable + Tally + Zapier/Make + Plausible + PostHog + Looker Studio.  
-- **Stack name:** _Standard Works LLC (legal) doing business as ComplianceLoop (customer‑facing)_.  
-- **Phase‑1 scope:** Lead with fire extinguishers and emergency lighting; offer backflow where applicable.  
-- **Outcome:** Single source for intake → ops → analytics with minimal engineering.
-
-### Minimal Data Models
+## Minimal Data Models (for scheduling)
 **Vendor**
 - `id`, `name`, `email`, `phone`, `service_area` (ZIPs or radius), `time_zone`  
 - `calendar_provider` (`google|microsoft|icloud`), `connected_account_id`, `status`  
@@ -278,7 +264,7 @@ _Last updated: 2025-09-22_
 - YouTube: `@ComplianceLoop` — ✅ Available  
 - X (Twitter): `@ComplianceLoop` ❌ Taken → ✅ `@GetComplianceLoop`
 
-## Expenses & Subscriptions
+## Expenses & Subscriptions (current stack)
 **Pre‑launch (one‑time)**  
 - New laptop — $175  
 - Connecticut LLC filing fee (Aug 23, 2025) — $120  
@@ -308,24 +294,24 @@ _Last updated: 2025-09-22_
 ### Quick Links
 
 * Repo: [https://github.com/ComplianceLoop/complianceloop-site](https://github.com/ComplianceLoop/complianceloop-site)
-* decisions.json (create): [https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=decisions.json\&message=Add%20decisions.json%20(Playbook)](https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=decisions.json&message=Add%20decisions.json%20%28Playbook%29)
+* decisions.json (create): [https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=decisions.json](https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=decisions.json)
 * decisions.json (edit): [https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json](https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json)
-* playbook.md (create): [https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=playbook.md\&message=Add%20playbook.md%20(Playbook)](https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=playbook.md&message=Add%20playbook.md%20%28Playbook%29)
+* playbook.md (create): [https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=playbook.md](https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=playbook.md)
 * playbook.md (edit): [https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md](https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md)
 
 ---
 
 ## Prefilled Content (copy/paste)
 
-> GitHub's `?value=` prefill works, but very long files can exceed practical URL limits in some browsers/org setups. To guarantee success, use the **Create** links above, then copy the exact full-file contents below into the editor and click **Commit new file**.
+> For reliability, use the **Create** links above, then paste the full contents below.
 
-### decisions.json — full file
+### decisions.json — full file (corrected)
 
 ```json
 {
   "meta": {
     "updated_at": "2025-09-22",
-    "source": "User-provided business/operations update",
+    "source": "User-provided business/operations update (corrected)",
     "repo": {
       "owner": "ComplianceLoop",
       "name": "complianceloop-site",
@@ -376,14 +362,6 @@ _Last updated: 2025-09-22_
       "Optional by request: boiler/pressure-vessel inspection coordination",
       "Optional by request: grease trap pumping (restaurant vertical later)"
     ]
-  },
-  "data_stack": {
-    "label": "Data collection & analytics layer (easy mode)",
-    "components": ["Airtable", "Tally", "Zapier/Make", "Plausible", "PostHog", "Looker Studio"],
-    "notes": {
-      "stack_name": "Standard Works LLC (legal) doing business as ComplianceLoop (customer-facing)",
-      "phase_1_scope": "Lead with fire extinguishers and emergency lighting; offer backflow where applicable"
-    }
   },
   "calendar_booking": {
     "vendor_calendar_integration": {
@@ -480,12 +458,12 @@ _Last updated: 2025-09-22_
 }
 ```
 
-### playbook.md — full file
+### playbook.md — full file (corrected)
 
 ```md
 # ComplianceLoop Playbook
 
-_Last updated: 2025-09-22_
+_Last updated: 2025-09-22 (corrected)_
 
 ## Canonical Targets
 - **Repo:** `ComplianceLoop/complianceloop-site` (branch: `main`)  
@@ -518,13 +496,7 @@ _Last updated: 2025-09-22_
 - **Responsible party:** Raymond J. Sbrega II, Sole Member.  
 - **Address on file:** 54 Grist Mill Road, Monroe, CT 06468.
 
-## Data Collection & Analytics Layer (easy mode)
-- **Stack:** Airtable + Tally + Zapier/Make + Plausible + PostHog + Looker Studio.  
-- **Stack name:** _Standard Works LLC (legal) doing business as ComplianceLoop (customer‑facing)_.  
-- **Phase‑1 scope:** Lead with fire extinguishers and emergency lighting; offer backflow where applicable.  
-- **Outcome:** Single source for intake → ops → analytics with minimal engineering.
-
-### Minimal Data Models
+## Minimal Data Models (for scheduling)
 **Vendor**
 - `id`, `name`, `email`, `phone`, `service_area` (ZIPs or radius), `time_zone`  
 - `calendar_provider` (`google|microsoft|icloud`), `connected_account_id`, `status`  
@@ -587,7 +559,7 @@ _Last updated: 2025-09-22_
 - YouTube: `@ComplianceLoop` — ✅ Available  
 - X (Twitter): `@ComplianceLoop` ❌ Taken → ✅ `@GetComplianceLoop`
 
-## Expenses & Subscriptions
+## Expenses & Subscriptions (current stack)
 **Pre‑launch (one‑time)**  
 - New laptop — $175  
 - Connecticut LLC filing fee (Aug 23, 2025) — $120  
