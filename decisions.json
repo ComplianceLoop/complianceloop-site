@@ -1,0 +1,609 @@
+# files to update
+
+Below are **full-file replacements** for the canonical Playbook artifacts. Copy/paste each into the respective GitHub paths.
+
+---
+
+## `decisions.json` (replace entire file)
+
+```json
+{
+  "meta": {
+    "updated_at": "2025-09-22",
+    "source": "User-provided business/operations update",
+    "repo": {
+      "owner": "ComplianceLoop",
+      "name": "complianceloop-site",
+      "default_branch": "main",
+      "url": "https://github.com/ComplianceLoop/complianceloop-site"
+    },
+    "vercel": {
+      "team": "compliance-loop",
+      "project": "complianceloop-site"
+    },
+    "domain": "complianceloop.com"
+  },
+  "brand": {
+    "umbrella": "LoopWorks",
+    "line_brands": {
+      "current": "ComplianceLoop",
+      "future": ["ServiceLoop", "ProjectLoop", "SafetyLoop"]
+    },
+    "pitch": "One coordinator, one schedule, one invoice, zero missed deadlines."
+  },
+  "legal": {
+    "legal_entity": "Standard Works LLC",
+    "doing_business_as": "ComplianceLoop",
+    "tax_structure": "LLC taxed as S-Corp once net profits > ~$60k",
+    "ein": "SECRET:EIN",
+    "name_control": "LOOP",
+    "responsible_party": "Raymond J. Sbrega II, Sole Member",
+    "address_on_file": "54 Grist Mill Road, Monroe, CT 06468",
+    "insurance_required_before_first_contract": {
+      "general_liability": "$1M",
+      "errors_and_omissions": "$1M"
+    }
+  },
+  "go_to_market": {
+    "initial_customers": ["Homeowners associations", "Condo associations", "Property management companies"],
+    "next_segment": ["Small commercial properties"],
+    "initial_geography": [
+      "Monroe", "Trumbull", "Shelton", "Newtown", "Danbury", "Fairfield", "Milford"
+    ],
+    "pricing": {
+      "model": "Service-level price",
+      "minimum": 15
+    },
+    "phase_1_offerings": [
+      "Fire extinguisher annual inspection and tagging (NFPA 10)",
+      "Emergency lighting and exit sign annual testing with written records",
+      "Backflow prevention device testing (where properties are on public water; offer but do not lead in well-heavy areas like Monroe)",
+      "Optional by request: boiler/pressure-vessel inspection coordination",
+      "Optional by request: grease trap pumping (restaurant vertical later)"
+    ]
+  },
+  "data_stack": {
+    "label": "Data collection & analytics layer (easy mode)",
+    "components": ["Airtable", "Tally", "Zapier/Make", "Plausible", "PostHog", "Looker Studio"],
+    "notes": {
+      "stack_name": "Standard Works LLC (legal) doing business as ComplianceLoop (customer-facing)",
+      "phase_1_scope": "Lead with fire extinguishers and emergency lighting; offer backflow where applicable"
+    }
+  },
+  "calendar_booking": {
+    "vendor_calendar_integration": {
+      "provider": "cal.com (calendar-only plan)",
+      "unified_sync": "Google/Microsoft day-one",
+      "stripe": "Stripe Connect Express for vendor onboarding & automated payouts"
+    },
+    "data_model_minimum": {
+      "vendor": {
+        "fields": [
+          "id", "name", "email", "phone", "service_area", "time_zone",
+          "calendar_provider (google|microsoft|icloud)", "connected_account_id", "status",
+          "busy_calendar_ids [list]", "write_calendar_id",
+          "rules.service_duration_minutes", "rules.travel_buffer_minutes", "rules.minimum_notice_hours",
+          "rules.working_hours (per weekday)", "rules.daily_capacity", "rules.blackout_dates"
+        ]
+      },
+      "booking": {
+        "fields": [
+          "id", "customer_id", "vendor_id", "service_id",
+          "start_at", "end_at", "time_zone",
+          "status (candidate⇒held⇒confirmed⇒completed/canceled)", "hold_expires_at",
+          "external_event.provider", "external_event.event_id",
+          "payment.intent_id", "payment.status", "payment.amount_customer", "payment.amount_vendor", "payment.amount_platform"
+        ]
+      }
+    },
+    "permissions_minimal": {
+      "read": "free/busy",
+      "write": "events to single 'ComplianceLoop' calendar per vendor",
+      "privacy": "Do not read event bodies; store only event ids + timing"
+    },
+    "slot_generation": [
+      "Build candidate start times from working hours, duration, buffers",
+      "Query free/busy per vendor over displayed window (e.g., next 14 days)",
+      "Remove conflicts; respect daily capacity and blackout days",
+      "Rank remaining by proximity, utilization balance, fairness (round-robin)",
+      "Show top N to customer"
+    ],
+    "double_booking_safety": [
+      "On slot click: create 'hold' event; booking.status=held; set hold_expires_at (e.g., 15m)",
+      "If checkout succeeds: event→confirmed; booking.status=confirmed",
+      "If checkout fails/expires: delete event; booking.status=canceled (reason=expired)"
+    ],
+    "checkout_and_payouts": [
+      "Customer pays on site (charge immediately)",
+      "After service window ends (or vendor marks done): status=completed",
+      "Trigger Stripe transfer to vendor connected account; platform keeps share",
+      "Send receipts to customer and vendor"
+    ],
+    "notifications": {
+      "vendor": ["new hold", "confirmed booking", "changes", "day-before reminder", "day-of first stop time"],
+      "customer": ["confirmation", "reminder", "technician on the way", "completion receipt", "reschedule links"]
+    },
+    "metrics_day_one": [
+      "Slot view → hold conversion",
+      "Hold → paid conversion",
+      "Cancellations by reason",
+      "On-time arrival rate",
+      "Vendor calendar disconnect rate",
+      "Dispute rate",
+      "Average payout time"
+    ]
+  },
+  "social_handles": {
+    "LinkedIn": {"handle": "ComplianceLoop", "status": "available"},
+    "Instagram": {"handle": "@ComplianceLoop", "status": "available"},
+    "Facebook": {"handle": "ComplianceLoop", "status": "available"},
+    "TikTok": {"handle": "@ComplianceLoop", "status": "available"},
+    "YouTube": {"handle": "@ComplianceLoop", "status": "available"},
+    "X": {"primary": "@GetComplianceLoop", "note": "@ComplianceLoop taken"}
+  },
+  "financials": {
+    "pre_launch_expenses": [
+      {"item": "New laptop", "amount": 175, "date": "2025-08-23"},
+      {"item": "Connecticut LLC filing fee", "amount": 120, "date": "2025-08-23"}
+    ],
+    "pre_launch_total": 295,
+    "subscriptions_active": [
+      {"service": "ChatGPT Business", "amount_per_month": 30},
+      {"service": "Vercel Pro Plan", "amount_per_month": 20},
+      {"service": "GitHub Base Plan", "amount_per_month": 0},
+      {"service": "Porkbun", "amount_annual": 11.08},
+      {"service": "Cal.com", "amount_per_month": 0, "status": "not set up yet"},
+      {"service": "Make", "amount_per_month": 0},
+      {"service": "Stripe", "amount_per_month": 0, "status": "not set up yet"},
+      {"service": "Airtable", "amount_per_month": 0}
+    ]
+  },
+  "operational_notes": [
+    "Preview URL policy is dynamic; resolve at runtime via Vercel preview domain",
+    "Backflow testing only where public water; de-emphasize in well-heavy areas like Monroe"
+  ]
+}
+```
+
+**Create (if file doesn't exist yet):** [https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=decisions.json](https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=decisions.json)
+
+**Edit (after creation):** [https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json](https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json)
+
+---
+
+## `playbook.md` (replace entire file)
+
+```md
+# ComplianceLoop Playbook
+
+_Last updated: 2025-09-22_
+
+## Canonical Targets
+- **Repo:** `ComplianceLoop/complianceloop-site` (branch: `main`)  
+  https://github.com/ComplianceLoop/complianceloop-site
+- **Vercel Project:** `complianceloop-site` under team `compliance-loop`
+- **Primary Domain:** complianceloop.com
+
+## Brand Architecture
+- **Umbrella (legal/master):** LoopWorks  
+- **Line brand (current GTM):** **ComplianceLoop** — inspection/testing + filings.  
+- **Future lines (optional):** ServiceLoop (general property services), ProjectLoop (one‑off projects), SafetyLoop (life‑safety).
+- **Pitch:** _One coordinator, one schedule, one invoice, zero missed deadlines._
+
+## Market & Scope
+- **Phase‑1 offerings (start lean):**
+  1. Fire extinguisher annual inspection and tagging (NFPA 10).
+  2. Emergency lighting and exit sign annual testing with written records.
+  3. Backflow prevention device testing (where properties are on public water; offer but do not lead in well‑heavy areas like Monroe).
+  4. Optional “by request”: boiler/pressure‑vessel inspection coordination, grease trap pumping (restaurant vertical later).
+- **Customers (initial):** HOAs, condo associations, property management firms; **next:** small commercial properties.
+- **Geography (initial focus):** Fairfield County — Monroe, Trumbull, Shelton, Newtown, Danbury, Fairfield, Milford.
+- **Pricing pattern:** Service‑level price, **subject to $15 minimum**.
+- **Insurance before first contract:** $1M general liability **and** $1M errors & omissions.
+
+## Legal & Tax (summary, no secrets)
+- **Legal entity:** Standard Works LLC, doing business as **ComplianceLoop**.  
+- **Tax structure:** LLC taxed as S‑Corp once net profits pass ~\$60k.  
+- **EIN:** `SECRET:EIN` (stored in private vault; do not commit).  
+- **Name control (IRS e‑file):** `LOOP`.  
+- **Responsible party:** Raymond J. Sbrega II, Sole Member.  
+- **Address on file:** 54 Grist Mill Road, Monroe, CT 06468.
+
+## Data Collection & Analytics Layer (easy mode)
+- **Stack:** Airtable + Tally + Zapier/Make + Plausible + PostHog + Looker Studio.  
+- **Stack name:** _Standard Works LLC (legal) doing business as ComplianceLoop (customer‑facing)_.  
+- **Phase‑1 scope:** Lead with fire extinguishers and emergency lighting; offer backflow where applicable.  
+- **Outcome:** Single source for intake → ops → analytics with minimal engineering.
+
+### Minimal Data Models
+**Vendor**
+- `id`, `name`, `email`, `phone`, `service_area` (ZIPs or radius), `time_zone`  
+- `calendar_provider` (`google|microsoft|icloud`), `connected_account_id`, `status`  
+- `busy_calendar_ids[]`, `write_calendar_id`  
+- `rules`: `service_duration_minutes`, `travel_buffer_minutes`, `minimum_notice_hours`,  
+  `working_hours` (per weekday), `daily_capacity`, `blackout_dates`
+
+**Booking**
+- `id`, `customer_id`, `vendor_id`, `service_id`  
+- `start_at`, `end_at`, `time_zone`  
+- `status`: `candidate ⇒ held ⇒ confirmed ⇒ completed/canceled`  
+- `hold_expires_at`  
+- `external_event`: `provider`, `event_id`  
+- `payment`: `intent_id`, `status`, `amount_customer`, `amount_vendor`, `amount_platform`
+
+### Permissions (minimal)
+- Read **free/busy** and **write** events to a single `ComplianceLoop` calendar per vendor.  
+- **Do not** read event bodies; store **only** event IDs and timing.
+
+### Slot Generation ("live" availability)
+1. Build candidate start times from vendor working hours, duration, and buffers.  
+2. Query free/busy for each vendor over the displayed window (e.g., next 14 days).  
+3. Remove conflicts; respect daily capacity and blackout days.  
+4. Rank remaining slots by proximity, vendor utilization balance, and fairness (round‑robin).  
+5. Show the top **N** slots to the customer.
+
+### Double‑Booking Safety
+- On slot click: create a **hold** event on vendor write calendar and a booking with `status=held`; set `hold_expires_at` (e.g., 15 minutes).  
+- If checkout succeeds: update the event to **confirmed**, set `status=confirmed`.  
+- If checkout fails or expires: delete the event, set `status=canceled (reason=expired)`.
+
+### Checkout & Payouts (happy path)
+1. Customer pays on site (charge immediately).  
+2. After service window finishes (or vendor marks **done**), set `status=completed`.  
+3. Trigger **Stripe transfer** to vendor connected account for wholesale amount; platform keeps its share automatically.  
+4. Send receipts to customer and vendor.
+
+### Notifications (email + SMS)
+- **Vendor:** new hold, confirmed booking, changes, day‑before reminder, day‑of first stop time.  
+- **Customer:** confirmation, reminder, technician "on the way", completion receipt, reschedule links.
+
+### Metrics to Track from Day One
+- Slot view → hold conversion  
+- Hold → paid conversion  
+- Cancellations by reason  
+- On‑time arrival rate  
+- Vendor calendar disconnect rate  
+- Dispute rate  
+- Average payout time
+
+## Vendor Calendar Integration
+- **Cal.com** (calendar‑only plan) for unified Google/Microsoft sync on day one.  
+- **Stripe Connect Express** for vendor onboarding and automated payouts.
+
+## Social Handles & Status
+- LinkedIn: `ComplianceLoop` — ✅ Available  
+- Instagram: `@ComplianceLoop` — ✅ Available  
+- Facebook: `ComplianceLoop` — ✅ Available  
+- TikTok: `@ComplianceLoop` — ✅ Available  
+- YouTube: `@ComplianceLoop` — ✅ Available  
+- X (Twitter): `@ComplianceLoop` ❌ Taken → ✅ `@GetComplianceLoop`
+
+## Expenses & Subscriptions
+**Pre‑launch (one‑time)**  
+- New laptop — $175  
+- Connecticut LLC filing fee (Aug 23, 2025) — $120  
+**One‑time total:** **$295**
+
+**Ongoing (active)**  
+- ChatGPT Business — $30/mo  
+- Vercel Pro Plan — $20/mo  
+- GitHub Base Plan — $0  
+- Porkbun — $11.08/yr  
+- Cal.com — $0 (not set up yet)  
+- Make — $0  
+- Stripe — $0 (not set up yet)  
+- Airtable — $0
+
+## Operational Notes (dynamic)
+- Preview URL policy is dynamic; agents should resolve at runtime via Vercel preview domain.  
+- Backflow testing emphasized only where public water; de‑emphasize in well‑heavy areas (e.g., Monroe).
+```
+
+**Create (if file doesn't exist yet):** [https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=playbook.md](https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=playbook.md)
+
+**Edit (after creation):** [https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md](https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md)
+
+---
+
+### Quick Links
+
+* Repo: [https://github.com/ComplianceLoop/complianceloop-site](https://github.com/ComplianceLoop/complianceloop-site)
+* decisions.json (create): [https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=decisions.json\&message=Add%20decisions.json%20(Playbook)](https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=decisions.json&message=Add%20decisions.json%20%28Playbook%29)
+* decisions.json (edit): [https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json](https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json)
+* playbook.md (create): [https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=playbook.md\&message=Add%20playbook.md%20(Playbook)](https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=playbook.md&message=Add%20playbook.md%20%28Playbook%29)
+* playbook.md (edit): [https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md](https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md)
+
+---
+
+## Prefilled Content (copy/paste)
+
+> GitHub's `?value=` prefill works, but very long files can exceed practical URL limits in some browsers/org setups. To guarantee success, use the **Create** links above, then copy the exact full-file contents below into the editor and click **Commit new file**.
+
+### decisions.json — full file
+
+```json
+{
+  "meta": {
+    "updated_at": "2025-09-22",
+    "source": "User-provided business/operations update",
+    "repo": {
+      "owner": "ComplianceLoop",
+      "name": "complianceloop-site",
+      "default_branch": "main",
+      "url": "https://github.com/ComplianceLoop/complianceloop-site"
+    },
+    "vercel": {
+      "team": "compliance-loop",
+      "project": "complianceloop-site"
+    },
+    "domain": "complianceloop.com"
+  },
+  "brand": {
+    "umbrella": "LoopWorks",
+    "line_brands": {
+      "current": "ComplianceLoop",
+      "future": ["ServiceLoop", "ProjectLoop", "SafetyLoop"]
+    },
+    "pitch": "One coordinator, one schedule, one invoice, zero missed deadlines."
+  },
+  "legal": {
+    "legal_entity": "Standard Works LLC",
+    "doing_business_as": "ComplianceLoop",
+    "tax_structure": "LLC taxed as S-Corp once net profits > ~$60k",
+    "ein": "SECRET:EIN",
+    "name_control": "LOOP",
+    "responsible_party": "Raymond J. Sbrega II, Sole Member",
+    "address_on_file": "54 Grist Mill Road, Monroe, CT 06468",
+    "insurance_required_before_first_contract": {
+      "general_liability": "$1M",
+      "errors_and_omissions": "$1M"
+    }
+  },
+  "go_to_market": {
+    "initial_customers": ["Homeowners associations", "Condo associations", "Property management companies"],
+    "next_segment": ["Small commercial properties"],
+    "initial_geography": [
+      "Monroe", "Trumbull", "Shelton", "Newtown", "Danbury", "Fairfield", "Milford"
+    ],
+    "pricing": {
+      "model": "Service-level price",
+      "minimum": 15
+    },
+    "phase_1_offerings": [
+      "Fire extinguisher annual inspection and tagging (NFPA 10)",
+      "Emergency lighting and exit sign annual testing with written records",
+      "Backflow prevention device testing (where properties are on public water; offer but do not lead in well-heavy areas like Monroe)",
+      "Optional by request: boiler/pressure-vessel inspection coordination",
+      "Optional by request: grease trap pumping (restaurant vertical later)"
+    ]
+  },
+  "data_stack": {
+    "label": "Data collection & analytics layer (easy mode)",
+    "components": ["Airtable", "Tally", "Zapier/Make", "Plausible", "PostHog", "Looker Studio"],
+    "notes": {
+      "stack_name": "Standard Works LLC (legal) doing business as ComplianceLoop (customer-facing)",
+      "phase_1_scope": "Lead with fire extinguishers and emergency lighting; offer backflow where applicable"
+    }
+  },
+  "calendar_booking": {
+    "vendor_calendar_integration": {
+      "provider": "cal.com (calendar-only plan)",
+      "unified_sync": "Google/Microsoft day-one",
+      "stripe": "Stripe Connect Express for vendor onboarding & automated payouts"
+    },
+    "data_model_minimum": {
+      "vendor": {
+        "fields": [
+          "id", "name", "email", "phone", "service_area", "time_zone",
+          "calendar_provider (google|microsoft|icloud)", "connected_account_id", "status",
+          "busy_calendar_ids [list]", "write_calendar_id",
+          "rules.service_duration_minutes", "rules.travel_buffer_minutes", "rules.minimum_notice_hours",
+          "rules.working_hours (per weekday)", "rules.daily_capacity", "rules.blackout_dates"
+        ]
+      },
+      "booking": {
+        "fields": [
+          "id", "customer_id", "vendor_id", "service_id",
+          "start_at", "end_at", "time_zone",
+          "status (candidate⇒held⇒confirmed⇒completed/canceled)", "hold_expires_at",
+          "external_event.provider", "external_event.event_id",
+          "payment.intent_id", "payment.status", "payment.amount_customer", "payment.amount_vendor", "payment.amount_platform"
+        ]
+      }
+    },
+    "permissions_minimal": {
+      "read": "free/busy",
+      "write": "events to single 'ComplianceLoop' calendar per vendor",
+      "privacy": "Do not read event bodies; store only event ids + timing"
+    },
+    "slot_generation": [
+      "Build candidate start times from working hours, duration, buffers",
+      "Query free/busy per vendor over displayed window (e.g., next 14 days)",
+      "Remove conflicts; respect daily capacity and blackout days",
+      "Rank remaining by proximity, utilization balance, fairness (round-robin)",
+      "Show top N to customer"
+    ],
+    "double_booking_safety": [
+      "On slot click: create 'hold' event; booking.status=held; set hold_expires_at (e.g., 15m)",
+      "If checkout succeeds: event→confirmed; booking.status=confirmed",
+      "If checkout fails/expires: delete event; booking.status=canceled (reason=expired)"
+    ],
+    "checkout_and_payouts": [
+      "Customer pays on site (charge immediately)",
+      "After service window ends (or vendor marks done): status=completed",
+      "Trigger Stripe transfer to vendor connected account; platform keeps share",
+      "Send receipts to customer and vendor"
+    ],
+    "notifications": {
+      "vendor": ["new hold", "confirmed booking", "changes", "day-before reminder", "day-of first stop time"],
+      "customer": ["confirmation", "reminder", "technician on the way", "completion receipt", "reschedule links"]
+    },
+    "metrics_day_one": [
+      "Slot view → hold conversion",
+      "Hold → paid conversion",
+      "Cancellations by reason",
+      "On-time arrival rate",
+      "Vendor calendar disconnect rate",
+      "Dispute rate",
+      "Average payout time"
+    ]
+  },
+  "social_handles": {
+    "LinkedIn": {"handle": "ComplianceLoop", "status": "available"},
+    "Instagram": {"handle": "@ComplianceLoop", "status": "available"},
+    "Facebook": {"handle": "ComplianceLoop", "status": "available"},
+    "TikTok": {"handle": "@ComplianceLoop", "status": "available"},
+    "YouTube": {"handle": "@ComplianceLoop", "status": "available"},
+    "X": {"primary": "@GetComplianceLoop", "note": "@ComplianceLoop taken"}
+  },
+  "financials": {
+    "pre_launch_expenses": [
+      {"item": "New laptop", "amount": 175, "date": "2025-08-23"},
+      {"item": "Connecticut LLC filing fee", "amount": 120, "date": "2025-08-23"}
+    ],
+    "pre_launch_total": 295,
+    "subscriptions_active": [
+      {"service": "ChatGPT Business", "amount_per_month": 30},
+      {"service": "Vercel Pro Plan", "amount_per_month": 20},
+      {"service": "GitHub Base Plan", "amount_per_month": 0},
+      {"service": "Porkbun", "amount_annual": 11.08},
+      {"service": "Cal.com", "amount_per_month": 0, "status": "not set up yet"},
+      {"service": "Make", "amount_per_month": 0},
+      {"service": "Stripe", "amount_per_month": 0, "status": "not set up yet"},
+      {"service": "Airtable", "amount_per_month": 0}
+    ]
+  },
+  "operational_notes": [
+    "Preview URL policy is dynamic; resolve at runtime via Vercel preview domain",
+    "Backflow testing only where public water; de-emphasize in well-heavy areas like Monroe"
+  ]
+}
+```
+
+### playbook.md — full file
+
+```md
+# ComplianceLoop Playbook
+
+_Last updated: 2025-09-22_
+
+## Canonical Targets
+- **Repo:** `ComplianceLoop/complianceloop-site` (branch: `main`)  
+  https://github.com/ComplianceLoop/complianceloop-site
+- **Vercel Project:** `complianceloop-site` under team `compliance-loop`
+- **Primary Domain:** complianceloop.com
+
+## Brand Architecture
+- **Umbrella (legal/master):** LoopWorks  
+- **Line brand (current GTM):** **ComplianceLoop** — inspection/testing + filings.  
+- **Future lines (optional):** ServiceLoop (general property services), ProjectLoop (one‑off projects), SafetyLoop (life‑safety).
+- **Pitch:** _One coordinator, one schedule, one invoice, zero missed deadlines._
+
+## Market & Scope
+- **Phase‑1 offerings (start lean):**
+  1. Fire extinguisher annual inspection and tagging (NFPA 10).
+  2. Emergency lighting and exit sign annual testing with written records.
+  3. Backflow prevention device testing (where properties are on public water; offer but do not lead in well‑heavy areas like Monroe).
+  4. Optional “by request”: boiler/pressure‑vessel inspection coordination, grease trap pumping (restaurant vertical later).
+- **Customers (initial):** HOAs, condo associations, property management firms; **next:** small commercial properties.
+- **Geography (initial focus):** Fairfield County — Monroe, Trumbull, Shelton, Newtown, Danbury, Fairfield, Milford.
+- **Pricing pattern:** Service‑level price, **subject to $15 minimum**.
+- **Insurance before first contract:** $1M general liability **and** $1M errors & omissions.
+
+## Legal & Tax (summary, no secrets)
+- **Legal entity:** Standard Works LLC, doing business as **ComplianceLoop**.  
+- **Tax structure:** LLC taxed as S‑Corp once net profits pass ~\$60k.  
+- **EIN:** `SECRET:EIN` (stored in private vault; do not commit).  
+- **Name control (IRS e‑file):** `LOOP`.  
+- **Responsible party:** Raymond J. Sbrega II, Sole Member.  
+- **Address on file:** 54 Grist Mill Road, Monroe, CT 06468.
+
+## Data Collection & Analytics Layer (easy mode)
+- **Stack:** Airtable + Tally + Zapier/Make + Plausible + PostHog + Looker Studio.  
+- **Stack name:** _Standard Works LLC (legal) doing business as ComplianceLoop (customer‑facing)_.  
+- **Phase‑1 scope:** Lead with fire extinguishers and emergency lighting; offer backflow where applicable.  
+- **Outcome:** Single source for intake → ops → analytics with minimal engineering.
+
+### Minimal Data Models
+**Vendor**
+- `id`, `name`, `email`, `phone`, `service_area` (ZIPs or radius), `time_zone`  
+- `calendar_provider` (`google|microsoft|icloud`), `connected_account_id`, `status`  
+- `busy_calendar_ids[]`, `write_calendar_id`  
+- `rules`: `service_duration_minutes`, `travel_buffer_minutes`, `minimum_notice_hours`,  
+  `working_hours` (per weekday), `daily_capacity`, `blackout_dates`
+
+**Booking**
+- `id`, `customer_id`, `vendor_id`, `service_id`  
+- `start_at`, `end_at`, `time_zone`  
+- `status`: `candidate ⇒ held ⇒ confirmed ⇒ completed/canceled`  
+- `hold_expires_at`  
+- `external_event`: `provider`, `event_id`  
+- `payment`: `intent_id`, `status`, `amount_customer`, `amount_vendor`, `amount_platform`
+
+### Permissions (minimal)
+- Read **free/busy** and **write** events to a single `ComplianceLoop` calendar per vendor.  
+- **Do not** read event bodies; store **only** event IDs and timing.
+
+### Slot Generation ("live" availability)
+1. Build candidate start times from vendor working hours, duration, and buffers.  
+2. Query free/busy for each vendor over the displayed window (e.g., next 14 days).  
+3. Remove conflicts; respect daily capacity and blackout days.  
+4. Rank remaining slots by proximity, vendor utilization balance, and fairness (round‑robin).  
+5. Show the top **N** slots to the customer.
+
+### Double‑Booking Safety
+- On slot click: create a **hold** event on vendor write calendar and a booking with `status=held`; set `hold_expires_at` (e.g., 15 minutes).  
+- If checkout succeeds: update the event to **confirmed**, set `status=confirmed`.  
+- If checkout fails or expires: delete the event, set `status=canceled (reason=expired)`.
+
+### Checkout & Payouts (happy path)
+1. Customer pays on site (charge immediately).  
+2. After service window finishes (or vendor marks **done**), set `status=completed`.  
+3. Trigger **Stripe transfer** to vendor connected account for wholesale amount; platform keeps its share automatically.  
+4. Send receipts to customer and vendor.
+
+### Notifications (email + SMS)
+- **Vendor:** new hold, confirmed booking, changes, day‑before reminder, day‑of first stop time.  
+- **Customer:** confirmation, reminder, technician "on the way", completion receipt, reschedule links.
+
+### Metrics to Track from Day One
+- Slot view → hold conversion  
+- Hold → paid conversion  
+- Cancellations by reason  
+- On‑time arrival rate  
+- Vendor calendar disconnect rate  
+- Dispute rate  
+- Average payout time
+
+## Vendor Calendar Integration
+- **Cal.com** (calendar‑only plan) for unified Google/Microsoft sync on day one.  
+- **Stripe Connect Express** for vendor onboarding and automated payouts.
+
+## Social Handles & Status
+- LinkedIn: `ComplianceLoop` — ✅ Available  
+- Instagram: `@ComplianceLoop` — ✅ Available  
+- Facebook: `ComplianceLoop` — ✅ Available  
+- TikTok: `@ComplianceLoop` — ✅ Available  
+- YouTube: `@ComplianceLoop` — ✅ Available  
+- X (Twitter): `@ComplianceLoop` ❌ Taken → ✅ `@GetComplianceLoop`
+
+## Expenses & Subscriptions
+**Pre‑launch (one‑time)**  
+- New laptop — $175  
+- Connecticut LLC filing fee (Aug 23, 2025) — $120  
+**One‑time total:** **$295**
+
+**Ongoing (active)**  
+- ChatGPT Business — $30/mo  
+- Vercel Pro Plan — $20/mo  
+- GitHub Base Plan — $0  
+- Porkbun — $11.08/yr  
+- Cal.com — $0 (not set up yet)  
+- Make — $0  
+- Stripe — $0 (not set up yet)  
+- Airtable — $0
+
+## Operational Notes (dynamic)
+- Preview URL policy is dynamic; agents should resolve at runtime via Vercel preview domain.  
+- Backflow testing emphasized only where public water; de‑emphasize in well‑heavy areas (e.g., Monroe).
+```
