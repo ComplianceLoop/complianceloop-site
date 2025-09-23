@@ -2,6 +2,11 @@ name: scaffold-portal
 on:
   workflow_dispatch: {}
 
+# ✅ grant write permissions so the job can create a branch and PR
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   scaffold:
     name: Create Next.js portal scaffold and open PR
@@ -205,7 +210,6 @@ jobs:
           This is a minimal Next.js app. Business logic will be added by follow-up tasks.
           EOF
 
-          # CI for portal path
           cat > .github/workflows/portal-ci.yml <<'EOF'
           name: portal-ci
           on:
@@ -220,7 +224,8 @@ jobs:
               steps:
                 - uses: actions/checkout@v4
                 - uses: actions/setup-node@v4
-                  with: { node-version: "20" }
+                  with:
+                    node-version: "20"
                 - name: Install
                   run: cd apps/portal && npm install
                 - name: Typecheck
@@ -232,6 +237,7 @@ jobs:
       - name: Create PR
         uses: peter-evans/create-pull-request@v6
         with:
+          # use your PAT if present; otherwise GitHub's token (now has write perms)
           token: ${{ secrets.GITHUB_TOKEN_AGENT || github.token }}
           branch: feat/portal-scaffold
           title: "feat(portal): scaffold Next.js app under /apps/portal"
