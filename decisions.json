@@ -1,75 +1,122 @@
 {
-"meta": {
-"updated_at": "2025-09-22",
-"source": "User-provided business/operations update (corrected)",
-"repo": {
-"owner": "ComplianceLoop",
-"name": "complianceloop-site",
-"default_branch": "main",
-"url": "https://github.com/ComplianceLoop/complianceloop-site"
-},
-"vercel": {
-"team": "compliance-loop",
-"project": "complianceloop-site"
-},
-"domain": "complianceloop.com"
-},
-"brand": {
-"umbrella": "LoopWorks",
-"line_brands": {
-"current": "ComplianceLoop",
-"future": ["ServiceLoop", "ProjectLoop", "SafetyLoop"]
-},
-"pitch": "One coordinator, one schedule, one invoice, zero missed deadlines."
-},
-"legal": {
-"legal_entity": "Standard Works LLC",
-"doing_business_as": "ComplianceLoop",
-"tax_structure": "LLC taxed as S-Corp once net profits > ~$60k",
-"ein": "SECRET:EIN",
-"name_control": "LOOP",
-"responsible_party": "Raymond J. Sbrega II, Sole Member",
-"address_on_file": "54 Grist Mill Road, Monroe, CT 06468",
-"insurance_required_before_first_contract": {
-"general_liability": "$1M",
-"errors_and_omissions": "$1M"
-}
-},
-"go_to_market": {
-"initial_customers": ["Homeowners associations", "Condo associations", "Property management companies"],
-"next_segment": ["Small commercial properties"],
-"initial_geography": [
-"Monroe", "Trumbull", "Shelton", "Newtown", "Danbury", "Fairfield", "Milford"
-],
-"pricing": {
-"model": "Service-level price",
-"minimum": 15
-},
-"phase_1_offerings": [
-"Fire extinguisher annual inspection and tagging (NFPA 10)",
-"Emergency lighting and exit sign annual testing with written records",
-"Backflow prevention device testing (where properties are on public water; offer but do not lead in well-heavy areas like Monroe)",
-"Optional by request: boiler/pressure-vessel inspection coordination",
-"Optional by request: grease trap pumping (restaurant vertical later)"
-]
-},
-"calendar_booking": {
-"vendor_calendar_integration": {
-"provider": "cal.com (calendar-only plan)",
-"unified_sync": "Google/Microsoft day-one",
-"stripe": "Stripe Connect Express for vendor onboarding & automated payouts"
-},
-"data_model_minimum": {
-"vendor": {
-"fields": [
-"id", "name", "email", "phone", "service_area", "time_zone",
-"calendar_provider (google|microsoft|icloud)", "connected_account_id", "status",
-"busy_calendar_ids [list]", "write_calendar_id",
-"rules.service_duration_minutes", "rules.travel_buffer_minutes", "rules.minimum_notice_hours",
-"rules.working_hours (per weekday)", "rules.daily_capacity", "rules.blackout_dates"
-]
-},
-"booking": {
-"fields": [
-"id", "customer_id", "vendor_id", "service_id",
+  "repo": {
+    "org": "ComplianceLoop",
+    "name": "complianceloop-site",
+    "default_branch": "main",
+    "github_urls": {
+      "repo": "https://github.com/ComplianceLoop/complianceloop-site",
+      "new_file_base": "https://github.com/ComplianceLoop/complianceloop-site/new/main",
+      "edit_base": "https://github.com/ComplianceLoop/complianceloop-site/edit/main"
+    }
+  },
+  "hosting": {
+    "provider": "Vercel",
+    "team": "compliance-loop",
+    "marketing_project": "complianceloop-site",
+    "portal_project": "complianceloop-portal",
+    "dashboards": {
+      "marketing": "https://vercel.com/compliance-loop/complianceloop-site",
+      "portal": "https://vercel.com/compliance-loop/complianceloop-portal"
+    },
+    "domains": {
+      "marketing": "https://www.complianceloop.com",
+      "portal": "https://portal.complianceloop.com"
+    },
+    "preview_policy": {
+      "strategy": "restrict-previews",
+      "rules": [
+        "Only authenticated staff can view preview deployments.",
+        "Block public access to portal previews via middleware.",
+        "Allowlist staff email domains: @complianceloop.com",
+        "Optional: IP allowlist for previews."
+      ]
+    }
+  },
+  "data": {
+    "system_of_record": "Neon Postgres",
+    "back_office_ui": "Airtable (via sync from Postgres)",
+    "storage": "Cloudflare R2 (private buckets; server-streamed)",
+    "email": "Resend (email code sign-in)",
+    "authn": {
+      "method": "passwordless-email-code",
+      "sessions": "short-lived sessions stored in Postgres",
+      "portal_link": "stable URL per customer; secret rotatable"
+    }
+  },
+  "apps": {
+    "portal": {
+      "framework": "Next.js",
+      "root": "/apps/portal",
+      "routes": [
+        "/portal (start/login)",
+        "/portal/:customer (stable entry)",
+        "/portal/jobs (upcoming & past)",
+        "/portal/jobs/:id (details: certificate, photos, invoice)",
+        "/api/auth/* (send/verify codes)",
+        "/api/files/* (secure R2 streaming)"
+      ],
+      "admin": {
+        "routes": [
+          "/admin/customers",
+          "/admin/jobs",
+          "/admin/jobs/:id",
+          "/admin/uploads",
+          "/admin/actions/rotate-portal-link",
+          "/admin/actions/export-to-airtable"
+        ]
+      }
+    }
+  },
+  "sync": {
+    "airtable": {
+      "direction": "one-way (Postgres → Airtable) by default",
+      "triggers": [
+        "nightly schedule",
+        "manual 'Export to Airtable' button in admin"
+      ],
+      "notes": "If two-way editing is later required, add webhook-driven upserts with conflict policy favoring Postgres."
+    }
+  },
+  "automation": {
+    "github_actions": {
+      "smoke": ".github/workflows/agent-smoke.yml",
+      "smoke_script": "scripts/agent-smoke.mjs",
+      "additional": [
+        ".github/workflows/portal-ci.yml (build/test/lint)",
+        ".github/workflows/sync-airtable.yml (scheduled export)"
+      ],
+      "edit_links": {
+        "smoke": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/agent-smoke.yml",
+        "smoke_script": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/agent-smoke.mjs",
+        "portal_ci": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/portal-ci.yml",
+        "sync_airtable": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/sync-airtable.yml"
+      }
+    }
+  },
+  "operational_notes": {
+    "dynamic": [
+      "Preview deployment URLs change per PR; middleware must enforce allowlist at runtime.",
+      "R2 bucket names and Neon connection strings differ per environment (dev/preview/prod). Resolve via Vercel env vars."
+    ],
+    "secrets_policy": "Never commit secrets. Use Vercel project env vars. Store only non-secret identifiers in this Playbook."
+  },
+  "agent_ops": {
+    "intent": "Delegate stand-up and ongoing maintenance tasks to a GPT agent.",
+    "allowed_tools": [
+      "Vercel API",
+      "GitHub Actions",
+      "Neon (SQL)",
+      "Airtable API",
+      "Cloudflare R2 API",
+      "Resend API"
+    ],
+    "safety": [
+      "No data-destructive migrations without backup.",
+      "Blue/green or canary when changing auth or file routes."
+    ]
+  },
+  "owners": {
+    "product": "ComplianceLoop",
+    "tech": "CL Playbook GPT"
+  }
 }
