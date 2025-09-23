@@ -1,0 +1,243 @@
+name: scaffold-portal
+on:
+  workflow_dispatch: {}
+
+jobs:
+  scaffold:
+    name: Create Next.js portal scaffold and open PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create files
+        run: |
+          set -euo pipefail
+          mkdir -p apps/portal/app/portal/jobs/[id]
+          mkdir -p apps/portal/app/admin
+          mkdir -p apps/portal/app/api/auth/send-code
+          mkdir -p apps/portal/app/api/auth/verify-code
+          mkdir -p apps/portal/app/api/files/[...key]
+          mkdir -p .github/workflows
+
+          cat > apps/portal/package.json <<'EOF'
+          {
+            "name": "complianceloop-portal",
+            "private": true,
+            "scripts": {
+              "dev": "next dev",
+              "build": "next build",
+              "start": "next start",
+              "lint": "next lint",
+              "typecheck": "tsc --noEmit"
+            },
+            "dependencies": {
+              "next": "14.2.5",
+              "react": "18.3.1",
+              "react-dom": "18.3.1"
+            },
+            "devDependencies": {
+              "@types/node": "^20.12.12",
+              "@types/react": "^18.2.79",
+              "@types/react-dom": "^18.2.25",
+              "eslint": "^8.57.0",
+              "eslint-config-next": "14.2.5",
+              "typescript": "^5.4.5"
+            }
+          }
+          EOF
+
+          cat > apps/portal/next.config.mjs <<'EOF'
+          /** @type {import('next').NextConfig} */
+          const nextConfig = { experimental: { serverActions: { bodySizeLimit: '2mb' } } };
+          export default nextConfig;
+          EOF
+
+          cat > apps/portal/tsconfig.json <<'EOF'
+          {
+            "compilerOptions": {
+              "target": "ES2022",
+              "lib": ["ES2022", "DOM", "DOM.Iterable"],
+              "module": "ESNext",
+              "moduleResolution": "Bundler",
+              "jsx": "preserve",
+              "strict": true,
+              "noEmit": true,
+              "skipLibCheck": true,
+              "baseUrl": "."
+            },
+            "include": ["app", "middleware.ts", "next-env.d.ts"]
+          }
+          EOF
+
+          cat > apps/portal/next-env.d.ts <<'EOF'
+          /// <reference types="next" />
+          /// <reference types="next/image-types/global" />
+          // NOTE: This file should not be edited.
+          EOF
+
+          cat > apps/portal/.eslintrc.json <<'EOF'
+          { "extends": ["next/core-web-vitals"] }
+          EOF
+
+          cat > apps/portal/app/layout.tsx <<'EOF'
+          export const metadata = { title: "ComplianceLoop Portal" };
+          export default function RootLayout({ children }: { children: React.ReactNode }) {
+            return (
+              <html lang="en">
+                <body style={{ margin: 0, fontFamily: "system-ui, sans-serif" }}>{children}</body>
+              </html>
+            );
+          }
+          EOF
+
+          cat > apps/portal/app/page.tsx <<'EOF'
+          import Link from "next/link";
+          export default function Home() {
+            return (
+              <main style={{ padding: 24 }}>
+                <h1>ComplianceLoop Portal</h1>
+                <p>Starter scaffold. Auth, Admin, and file streaming come next.</p>
+                <ul>
+                  <li><Link href="/portal">/portal (login)</Link></li>
+                  <li><Link href="/portal/demo-customer">/portal/[customer]</Link></li>
+                  <li><Link href="/portal/jobs">/portal/jobs</Link></li>
+                  <li><Link href="/admin">/admin</Link></li>
+                </ul>
+              </main>
+            );
+          }
+          EOF
+
+          cat > apps/portal/app/portal/page.tsx <<'EOF'
+          export default function PortalLogin() {
+            return (
+              <main style={{ padding: 24 }}>
+                <h2>Portal Login</h2>
+                <form action="/api/auth/send-code" method="post">
+                  <input name="email" type="email" placeholder="you@example.com" required />
+                  <button type="submit">Send Code</button>
+                </form>
+              </main>
+            );
+          }
+          EOF
+
+          cat > apps/portal/app/portal/[customer]/page.tsx <<'EOF'
+          export default function CustomerEntry({ params }: { params: { customer: string } }) {
+            return (
+              <main style={{ padding: 24 }}>
+                <h2>Customer: {params.customer}</h2>
+                <p>Upcoming/Past jobs will render here after auth.</p>
+              </main>
+            );
+          }
+          EOF
+
+          cat > apps/portal/app/portal/jobs/page.tsx <<'EOF'
+          export default function Jobs() {
+            return (
+              <main style={{ padding: 24 }}>
+                <h2>Your Jobs</h2>
+                <p>Split into Upcoming and Past (stub).</p>
+              </main>
+            );
+          }
+          EOF
+
+          cat > apps/portal/app/portal/jobs/[id]/page.tsx <<'EOF'
+          export default function JobDetail({ params }: { params: { id: string } }) {
+            return (
+              <main style={{ padding: 24 }}>
+                <h2>Job {params.id}</h2>
+                <ul>
+                  <li>Details</li>
+                  <li>Certificate (PDF)</li>
+                  <li>Photos</li>
+                  <li>Invoice</li>
+                </ul>
+              </main>
+            );
+          }
+          EOF
+
+          cat > apps/portal/app/admin/page.tsx <<'EOF'
+          export default function AdminHome() {
+            return (
+              <main style={{ padding: 24 }}>
+                <h2>Admin</h2>
+                <p>Customers, Jobs, Uploads will be added in the next PR.</p>
+              </main>
+            );
+          }
+          EOF
+
+          cat > apps/portal/app/api/auth/send-code/route.ts <<'EOF'
+          import { NextResponse } from "next/server";
+          export async function POST() { return NextResponse.json({ ok: true }); } // stub
+          EOF
+
+          cat > apps/portal/app/api/auth/verify-code/route.ts <<'EOF'
+          import { NextResponse } from "next/server";
+          export async function POST() { return NextResponse.json({ ok: true, session: "stub" }); } // stub
+          EOF
+
+          cat > apps/portal/app/api/files/[...key]/route.ts <<'EOF'
+          import { NextResponse } from "next/server";
+          export async function GET() { return new NextResponse("file stream placeholder", { status: 200 }); } // stub
+          EOF
+
+          cat > apps/portal/middleware.ts <<'EOF'
+          import type { NextRequest } from "next/server";
+          import { NextResponse } from "next/server";
+          export function middleware(req: NextRequest) {
+            const isProd = process.env.VERCEL_ENV === "production";
+            const url = new URL(req.url);
+            const isPortal = url.pathname.startsWith("/portal") || url.pathname.startsWith("/admin");
+            if (!isProd && isPortal) return new NextResponse("Preview restricted", { status: 403 });
+            return NextResponse.next();
+          }
+          export const config = { matcher: ["/((?!_next|favicon.ico).*)"] };
+          EOF
+
+          cat > apps/portal/README.md <<'EOF'
+          # ComplianceLoop Portal (scaffold)
+          This is a minimal Next.js app. Business logic will be added by follow-up tasks.
+          EOF
+
+          # CI for portal path
+          cat > .github/workflows/portal-ci.yml <<'EOF'
+          name: portal-ci
+          on:
+            pull_request:
+              paths: ["apps/portal/**", ".github/workflows/portal-ci.yml"]
+            push:
+              branches: ["main"]
+              paths: ["apps/portal/**", ".github/workflows/portal-ci.yml"]
+          jobs:
+            build:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-node@v4
+                  with: { node-version: "20" }
+                - name: Install
+                  run: cd apps/portal && npm install
+                - name: Typecheck
+                  run: cd apps/portal && npm run typecheck
+                - name: Build
+                  run: cd apps/portal && npm run build
+          EOF
+
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN_AGENT || github.token }}
+          branch: feat/portal-scaffold
+          title: "feat(portal): scaffold Next.js app under /apps/portal"
+          body: |
+            Creates the /apps/portal Next.js scaffold and CI. After merge, https://portal.complianceloop.com should render the starter pages.
+          commit-message: "feat(portal): scaffold portal + CI"
+          add-paths: |
+            apps/portal/**
+            .github/workflows/portal-ci.yml
