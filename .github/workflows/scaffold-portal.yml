@@ -2,7 +2,6 @@ name: scaffold-portal
 on:
   workflow_dispatch: {}
 
-# ✅ grant write permissions so the job can create a branch and PR
 permissions:
   contents: write
   pull-requests: write
@@ -18,12 +17,14 @@ jobs:
       - name: Create files
         run: |
           set -euo pipefail
-          mkdir -p apps/portal/app/portal/jobs/[id]
-          mkdir -p apps/portal/app/admin
-          mkdir -p apps/portal/app/api/auth/send-code
-          mkdir -p apps/portal/app/api/auth/verify-code
-          mkdir -p apps/portal/app/api/files/[...key]
-          mkdir -p .github/workflows
+          # Create folders (quote any path with [] so bash doesn't glob)
+          mkdir -p 'apps/portal/app/portal/jobs/[id]'
+          mkdir -p 'apps/portal/app/portal/[customer]'
+          mkdir -p 'apps/portal/app/admin'
+          mkdir -p 'apps/portal/app/api/auth/send-code'
+          mkdir -p 'apps/portal/app/api/auth/verify-code'
+          mkdir -p 'apps/portal/app/api/files/[...key]'
+          mkdir -p '.github/workflows'
 
           cat > apps/portal/package.json <<'EOF'
           {
@@ -128,7 +129,7 @@ jobs:
           }
           EOF
 
-          cat > apps/portal/app/portal/[customer]/page.tsx <<'EOF'
+          cat > 'apps/portal/app/portal/[customer]/page.tsx' <<'EOF'
           export default function CustomerEntry({ params }: { params: { customer: string } }) {
             return (
               <main style={{ padding: 24 }}>
@@ -150,7 +151,7 @@ jobs:
           }
           EOF
 
-          cat > apps/portal/app/portal/jobs/[id]/page.tsx <<'EOF'
+          cat > 'apps/portal/app/portal/jobs/[id]/page.tsx' <<'EOF'
           export default function JobDetail({ params }: { params: { id: string } }) {
             return (
               <main style={{ padding: 24 }}>
@@ -187,7 +188,7 @@ jobs:
           export async function POST() { return NextResponse.json({ ok: true, session: "stub" }); } // stub
           EOF
 
-          cat > apps/portal/app/api/files/[...key]/route.ts <<'EOF'
+          cat > 'apps/portal/app/api/files/[...key]/route.ts' <<'EOF'
           import { NextResponse } from "next/server";
           export async function GET() { return new NextResponse("file stream placeholder", { status: 200 }); } // stub
           EOF
@@ -237,7 +238,6 @@ jobs:
       - name: Create PR
         uses: peter-evans/create-pull-request@v6
         with:
-          # use your PAT if present; otherwise GitHub's token (now has write perms)
           token: ${{ secrets.GITHUB_TOKEN_AGENT || github.token }}
           branch: feat/portal-scaffold
           title: "feat(portal): scaffold Next.js app under /apps/portal"
