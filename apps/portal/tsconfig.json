@@ -6,9 +6,10 @@
     "moduleResolution": "Bundler",
     "jsx": "preserve",
     "strict": true,
-    "noEmit": true,
-    "skipLibCheck": true,
-    "baseUrl": "."
+    "allowJs": false,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
   },
-  "include": ["app", "next-env.d.ts"]
+  "include": ["app", "lib", "db", "scripts", "next-env.d.ts"]
 }

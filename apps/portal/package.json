@@ -6,19 +6,22 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:seed": "node --loader ts-node/esm apps/portal/scripts/seed.ts"
   },
   "dependencies": {
     "next": "14.2.5",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "drizzle-orm": "0.33.0",
+    "@neondatabase/serverless": "0.10.1",
+    "uuid": "9.0.1",
+    "cookie": "0.6.0",
+    "resend": "3.5.0"
   },
   "devDependencies": {
-    "@types/node": "^20.12.12",
-    "@types/react": "^18.2.79",
-    "@types/react-dom": "^18.2.25",
-    "eslint": "^8.57.0",
-    "eslint-config-next": "14.2.5",
-    "typescript": "^5.4.5"
+    "typescript": "5.4.5",
+    "ts-node": "10.9.2",
+    "@types/node": "20.11.30"
   }
 }
