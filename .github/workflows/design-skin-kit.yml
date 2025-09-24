@@ -1,0 +1,260 @@
+name: design-skin-kit
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  add_kit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add Design Skin Kit files
+        run: |
+          set -euo pipefail
+          mkdir -p apps/portal/styles
+          mkdir -p apps/portal/components/ui
+          mkdir -p apps/portal/app/design-playground
+          mkdir -p apps/portal/public/brand
+
+          # theme.ts
+          cat > apps/portal/theme.ts <<'EOF'
+          // Central theme tokens for ComplianceLoop
+          export const theme = {
+            colors: {
+              primary: "#2563eb",
+              primaryHover: "#1e40af",
+              accent: "#06b6d4",
+              bg: "#0b0f1a",
+              surface: "#111827",
+              text: "#e5e7eb",
+              muted: "#9ca3af",
+              success: "#16a34a",
+              warning: "#f59e0b",
+              danger: "#ef4444"
+            },
+            radii: { sm: "6px", md: "10px", lg: "14px", xl: "20px" },
+            spacing: { xs: "4px", sm: "8px", md: "16px", lg: "24px", xl: "32px" },
+            fonts: {
+              body: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji'",
+              heading: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, 'Helvetica Neue', Arial"
+            }
+          } as const;
+          EOF
+
+          # globals.css
+          cat > apps/portal/styles/globals.css <<'EOF'
+          :root{
+            --color-primary:#2563eb;
+            --color-primaryHover:#1e40af;
+            --color-accent:#06b6d4;
+            --color-bg:#0b0f1a;
+            --color-surface:#111827;
+            --color-text:#e5e7eb;
+            --color-muted:#9ca3af;
+            --color-success:#16a34a;
+            --color-warning:#f59e0b;
+            --color-danger:#ef4444;
+
+            --radius-sm:6px; --radius-md:10px; --radius-lg:14px; --radius-xl:20px;
+            --space-xs:4px; --space-sm:8px; --space-md:16px; --space-lg:24px; --space-xl:32px;
+
+            --font-body: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+            --font-heading: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial;
+          }
+          *{box-sizing:border-box}
+          html,body{margin:0;padding:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)}
+          a{color:var(--color-accent);text-decoration:none}
+          input,button,select,textarea{font:inherit}
+          .container{max-width:1100px;margin:0 auto;padding:var(--space-lg)}
+          .card{background:var(--color-surface);border-radius:var(--radius-xl);padding:var(--space-lg);box-shadow:0 6px 32px rgba(0,0,0,.25)}
+          .row{display:flex;gap:var(--space-md);flex-wrap:wrap}
+          .swatch{width:48px;height:48px;border-radius:10px;border:1px solid rgba(255,255,255,.08)}
+          EOF
+
+          # components/ui/Button.tsx
+          cat > apps/portal/components/ui/Button.tsx <<'EOF'
+          "use client";
+          import * as React from "react";
+          type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary"|"ghost"|"danger" };
+          export default function Button({variant="primary", style, ...props}:Props){
+            const base = {
+              padding: "10px 14px",
+              borderRadius: "12px",
+              border: "1px solid transparent",
+              cursor: "pointer",
+              transition: "transform .02s ease, background .15s ease, border-color .15s ease",
+              fontWeight: 600
+            } as React.CSSProperties;
+            const variants: Record<string, React.CSSProperties> = {
+              primary: { background: "var(--color-primary)", color:"#fff" },
+              ghost:   { background: "transparent", color:"var(--color-text)", borderColor:"rgba(255,255,255,.16)" },
+              danger:  { background: "var(--color-danger)", color:"#fff" }
+            };
+            return <button {...props} style={{...base, ...variants[variant], ...style}} onMouseDown={(e)=>{(e.currentTarget as HTMLButtonElement).style.transform="scale(.98)"}} onMouseUp={(e)=>{(e.currentTarget as HTMLButtonElement).style.transform="scale(1)"}} />;
+          }
+          EOF
+
+          # components/ui/Input.tsx
+          cat > apps/portal/components/ui/Input.tsx <<'EOF'
+          "use client";
+          import * as React from "react";
+          export default function Input(props: React.InputHTMLAttributes<HTMLInputElement>){
+            const style: React.CSSProperties = {
+              width:"100%", padding:"10px 12px", borderRadius:"10px",
+              border:"1px solid rgba(255,255,255,.16)", background:"rgba(255,255,255,.04)",
+              color:"var(--color-text)", outline:"none"
+            };
+            return <input {...props} style={style} />;
+          }
+          EOF
+
+          # components/ui/Card.tsx
+          cat > apps/portal/components/ui/Card.tsx <<'EOF'
+          import * as React from "react";
+          export default function Card({children, style}:{children:React.ReactNode, style?:React.CSSProperties}){
+            return <div className="card" style={style}>{children}</div>;
+          }
+          EOF
+
+          # design-playground page
+          cat > apps/portal/app/design-playground/page.tsx <<'EOF'
+          import Image from "next/image";
+          import Button from "@/app/../components/ui/Button";
+          import Input from "@/app/../components/ui/Input";
+          import Card from "@/app/../components/ui/Card";
+
+          export const metadata = { title: "Design Playground • ComplianceLoop" };
+
+          export default function Playground(){
+            return (
+              <main className="container">
+                <h1 style={{fontFamily:"var(--font-heading)", marginBottom:"12px"}}>Design Playground</h1>
+                <p style={{opacity:.8, marginBottom:24}}>Tweak colors in <code>apps/portal/theme.ts</code>, replace <code>apps/portal/public/brand/logo.svg</code> or <code>hero.jpg</code>, and refresh.</p>
+
+                <Card>
+                  <div className="row" style={{alignItems:"center"}}>
+                    <Image src="/brand/logo.svg" alt="Logo" width={160} height={40}/>
+                    <Image src="/brand/hero.jpg" alt="Hero" width={320} height={120} style={{borderRadius:12, objectFit:"cover"}}/>
+                  </div>
+                </Card>
+
+                <div className="row" style={{marginTop:24}}>
+                  <Card><h3>Buttons</h3><div className="row">
+                    <Button>Primary</Button>
+                    <Button variant="ghost">Ghost</Button>
+                    <Button variant="danger">Danger</Button>
+                  </div></Card>
+                  <Card><h3>Inputs</h3>
+                    <div style={{display:"grid", gap:12}}>
+                      <Input placeholder="Email"/>
+                      <Input placeholder="Company"/>
+                      <Input placeholder="Address"/>
+                    </div>
+                  </Card>
+                </div>
+
+                <div className="row" style={{marginTop:24}}>
+                  <Card style={{flex:1}}>
+                    <h3>Colors</h3>
+                    <div className="row">
+                      {["primary","primaryHover","accent","bg","surface","text","muted","success","warning","danger"].map(k=>(
+                        <div key={k} style={{textAlign:"center"}}>
+                          <div className="swatch" style={{background:`var(--color-${k})`}}/>
+                          <div style={{fontSize:12,opacity:.8,marginTop:6}}>{k}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                  <Card style={{flex:1}}>
+                    <h3>Sample Section</h3>
+                    <p>Use this area to preview headings, body text, cards and lists.</p>
+                    <ul>
+                      <li>Single-column forms with labels above inputs</li>
+                      <li>Inline validation and friendly microcopy</li>
+                      <li>Accessible focus rings and large tap targets</li>
+                    </ul>
+                    <Button style={{marginTop:8}}>Call to action</Button>
+                  </Card>
+                </div>
+              </main>
+            );
+          }
+          EOF
+
+          # Update layout.tsx to import globals.css (full-file write)
+          cat > apps/portal/app/layout.tsx <<'EOF'
+          import "../styles/globals.css";
+
+          export const metadata = { title: "ComplianceLoop Portal" };
+
+          export default function RootLayout({ children }: { children: React.ReactNode }) {
+            return (
+              <html lang="en">
+                <body>{children}</body>
+              </html>
+            );
+          }
+          EOF
+
+          # Placeholder brand assets
+          cat > apps/portal/public/brand/logo.svg <<'EOF'
+          <svg xmlns="http://www.w3.org/2000/svg" width="240" height="48" viewBox="0 0 240 48">
+            <rect rx="10" width="240" height="48" fill="#2563eb"/>
+            <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="20">ComplianceLoop</text>
+          </svg>
+          EOF
+
+          # 1x1 png (base64) as hero.jpg placeholder
+          base64 -d > apps/portal/public/brand/hero.jpg <<'EOF'
+          iVBORw0KGgoAAAANSUhEUgAAAAEAAAACCAYAAACZgbYVAAAADUlEQVQImWNgYGBgAAAABQABhqWk7wAAAABJRU5ErkJggg==
+          EOF
+
+          # README note (append or create)
+          if [ -f apps/portal/README.md ]; then
+            cat >> apps/portal/README.md <<'EOF'
+          
+          ## Brand & Design
+          - Edit tokens in `apps/portal/theme.ts` (colors, radii, spacing, fonts).
+          - Replace `apps/portal/public/brand/logo.svg` and `hero.jpg`.
+          - Preview components and styles at `/design-playground` on any deployment (including previews).
+          EOF
+          else
+            cat > apps/portal/README.md <<'EOF'
+          # ComplianceLoop Portal
+          ## Brand & Design
+          - Edit tokens in `apps/portal/theme.ts` (colors, radii, spacing, fonts).
+          - Replace `apps/portal/public/brand/logo.svg` and `hero.jpg`.
+          - Preview components and styles at `/design-playground` on any deployment (including previews).
+          EOF
+          fi
+
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ github.token }}
+          branch: chore/design-skin-kit
+          title: "chore(design): add theme tokens, brand assets, and /design-playground"
+          body: |
+            Adds a Design Skin Kit:
+            - Central tokens (theme.ts)
+            - Global CSS + basic UI components
+            - /design-playground route
+            - Placeholder logo/hero assets
+            - README section
+            **After merge:**
+            - Edit colors in apps/portal/theme.ts
+            - Replace public/brand/logo.svg (and hero.jpg)
+            - Visit /design-playground to review
+          commit-message: "chore(design): add theme tokens, brand assets, and /design-playground"
+          add-paths: |
+            apps/portal/theme.ts
+            apps/portal/styles/globals.css
+            apps/portal/components/ui/**
+            apps/portal/app/design-playground/**
+            apps/portal/app/layout.tsx
+            apps/portal/public/brand/**
+            apps/portal/README.md
