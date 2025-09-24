@@ -1,7 +1,7 @@
 import Image from "next/image";
-import Button from "@/app/../components/ui/Button";
-import Input from "@/app/../components/ui/Input";
-import Card from "@/app/../components/ui/Card";
+import Button from "../../components/ui/Button";
+import Input from "../../components/ui/Input";
+import Card from "../../components/ui/Card";
 
 export const metadata = { title: "Design Playground • ComplianceLoop" };
 
