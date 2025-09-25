@@ -1,134 +1,85 @@
-name: Agent smoke
+name: Agent Smoke (Vercel Preview)
 
 on:
   workflow_dispatch:
-    inputs:
-      preview_url:
-        description: 'Optional: paste a specific preview URL (e.g. https://complianceloop-site-xxxxx.vercel.app)'
-        required: false
-        default: ''
-      redeploy:
-        description: 'After maintenance, trigger a fresh preview redeploy automatically'
-        required: true
-        default: 'true'   # set to 'false' when you do NOT want to redeploy
+  pull_request:
+    branches: ["**"]
+    types: [opened, synchronize, reopened]
 
-# Needed so the workflow can write small helper files/PRs if it ever has to.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+
+env:
+  # Static project metadata
+  VERCEL_APP: complianceloop-portal # Vercel "Project Name" (not the repo name)
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 15
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: "20"
 
-      # --- Resolve preview URL we should test --------------------------------
-      # If the user provided an explicit preview_url input, we honor it.
-      # Otherwise, we resolve the latest READY preview from Vercel automatically.
-      - name: Resolve latest preview URL
+      - name: Wait for READY Vercel Preview for this branch
+        id: vercel
+        shell: bash
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
-          VERCEL_TEAM_SLUG: ${{ secrets.VERCEL_TEAM_SLUG }}
+          VERCEL_APP: ${{ env.VERCEL_APP }}
         run: |
-          set -e
-          # If an explicit input is provided, use it and skip auto-resolve.
-          if [ -n "${{ inputs.preview_url }}" ]; then
-            echo "${{ inputs.preview_url }}" > preview.txt
-            exit 0
+          if [ -z "${VERCEL_TOKEN}" ] || [ -z "${VERCEL_TEAM_ID}" ]; then
+            echo "VERCEL_TOKEN and/or VERCEL_TEAM_ID missing."
+            exit 1
           fi
 
-          # Auto-resolve the newest READY preview for the project.
-          node <<'NODE'
-          const token = process.env.VERCEL_TOKEN
-          const team  = process.env.VERCEL_TEAM_ID || process.env.VERCEL_TEAM_SLUG
-          const proj  = process.env.VERCEL_PROJECT_ID
-          if (!token || !team || !proj) {
-            throw new Error('Missing Vercel credentials (VERCEL_TOKEN, VERCEL_TEAM_ID/SLUG, VERCEL_PROJECT_ID)')
-          }
-          const teamQ = `teamId=${encodeURIComponent(team)}`
-          const url = `https://api.vercel.com/v6/deployments?${teamQ}&app=${encodeURIComponent(proj)}&target=preview&state=READY&limit=1`
-          fetch(url, { headers: { Authorization: `Bearer ${token}` }})
-            .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(`Vercel list error ${r.status}: ${t}`)}))
-            .then(j => {
-              if (!j.deployments?.length) throw new Error('No READY preview deployments found')
-              const d = j.deployments[0]
-              const preview = `https://${d.url}`
-              require('node:fs').writeFileSync('preview.txt', preview)
-            })
-            .catch(err => { console.error(err); process.exit(1) })
-          NODE
+          BRANCH="${{ github.head_ref || github.ref_name }}"
+          echo "Looking for READY preview for branch: $BRANCH (app=${VERCEL_APP})"
 
-      - name: Export PREVIEW_URL for later steps
-        run: |
-          echo "PREVIEW_URL=$(cat preview.txt)" >> "$GITHUB_ENV"
+          for i in {1..60}; do
+            RESP=$(curl -s -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v6/deployments?teamId=${VERCEL_TEAM_ID}&app=${VERCEL_APP}&limit=20&state=READY")
 
-      # --- Run the smoke test against the preview ----------------------------
-      - name: Smoke (pre/post maintenance as needed)
+            URL=$(echo "$RESP" \
+              | jq -r '.deployments[] | select(.meta.githubCommitRef=="'"$BRANCH"'") | .url' \
+              | head -n1)
+
+            if [ -n "$URL" ] && [ "$URL" != "null" ]; then
+              echo "Found READY preview: https://$URL"
+              echo "url=https://$URL" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "Waiting for READY preview..."
+            sleep 10
+          done
+
+          echo "Timed out waiting for READY preview."
+          echo "Resp (truncated): $(echo "$RESP" | jq -c '.deployments[0] // {}')"
+          exit 1
+
+      - name: Run smoke test against Preview
+        shell: bash
         env:
-          PREVIEW_URL: ${{ env.PREVIEW_URL }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          PREVIEW_URL: ${{ steps.vercel.outputs.url }}
+          # If the Vercel project protects Previews, provide this secret.
           VERCEL_BYPASS_TOKEN: ${{ secrets.VERCEL_BYPASS_TOKEN }}
-        run: node scripts/agent-smoke.mjs
-
-      # --- OPTIONAL: kick a fresh preview redeploy so the latest allowlist/env
-      # changes are 100% picked up by the running deployment. Controlled by the
-      # `redeploy` input (defaults to 'true').
-      - name: Trigger Vercel preview redeploy (optional)
-        if: ${{ inputs.redeploy == 'true' }}
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
-          VERCEL_TEAM_SLUG: ${{ secrets.VERCEL_TEAM_SLUG }}
         run: |
-          set -e
-          node <<'NODE'
-          const token = process.env.VERCEL_TOKEN
-          const team  = process.env.VERCEL_TEAM_ID || process.env.VERCEL_TEAM_SLUG
-          const proj  = process.env.VERCEL_PROJECT_ID
-          if (!token || !team || !proj) {
-            console.log('Skipping redeploy: missing Vercel credentials.')
-            process.exit(0)
-          }
+          echo "PREVIEW_URL=$PREVIEW_URL"
+          node scripts/agent-smoke.mjs
 
-          // 1) Get the newest READY preview deployment id
-          const teamQ = `teamId=${encodeURIComponent(team)}`
-          const listUrl = `https://api.vercel.com/v6/deployments?${teamQ}&app=${encodeURIComponent(proj)}&target=preview&state=READY&limit=1`
-          async function getLatestId() {
-            const r = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` }})
-            if (!r.ok) throw new Error(`List deployments failed: ${r.status}`)
-            const j = await r.json()
-            if (!j.deployments?.length) throw new Error('No READY preview deployments to redeploy')
-            return j.deployments[0].uid
-          }
-
-          // 2) Redeploy that deployment id (fast, no git changes needed)
-          async function redeploy(uid) {
-            const url = `https://api.vercel.com/v13/deployments/${uid}/redeploy?${teamQ}`
-            const r = await fetch(url, {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({})  // empty body
-            })
-            if (!r.ok) {
-              const t = await r.text()
-              throw new Error(`Redeploy failed: ${r.status} – ${t}`)
-            }
-            const j = await r.json()
-            console.log('Redeploy requested:', j?.deploymentId || j?.id || '(no id)')
-          }
-
-          getLatestId().then(redeploy).catch(err => { console.error(err); process.exit(1) })
-          NODE
+      - name: Upload smoke logs (if any)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-artifacts
+          path: |
+            smoke.log
+            **/jest-output.xml
+          if-no-files-found: ignore
