@@ -1,22 +1,26 @@
-import { db } from "@/app/../lib/db";
-import { loginCodes } from "@/app/../db/schema";
+import { db } from "../../../../lib/db";
+import { loginCodes } from "../../../../db/schema";
 import { eq } from "drizzle-orm";
 import { Resend } from "resend";
 
 export const dynamic = "force-dynamic";
 
-function generateCode(){ return (Math.floor(100000 + Math.random()*900000)).toString(); }
+function generateCode() {
+  return (Math.floor(100000 + Math.random() * 900000)).toString();
+}
 
 export async function POST(request: Request) {
   const { email } = await request.json();
   if (!email) return new Response("email required", { status: 400 });
 
-  const code = process.env.VERCEL_ENV !== "production" || process.env.TEST_MODE === "true"
-    ? "000000"
-    : generateCode();
+  const code =
+    process.env.VERCEL_ENV !== "production" || process.env.TEST_MODE === "true"
+      ? "000000"
+      : generateCode();
 
-  const expiresAt = new Date(Date.now() + 10*60*1000);
-  // simple upsert per email (one active code)
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  // one active code per email
   await db.delete(loginCodes).where(eq(loginCodes.email, email));
   await db.insert(loginCodes).values({ email, code, expiresAt });
 
@@ -32,5 +36,6 @@ export async function POST(request: Request) {
       });
     }
   }
+
   return new Response("ok");
 }
