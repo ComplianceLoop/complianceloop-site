@@ -1,122 +1,84 @@
 {
-  "repo": {
-    "org": "ComplianceLoop",
-    "name": "complianceloop-site",
-    "default_branch": "main",
-    "github_urls": {
-      "repo": "https://github.com/ComplianceLoop/complianceloop-site",
-      "new_file_base": "https://github.com/ComplianceLoop/complianceloop-site/new/main",
-      "edit_base": "https://github.com/ComplianceLoop/complianceloop-site/edit/main"
+  "meta": {
+    "lastUpdatedBy": "CL Playbook",
+    "lastUpdatedAt": "2025-09-25"
+  },
+  "authoringStandard": {
+    "style": "step-by-step",
+    "requirements": [
+      "Include clickable links for every external step (GitHub, Vercel, etc.).",
+      "Spell out exact UI clicks/labels (e.g., Settings → Security → Protection → Preview Deployments).",
+      "Prefer terminal commands that are copy-pasteable with placeholders clearly marked.",
+      "Never print secrets; refer to them by secret name."
+    ]
+  },
+  "repositories": {
+    "canonical": {
+      "owner": "ComplianceLoop",
+      "repo": "complianceloop-site",
+      "defaultBranch": "main"
     }
   },
-  "hosting": {
-    "provider": "Vercel",
-    "team": "compliance-loop",
-    "marketing_project": "complianceloop-site",
-    "portal_project": "complianceloop-portal",
-    "dashboards": {
-      "marketing": "https://vercel.com/compliance-loop/complianceloop-site",
-      "portal": "https://vercel.com/compliance-loop/complianceloop-portal"
+  "vercel": {
+    "team": {
+      "slug": "compliance-loop"
     },
-    "domains": {
-      "marketing": "https://www.complianceloop.com",
-      "portal": "https://portal.complianceloop.com"
-    },
-    "preview_policy": {
-      "strategy": "restrict-previews",
-      "rules": [
-        "Only authenticated staff can view preview deployments.",
-        "Block public access to portal previews via middleware.",
-        "Allowlist staff email domains: @complianceloop.com",
-        "Optional: IP allowlist for previews."
-      ]
-    }
-  },
-  "data": {
-    "system_of_record": "Neon Postgres",
-    "back_office_ui": "Airtable (via sync from Postgres)",
-    "storage": "Cloudflare R2 (private buckets; server-streamed)",
-    "email": "Resend (email code sign-in)",
-    "authn": {
-      "method": "passwordless-email-code",
-      "sessions": "short-lived sessions stored in Postgres",
-      "portal_link": "stable URL per customer; secret rotatable"
-    }
-  },
-  "apps": {
-    "portal": {
-      "framework": "Next.js",
-      "root": "/apps/portal",
-      "routes": [
-        "/portal (start/login)",
-        "/portal/:customer (stable entry)",
-        "/portal/jobs (upcoming & past)",
-        "/portal/jobs/:id (details: certificate, photos, invoice)",
-        "/api/auth/* (send/verify codes)",
-        "/api/files/* (secure R2 streaming)"
-      ],
-      "admin": {
-        "routes": [
-          "/admin/customers",
-          "/admin/jobs",
-          "/admin/jobs/:id",
-          "/admin/uploads",
-          "/admin/actions/rotate-portal-link",
-          "/admin/actions/export-to-airtable"
-        ]
+    "projects": [
+      {
+        "name": "complianceloop-site",
+        "role": "marketing/docs",
+        "notes": "Original canonical project."
+      },
+      {
+        "name": "complianceloop-portal",
+        "role": "app/portal",
+        "notes": "Phase-1 auth/db work. Used for smoke testing in CI."
       }
-    }
-  },
-  "sync": {
-    "airtable": {
-      "direction": "one-way (Postgres → Airtable) by default",
-      "triggers": [
-        "nightly schedule",
-        "manual 'Export to Airtable' button in admin"
-      ],
-      "notes": "If two-way editing is later required, add webhook-driven upserts with conflict policy favoring Postgres."
+    ],
+    "preview": {
+      "protection": "allowed",
+      "bypassTokenSecretName": "VERCEL_BYPASS_TOKEN",
+      "urlResolution": "CI queries Vercel /v6/deployments for READY deployment with meta.githubCommitRef == PR branch; uses app=complianceloop-portal."
     }
   },
   "automation": {
-    "github_actions": {
-      "smoke": ".github/workflows/agent-smoke.yml",
-      "smoke_script": "scripts/agent-smoke.mjs",
-      "additional": [
-        ".github/workflows/portal-ci.yml (build/test/lint)",
-        ".github/workflows/sync-airtable.yml (scheduled export)"
-      ],
-      "edit_links": {
-        "smoke": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/agent-smoke.yml",
-        "smoke_script": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/agent-smoke.mjs",
-        "portal_ci": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/portal-ci.yml",
-        "sync_airtable": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/sync-airtable.yml"
+    "workflows": [
+      {
+        "path": ".github/workflows/agent-smoke.yml",
+        "purpose": "Wait for Vercel Preview and run smoke test on every PR.",
+        "inputs": {
+          "env": {
+            "VERCEL_APP": "complianceloop-portal"
+          },
+          "secrets": [
+            "VERCEL_TOKEN",
+            "VERCEL_TEAM_ID",
+            "VERCEL_BYPASS_TOKEN (optional if preview protection is disabled)"
+          ]
+        },
+        "successCriteria": [
+          "Preview URL resolved for the PR branch",
+          "Smoke script exits 0 and prints '✅ smoke passed.'"
+        ],
+        "safeRollback": [
+          "Disable the workflow by setting on.pull_request to an empty list or delete the file.",
+          "Re-run previous READY deployment from Vercel if necessary."
+        ]
       }
-    }
-  },
-  "operational_notes": {
-    "dynamic": [
-      "Preview deployment URLs change per PR; middleware must enforce allowlist at runtime.",
-      "R2 bucket names and Neon connection strings differ per environment (dev/preview/prod). Resolve via Vercel env vars."
-    ],
-    "secrets_policy": "Never commit secrets. Use Vercel project env vars. Store only non-secret identifiers in this Playbook."
-  },
-  "agent_ops": {
-    "intent": "Delegate stand-up and ongoing maintenance tasks to a GPT agent.",
-    "allowed_tools": [
-      "Vercel API",
-      "GitHub Actions",
-      "Neon (SQL)",
-      "Airtable API",
-      "Cloudflare R2 API",
-      "Resend API"
-    ],
-    "safety": [
-      "No data-destructive migrations without backup.",
-      "Blue/green or canary when changing auth or file routes."
     ]
   },
-  "owners": {
-    "product": "ComplianceLoop",
-    "tech": "CL Playbook GPT"
+  "operationalNotes": [
+    "Preview URLs are dynamic per deployment; CI resolves at runtime via Vercel API.",
+    "If Preview protection is enabled, CI requires secret VERCEL_BYPASS_TOKEN. If not set, smoke will fail fast.",
+    "Repo currently has no package.json at root; smoke script runs with Node 20+ without installing dependencies."
+  ],
+  "quickLinks": {
+    "githubSecrets": "https://github.com/ComplianceLoop/complianceloop-site/settings/secrets/actions",
+    "vercelTokens": "https://vercel.com/account/tokens",
+    "vercelTeamSettings": "https://vercel.com/teams/compliance-loop/settings",
+    "vercelProjectSecurity": "https://vercel.com/compliance-loop/complianceloop-portal/settings/security",
+    "workflowEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/agent-smoke.yml",
+    "playbookEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md",
+    "decisionsEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json"
   }
 }
