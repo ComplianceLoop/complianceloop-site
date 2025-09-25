@@ -10,8 +10,7 @@ permissions:
   contents: read
 
 env:
-  # Static project metadata
-  VERCEL_APP: complianceloop-portal # Vercel "Project Name" (not the repo name)
+  VERCEL_APP: complianceloop-portal
 
 jobs:
   smoke:
@@ -38,37 +37,29 @@ jobs:
             echo "VERCEL_TOKEN and/or VERCEL_TEAM_ID missing."
             exit 1
           fi
-
           BRANCH="${{ github.head_ref || github.ref_name }}"
           echo "Looking for READY preview for branch: $BRANCH (app=${VERCEL_APP})"
-
           for i in {1..60}; do
             RESP=$(curl -s -H "Authorization: Bearer ${VERCEL_TOKEN}" \
               "https://api.vercel.com/v6/deployments?teamId=${VERCEL_TEAM_ID}&app=${VERCEL_APP}&limit=20&state=READY")
-
             URL=$(echo "$RESP" \
               | jq -r '.deployments[] | select(.meta.githubCommitRef=="'"$BRANCH"'") | .url' \
               | head -n1)
-
             if [ -n "$URL" ] && [ "$URL" != "null" ]; then
               echo "Found READY preview: https://$URL"
               echo "url=https://$URL" >> "$GITHUB_OUTPUT"
               exit 0
             fi
-
             echo "Waiting for READY preview..."
             sleep 10
           done
-
           echo "Timed out waiting for READY preview."
-          echo "Resp (truncated): $(echo "$RESP" | jq -c '.deployments[0] // {}')"
           exit 1
 
       - name: Run smoke test against Preview
         shell: bash
         env:
           PREVIEW_URL: ${{ steps.vercel.outputs.url }}
-          # If the Vercel project protects Previews, provide this secret.
           VERCEL_BYPASS_TOKEN: ${{ secrets.VERCEL_BYPASS_TOKEN }}
         run: |
           echo "PREVIEW_URL=$PREVIEW_URL"
