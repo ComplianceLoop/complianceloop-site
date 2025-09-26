@@ -72,4 +72,13 @@
   "quickLinks": {
     "githubActions": "https://github.com/ComplianceLoop/complianceloop-site/actions",
     "githubSecrets": "https://github.com/ComplianceLoop/complianceloop-site/settings/secrets/actions",
-    "vercelTokens": "https://vercel.com/account/tok
+    "vercelTokens": "https://vercel.com/account/tokens",
+    "vercelTeamSettings": "https://vercel.com/teams/compliance-loop/settings",
+    "vercelProjectSecurity": "https://vercel.com/compliance-loop/complianceloop-portal/settings/security",
+    "vercelProjectGit": "https://vercel.com/compliance-loop/complianceloop-portal/settings/git",
+    "vercelDeployments": "https://vercel.com/compliance-loop/complianceloop-portal/deployments",
+    "workflowEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/agent-smoke.yml",
+    "playbookEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md",
+    "decisionsEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json"
+  }
+}
