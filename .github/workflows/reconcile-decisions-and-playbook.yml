@@ -45,19 +45,13 @@ jobs:
           vercel_team=$(jq -r '.vercel.team.slug // .vercel.team // "ComplianceLoop"' "$FILE")
           vercel_project=$(jq -r '.vercel.project // .vercel.projects[]? | select(.role=="app/portal") | .name // "complianceloop-portal"' "$FILE")
 
-          # Workflows index
           workflows=$(jq -r '.workflows[]? | "- `\(.path)` — " + (.purpose // "")' "$FILE")
-
-          # Phases short list
           phases=$(jq -r '.phases[]?' "$FILE" | nl -w1 -s") ")
-
-          # Phase details table
           phase_rows=$(jq -r '
             (.phaseDetails // [])[] |
             "| " + (.phase // "") + " | " + (.objective // "") + " | " + ((.acceptance // []) | join("<br>")) + " |"
           ' "$FILE")
 
-          # Journeys (bulletized)
           cust=$(jq -r '(.journeys.customer.flows // [])[] | "### " + .name + "\n" + (.summary // "") + "\n- " + ((.steps // []) | join("\n- ")) + "\n\n**Success:** " + ((.success // []) | join(", ")) + "\n"' "$FILE")
           prov=$(jq -r '(.journeys.provider.flows // [])[] | "### " + .name + "\n" + (.summary // "") + "\n- " + ((.details // .rules // .steps // []) | join("\n- ")) + "\n"' "$FILE")
 
