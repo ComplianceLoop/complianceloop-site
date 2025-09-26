@@ -26,129 +26,89 @@ jobs:
             echo '{}' > decisions.json
           fi
 
-      # ---- 1) UPSERT our shared items into decisions.json (non-destructive) ----
-      - name: Upsert phases and workflow entries
+      - name: Normalize arrays
         shell: bash
         run: |
-          set -Eeuo pipefail
-
-          # Canonical 13 phases we agreed
-          cat > /tmp/phases.json <<'EOF'
-          [
-            "Design Skin Kit",
-            "Auth + DB base",
-            "Files & Certificates (R2)",
-            "Airtable bridge (hybrid)",
-            "Job model + booking skeleton",
-            "Provider directory & eligibility",
-            "Assignment engine (first-accept, soft-hold cascade, single-eligible auto-assign)",
-            "Customer dashboard",
-            "Provider dashboard (+ day-of checklist, conflict)",
-            "Payments & invoices",
-            "Notifications (email/SMS)",
-            "Admin console",
-            "Polish & launch (SEO, A11y, QA, rate limits)"
-          ]
-          EOF
-
-          # Canonical workflow entries (keep your existing agent-smoke)
-          cat > /tmp/workflows.json <<'EOF'
-          [
-            {
-              "path": ".github/workflows/design-skin-kit.yml",
-              "purpose": "Add theme tokens, global styles, /design-playground",
-              "successCriteria": ["Preview builds green; /design-playground renders"],
-              "safeRollback": ["Revert PR"]
-            },
-            {
-              "path": ".github/workflows/phase-1-auth-db.yml",
-              "purpose": "Neon + Drizzle schema; passwordless auth APIs",
-              "successCriteria": ["Preview endpoints /api/auth/* return 200"],
-              "safeRollback": ["Revert PR"]
-            },
-            {
-              "path": ".github/workflows/seed-phase-1.yml",
-              "purpose": "Optional seed of demo customer/jobs",
-              "successCriteria": ["Seed script completes"],
-              "safeRollback": ["Re-run with corrected env or revert"]
-            },
-            {
-              "path": ".github/workflows/phase-2-files-r2.yml",
-              "purpose": "Private file uploads to R2; secure streaming via /api/files/[...key]",
-              "successCriteria": ["Upload returns key; signed-in download streams 200"],
-              "safeRollback": ["Revert PR"]
-            },
-            {
-              "path": ".github/workflows/update-allowlist.yml",
-              "purpose": "Maintain preview allowlist/protection bypass as needed",
-              "successCriteria": ["Protected previews accessible to CI; prod unaffected"],
-              "safeRollback": ["Revert PR; rotate bypass token if leaked"]
-            }
-          ]
-          EOF
-
-          # Normalize to ensure arrays exist
           jq '
-            . as $root
-            | .workflows = (.workflows // .automation?.workflows // [])
-            | .phases    = (.phases    // [])
+            .workflows = (.workflows // [])
+            | .phases    = (.phases // [])
           ' decisions.json > /tmp/normalized.json
+          mv /tmp/normalized.json decisions.json
 
-          # Upsert PHASES
-          jq -s '.[0] as $cur | .[1] as $add |
-                 $cur + { phases: ($cur.phases + $add | unique) }' \
-                 /tmp/normalized.json /tmp/phases.json > /tmp/with_phases.json
-
-          # Upsert WORKFLOWS (unique by "path")
-          jq -s '
-            .[0] as $cur | .[1] as $add |
-            ($cur.workflows + $add)
-            | group_by(.path) | map(.[0]) as $uniq |
-            $cur + { workflows: $uniq }
-          ' /tmp/with_phases.json /tmp/workflows.json > /tmp/with_workflows.json
-
-          # Mirror under automation.workflows if your file uses that shape
-          jq '
-            if .automation and .automation.workflows then
-              .automation.workflows = .workflows
-            else
-              .
-            end
-          ' /tmp/with_workflows.json > decisions.json
-
-      # ---- 2) RENDER a canonical block into playbook.md FROM decisions.json ----
-      - name: Render canonical Playbook block
+      - name: Render canonical Playbook block (detailed)
         shell: bash
         run: |
           set -Eeuo pipefail
           FILE="decisions.json"
-
-          title_repo=$(jq -r '.repositories?.canonical as $c | if $c then ($c.owner+"/"+$c.repo) else (.repo.owner+"/"+.repo.name) end' "$FILE" 2>/dev/null || echo "ComplianceLoop/complianceloop-site")
-          default_branch=$(jq -r '.repositories?.canonical.defaultBranch // .repo.defaultBranch // "main"' "$FILE")
+          title_repo=$(jq -r '.repo.owner+"/"+.repo.name' "$FILE" 2>/dev/null || echo "ComplianceLoop/complianceloop-site")
+          default_branch=$(jq -r '.repo.defaultBranch // "main"' "$FILE")
           vercel_team=$(jq -r '.vercel.team.slug // .vercel.team // "ComplianceLoop"' "$FILE")
-          vercel_project=$(jq -r '.vercel.projects[]? | select(.role=="app/portal") | .name // empty' "$FILE")
-          list_workflows=$(jq -r '.workflows[]? | .path' "$FILE" | sed 's/^/- `/; s/$/`/')
-          list_phases=$(jq -r '.phases[]?' "$FILE" | nl -w1 -s") ")
+          vercel_project=$(jq -r '.vercel.project // .vercel.projects[]? | select(.role=="app/portal") | .name // "complianceloop-portal"' "$FILE")
 
-          # Quoted heredoc to keep YAML safe
+          # Workflows index
+          workflows=$(jq -r '.workflows[]? | "- `\(.path)` — " + (.purpose // "")' "$FILE")
+
+          # Phases short list
+          phases=$(jq -r '.phases[]?' "$FILE" | nl -w1 -s") ")
+
+          # Phase details table
+          phase_rows=$(jq -r '
+            (.phaseDetails // [])[] |
+            "| " + (.phase // "") + " | " + (.objective // "") + " | " + ((.acceptance // []) | join("<br>")) + " |"
+          ' "$FILE")
+
+          # Journeys (bulletized)
+          cust=$(jq -r '(.journeys.customer.flows // [])[] | "### " + .name + "\n" + (.summary // "") + "\n- " + ((.steps // []) | join("\n- ")) + "\n\n**Success:** " + ((.success // []) | join(", ")) + "\n"' "$FILE")
+          prov=$(jq -r '(.journeys.provider.flows // [])[] | "### " + .name + "\n" + (.summary // "") + "\n- " + ((.details // .rules // .steps // []) | join("\n- ")) + "\n"' "$FILE")
+
+          apis=$(jq -r '(.apis // [])[] | "- **\(.method)** `\(.path)` — " + (.out // "")' "$FILE")
+          models=$(jq -r 'to_entries | map("- **" + .key + "**: " + (.value | join(", "))) | join("\n")' <<< "$(jq '.dataModels' "$FILE")" )
+
+          rules=$(jq -r '
+            "- softHoldMinutes: \(.assignmentRules.softHoldMinutes // 15)\n" +
+            "- customerMultiPropertyHoldMinutes: \(.assignmentRules.customerMultiPropertyHoldMinutes // 30)\n" +
+            "- singleEligibleAutoAssign: \(.assignmentRules.singleEligibleAutoAssign // true)\n" +
+            "- acceptWins: \(.assignmentRules.acceptWins // true)"
+          ' "$FILE")
+
           cat > /tmp/cl_block.md <<'EOF'
           <!-- CL:START -->
           # ComplianceLoop — Canonical Plan (Generated)
 
-          **Repo:** ${title_repo} (`${default_branch}`)
-          **Vercel project:** ${vercel_project:-complianceloop-portal} (team: ${vercel_team})
+          **Repo:** ${title_repo} (`${default_branch}`)  
+          **Vercel:** project **${vercel_project}** (team: **${vercel_team}**)
 
           ## Workflows (index)
-          ${list_workflows}
+          ${workflows}
 
-          ## 13 Phases
-          ${list_phases}
+          ## 13 Phases (overview)
+          ${phases}
 
-          > Edit *decisions.json* to change phases/workflows, then re-run this workflow.
+          ## Phase Details (objective & acceptance)
+          | Phase | Objective | Acceptance |
+          |---|---|---|
+          ${phase_rows}
+
+          ## Journey Specs
+          ### Customer
+          ${cust}
+
+          ### Provider
+          ${prov}
+
+          ## APIs (MVP)
+          ${apis}
+
+          ## Data Models
+          ${models}
+
+          ## Assignment Rules
+          ${rules}
+
+          > Edit *decisions.json* to change these sections, then re-run this workflow.
           <!-- CL:END -->
           EOF
 
-          # Now expand the shell variables safely into the template
           eval "echo \"$(cat /tmp/cl_block.md)\"" > /tmp/cl_block_expanded.md
 
           PLAYBOOK="playbook.md"
@@ -171,10 +131,9 @@ jobs:
         with:
           token: ${{ github.token }}
           branch: chore/reconcile-decisions-and-playbook
-          title: "chore(playbook): add 13 phases + workflows to decisions.json and sync block"
+          title: "chore(playbook): sync journeys, APIs, data, and phase details from decisions.json"
           body: |
-            This PR non-destructively appends the agreed **13 build phases** and **workflow index** to `decisions.json`,
-            and regenerates the canonical block in `playbook.md`. Existing content is preserved.
+            This PR regenerates the canonical block in `playbook.md` with Journeys, APIs, Data Models, and Phase Details.
+            Edit `decisions.json` only; re-run this workflow to refresh.
           add-paths: |
-            decisions.json
             playbook.md
