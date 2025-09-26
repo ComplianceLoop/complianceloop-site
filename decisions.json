@@ -25,7 +25,9 @@
     }
   },
   "vercel": {
-    "team": { "slug": "compliance-loop" },
+    "team": {
+      "slug": "compliance-loop"
+    },
     "projects": [
       {
         "name": "complianceloop-site",
@@ -50,7 +52,9 @@
         "path": ".github/workflows/agent-smoke.yml",
         "purpose": "Wait for Vercel Preview and run smoke test on each PR.",
         "inputs": {
-          "env": { "VERCEL_APP": "complianceloop-portal" },
+          "env": {
+            "VERCEL_APP": "complianceloop-portal"
+          },
           "secrets": [
             "VERCEL_TOKEN",
             "VERCEL_TEAM_ID",
@@ -64,6 +68,56 @@
         "safeRollback": [
           "Disable or remove the workflow file.",
           "Promote a prior READY deployment in Vercel if needed."
+        ]
+      },
+      {
+        "path": ".github/workflows/design-skin-kit.yml",
+        "purpose": "Add theme tokens, global styles, /design-playground",
+        "successCriteria": [
+          "Preview builds green; /design-playground renders"
+        ],
+        "safeRollback": [
+          "Revert PR"
+        ]
+      },
+      {
+        "path": ".github/workflows/phase-1-auth-db.yml",
+        "purpose": "Neon + Drizzle schema; passwordless auth APIs",
+        "successCriteria": [
+          "Preview endpoints /api/auth/* return 200"
+        ],
+        "safeRollback": [
+          "Revert PR"
+        ]
+      },
+      {
+        "path": ".github/workflows/phase-2-files-r2.yml",
+        "purpose": "Private file uploads to R2; secure streaming via /api/files/[...key]",
+        "successCriteria": [
+          "Upload returns key; signed-in download streams 200"
+        ],
+        "safeRollback": [
+          "Revert PR"
+        ]
+      },
+      {
+        "path": ".github/workflows/seed-phase-1.yml",
+        "purpose": "Optional seed of demo customer/jobs",
+        "successCriteria": [
+          "Seed script completes"
+        ],
+        "safeRollback": [
+          "Re-run with corrected env or revert"
+        ]
+      },
+      {
+        "path": ".github/workflows/update-allowlist.yml",
+        "purpose": "Maintain preview allowlist/protection bypass as needed",
+        "successCriteria": [
+          "Protected previews accessible to CI; prod unaffected"
+        ],
+        "safeRollback": [
+          "Revert PR; rotate bypass token if leaked"
         ]
       }
     ]
@@ -85,5 +139,94 @@
     "workflowEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/agent-smoke.yml",
     "playbookEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md",
     "decisionsEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json"
-  }
+  },
+  "workflows": [
+    {
+      "path": ".github/workflows/agent-smoke.yml",
+      "purpose": "Wait for Vercel Preview and run smoke test on each PR.",
+      "inputs": {
+        "env": {
+          "VERCEL_APP": "complianceloop-portal"
+        },
+        "secrets": [
+          "VERCEL_TOKEN",
+          "VERCEL_TEAM_ID",
+          "VERCEL_BYPASS_TOKEN (required when preview protection is enabled)"
+        ]
+      },
+      "successCriteria": [
+        "Workflow prints preview URL.",
+        "Smoke script prints 'Root page probe passed.' and '✅ smoke passed.'"
+      ],
+      "safeRollback": [
+        "Disable or remove the workflow file.",
+        "Promote a prior READY deployment in Vercel if needed."
+      ]
+    },
+    {
+      "path": ".github/workflows/design-skin-kit.yml",
+      "purpose": "Add theme tokens, global styles, /design-playground",
+      "successCriteria": [
+        "Preview builds green; /design-playground renders"
+      ],
+      "safeRollback": [
+        "Revert PR"
+      ]
+    },
+    {
+      "path": ".github/workflows/phase-1-auth-db.yml",
+      "purpose": "Neon + Drizzle schema; passwordless auth APIs",
+      "successCriteria": [
+        "Preview endpoints /api/auth/* return 200"
+      ],
+      "safeRollback": [
+        "Revert PR"
+      ]
+    },
+    {
+      "path": ".github/workflows/phase-2-files-r2.yml",
+      "purpose": "Private file uploads to R2; secure streaming via /api/files/[...key]",
+      "successCriteria": [
+        "Upload returns key; signed-in download streams 200"
+      ],
+      "safeRollback": [
+        "Revert PR"
+      ]
+    },
+    {
+      "path": ".github/workflows/seed-phase-1.yml",
+      "purpose": "Optional seed of demo customer/jobs",
+      "successCriteria": [
+        "Seed script completes"
+      ],
+      "safeRollback": [
+        "Re-run with corrected env or revert"
+      ]
+    },
+    {
+      "path": ".github/workflows/update-allowlist.yml",
+      "purpose": "Maintain preview allowlist/protection bypass as needed",
+      "successCriteria": [
+        "Protected previews accessible to CI; prod unaffected"
+      ],
+      "safeRollback": [
+        "Revert PR; rotate bypass token if leaked"
+      ]
+    }
+  ],
+  "phases": [
+    "Admin console",
+    "Airtable bridge (hybrid)",
+    "Assignment engine (first-accept, soft-hold cascade, single-eligible auto-assign)",
+    "Auth + DB base",
+    "Customer dashboard",
+    "Design Skin Kit",
+    "Files & Certificates (R2)",
+    "Job model + booking skeleton",
+    "Notifications (email/SMS)",
+    "Payments & invoices",
+    "Polish & launch (SEO, A11y, QA, rate limits)",
+    "Provider dashboard (+ day-of checklist, conflict)",
+    "Provider directory & eligibility"
+  ]
 }
