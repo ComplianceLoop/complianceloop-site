@@ -1,12 +1,17 @@
 # ComplianceLoop Playbook
-_Last updated: 2025-09-25 by CL Playbook_
+_Last updated: 2025-09-26 by CL Playbook_
 
 ## Authoring Standard (MANDATORY)
-We write instructions **step-by-step with clicks and direct links**.
+**Use this exact wording in every chat and document.**
 
-- Include **click paths** (e.g., _Vercel → Project → Settings → Security → Protection → Preview Deployments_).
-- Provide **copy-pasteable commands** with placeholders clearly marked.
-- **Never** print secrets; refer to them by secret name (e.g., `VERCEL_TOKEN`).
+- Write instructions step-by-step with explicit UI clicks (e.g., “Vercel → Project → Settings → Security → Protection → Preview Deployments”).
+- Include a direct, clickable URL for every external step (GitHub pages, Vercel settings, deployments, etc.).
+- Provide copy-pasteable commands with clearly marked placeholders (e.g., <PASTE_URL>, <TEAM_ID>), and show Windows + macOS variants when relevant.
+- Never print secrets; refer to them by secret name (e.g., `VERCEL_TOKEN`). If a token is needed, say where to create/copy it and where to store it.
+- When editing repo files, provide full-file replacements (no “insert above/below line”). Also include the direct GitHub **edit URL** for that file.
+- State success criteria and safe rollback steps for every procedure.
+- If the UI can differ, include a brief “What you might see” note and the fallback path.
+- Default tone: concise, kind, senior-developer practical.
 
 ---
 
@@ -27,50 +32,46 @@ Preview URLs change on every deployment. CI resolves the correct URL by querying
 **Edit URL:** https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/agent-smoke.yml
 
 ### What it does
-1. Waits for (or resolves) a Vercel **Preview** URL.  
-2. Runs `scripts/agent-smoke.mjs` against that URL.  
-3. Pass condition: prints **“Root page probe passed.”** and **“✅ smoke passed.”**
+1. Resolves a Vercel **Preview** URL (branch match; falls back to latest READY).
+2. Runs `scripts/agent-smoke.mjs` against that URL.
+3. **Success criteria:** logs include **“Root page probe passed.”** and **“✅ smoke passed.”**
 
 ### One-time Setup (Secrets) — CLICK-BY-CLICK
 1. **Create a Vercel token**  
    - https://vercel.com/account/tokens → **Create** → copy token.  
-   - In GitHub: https://github.com/ComplianceLoop/complianceloop-site/settings/secrets/actions → **New repository secret** → **Name:** `VERCEL_TOKEN` → **Secret:** paste → **Add secret**.
-
+   - GitHub secrets: https://github.com/ComplianceLoop/complianceloop-site/settings/secrets/actions → **New repository secret** → **Name:** `VERCEL_TOKEN` → paste → **Add secret**.
 2. **Find the Vercel Team ID**  
    - https://vercel.com/teams/compliance-loop/settings → copy **Team ID** (`team_...`).  
-   - In GitHub secrets → **New repository secret** → **Name:** `VERCEL_TEAM_ID` → paste ID → **Add secret**.
-
+   - GitHub secrets → **New repository secret** → **Name:** `VERCEL_TEAM_ID` → paste → **Add secret**.
 3. **(If previews are protected) Get Protection Bypass token**  
    - https://vercel.com/compliance-loop/complianceloop-portal/settings/security  
    - **Protection → Preview Deployments → Protection Bypass for Automation** → **Create Token** or **Reveal** → copy.  
-   - In GitHub secrets → **Name:** `VERCEL_BYPASS_TOKEN` → paste → **Add/Update secret**.
+   - GitHub secrets → edit or add **`VERCEL_BYPASS_TOKEN`** → paste → **Update/Add secret**.
 
-### Run the workflow (two ways)
+### Run the workflow
 - **Automatically:** open any Pull Request; the workflow triggers on `pull_request`.  
 - **Manually:** https://github.com/ComplianceLoop/complianceloop-site/actions → **Agent Smoke (Vercel Preview)** → **Run workflow** → **Run workflow**.
 
 ### Verify success
-- Open the job logs: https://github.com/ComplianceLoop/complianceloop-site/actions  
-- Look for:
+- Actions: https://github.com/ComplianceLoop/complianceloop-site/actions  
+- Open the job → check for:
   - `Found READY preview: https://...` (or fallback message)  
   - `Bypass cookie set (status 307).` *(when protection is enabled)*  
   - `Root page probe passed.`  
   - `✅ smoke passed.`
 
 ### Troubleshooting
-- **Timeout waiting for READY preview**
+- **Timeout waiting for READY preview**  
   - Project may be connected to a different repo or branch doesn’t deploy. Check:  
     https://vercel.com/compliance-loop/complianceloop-portal/settings/git  
   - Or rely on the workflow’s **fallback** to latest READY preview.
-
-- **401 on bypass cookie request (CI or local)**
-  - The token is wrong or for a different project. Get the correct one here:  
+- **401 on bypass cookie request (CI or local)**  
+  - Token is wrong or for a different project. Get the correct one here:  
     https://vercel.com/compliance-loop/complianceloop-portal/settings/security → **Protection → Preview Deployments → Protection Bypass for Automation** → **Reveal/Create Token**.  
   - Update GitHub secret: https://github.com/ComplianceLoop/complianceloop-site/settings/secrets/actions → edit **`VERCEL_BYPASS_TOKEN`**.  
-  - Re-run the job from the PR’s **Checks** tab.
-
-- **404 on PR link**
-  - Find PRs here: https://github.com/ComplianceLoop/complianceloop-site/pulls → **Sort → Recently updated** → open your PR → **Checks** → **Re-run all jobs**.
+  - Re-run jobs from the PR’s **Checks** tab or Actions run page.
+- **404 on PR link**  
+  - PR list: https://github.com/ComplianceLoop/complianceloop-site/pulls → **Sort → Recently updated** → open your PR → **Checks** → **Re-run all jobs**.
 
 ---
 
@@ -81,27 +82,10 @@ Preview URLs change on every deployment. CI resolves the correct URL by querying
 3. **Clone/enter repo:**  
    - First time: `cd %USERPROFILE% && git clone https://github.com/ComplianceLoop/complianceloop-site`  
    - Then: `cd %USERPROFILE%\complianceloop-site`
-4. **Set env vars:**  
-   - Get Preview URL: https://vercel.com/compliance-loop/complianceloop-portal/deployments → click latest **Ready / Preview** → **Visit** → copy URL.  
-   - PowerShell:  
-     ```
-     $env:PREVIEW_URL = "<paste preview url>"
-     # If protected:
-     $env:VERCEL_BYPASS_TOKEN = "<paste bypass token>"
-     ```
-5. **Run:** `node scripts/agent-smoke.mjs`  
-   Expect **“Root page probe passed.”** and **“✅ smoke passed.”**
-
----
-
-## Current Status (logged)
-- **2025-09-25:** Agent Smoke succeeded on PR **#21** (`feat/phase-1-auth-db`). Logs show bypass cookie set and root page probe passed.
-
----
-
-## Quick Links
-- **Actions (runs):** https://github.com/ComplianceLoop/complianceloop-site/actions  
-- **Repo secrets:** https://github.com/ComplianceLoop/complianceloop-site/settings/secrets/actions  
-- **Vercel deployments:** https://vercel.com/compliance-loop/complianceloop-portal/deployments  
-- **Vercel security (bypass token):** https://vercel.com/compliance-loop/complianceloop-portal/settings/security  
-- **Vercel Git settings:** https://vercel.com/compliance-loop/complianceloop-portal/settings/git
+4. **Get Preview URL:**  
+   https://vercel.com/compliance-loop/complianceloop-portal/deployments → click latest **Ready / Preview** row → **Visit** → copy URL.
+5. **Set env vars:**  
+   ```powershell
+   $env:PREVIEW_URL = "<paste preview url>"
+   # If protected:
+   $env:VERCEL_BYPASS_TOKEN = "<paste bypass token>"
