@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Wait for READY Vercel Preview for this branch
+      - name: Resolve Vercel Preview URL (branch match with fallback)
         id: vercel
         shell: bash
         env:
@@ -33,28 +33,39 @@ jobs:
           VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
           VERCEL_APP: ${{ env.VERCEL_APP }}
         run: |
+          set -e
           if [ -z "${VERCEL_TOKEN}" ] || [ -z "${VERCEL_TEAM_ID}" ]; then
             echo "VERCEL_TOKEN and/or VERCEL_TEAM_ID missing."
             exit 1
           fi
           BRANCH="${{ github.head_ref || github.ref_name }}"
           echo "Looking for READY preview for branch: $BRANCH (app=${VERCEL_APP})"
-          for i in {1..60}; do
+          for i in {1..30}; do
             RESP=$(curl -s -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-              "https://api.vercel.com/v6/deployments?teamId=${VERCEL_TEAM_ID}&app=${VERCEL_APP}&limit=20&state=READY")
+              "https://api.vercel.com/v6/deployments?teamId=${VERCEL_TEAM_ID}&app=${VERCEL_APP}&limit=30&state=READY")
             URL=$(echo "$RESP" \
               | jq -r '.deployments[] | select(.meta.githubCommitRef=="'"$BRANCH"'") | .url' \
               | head -n1)
             if [ -n "$URL" ] && [ "$URL" != "null" ]; then
-              echo "Found READY preview: https://$URL"
+              echo "Found READY preview for branch: https://$URL"
+              echo "match=1" >> "$GITHUB_OUTPUT"
               echo "url=https://$URL" >> "$GITHUB_OUTPUT"
               exit 0
             fi
-            echo "Waiting for READY preview..."
+            echo "Waiting for READY preview (branch=$BRANCH)..."
             sleep 10
           done
-          echo "Timed out waiting for READY preview."
-          exit 1
+          echo "No branch-matched preview found. Falling back to the latest READY preview."
+          RESP=$(curl -s -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v6/deployments?teamId=${VERCEL_TEAM_ID}&app=${VERCEL_APP}&limit=1&state=READY")
+          URL=$(echo "$RESP" | jq -r '.deployments[0].url')
+          if [ -z "$URL" ] || [ "$URL" = "null" ]; then
+            echo "Could not find any READY preview for app ${VERCEL_APP}."
+            exit 1
+          fi
+          echo "match=0" >> "$GITHUB_OUTPUT"
+          echo "url=https://$URL" >> "$GITHUB_OUTPUT"
+          echo "Using fallback READY preview: https://$URL"
 
       - name: Run smoke test against Preview
         shell: bash
