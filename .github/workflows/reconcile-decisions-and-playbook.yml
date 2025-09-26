@@ -28,8 +28,9 @@ jobs:
 
       # ---- 1) UPSERT our shared items into decisions.json (non-destructive) ----
       - name: Upsert phases and workflow entries
+        shell: bash
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
 
           # Canonical 13 phases we agreed
           cat > /tmp/phases.json <<'EOF'
@@ -86,35 +87,27 @@ jobs:
           ]
           EOF
 
-          # Merge helper: append unique items to arrays based on 'path' for workflows
-          jq -c '
-            def ensure(obj; path): if has(path) then . else . + obj end;
-            def uniq_by_path(a):
-              [ (a | group_by(.path) | map(.[0]))[] ];
-            # Ensure top-level keys used by downstream generators exist
+          # Normalize to ensure arrays exist
+          jq '
             . as $root
-            | ($root.repos // .repositories) as $maybe_repos
-            | . + {
-                "workflows": (.workflows // .automation?.workflows // []),
-                "phases": (.phases // [])
-              }
-          ' decisions.json > /tmp/normalized.json || cp decisions.json /tmp/normalized.json
+            | .workflows = (.workflows // .automation?.workflows // [])
+            | .phases    = (.phases    // [])
+          ' decisions.json > /tmp/normalized.json
 
           # Upsert PHASES
           jq -s '.[0] as $cur | .[1] as $add |
                  $cur + { phases: ($cur.phases + $add | unique) }' \
                  /tmp/normalized.json /tmp/phases.json > /tmp/with_phases.json
 
-          # Upsert WORKFLOWS (preserve any objects already present)
+          # Upsert WORKFLOWS (unique by "path")
           jq -s '
             .[0] as $cur | .[1] as $add |
-            ($cur.workflows // []) as $existing |
-            ($existing + $add) as $merged |
-            ($merged | group_by(.path) | map(.[0])) as $unique |
-            $cur + { workflows: $unique }
+            ($cur.workflows + $add)
+            | group_by(.path) | map(.[0]) as $uniq |
+            $cur + { workflows: $uniq }
           ' /tmp/with_phases.json /tmp/workflows.json > /tmp/with_workflows.json
 
-          # If your file already keeps workflows under automation.workflows, mirror there too
+          # Mirror under automation.workflows if your file uses that shape
           jq '
             if .automation and .automation.workflows then
               .automation.workflows = .workflows
@@ -125,51 +118,52 @@ jobs:
 
       # ---- 2) RENDER a canonical block into playbook.md FROM decisions.json ----
       - name: Render canonical Playbook block
+        shell: bash
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           FILE="decisions.json"
 
           title_repo=$(jq -r '.repositories?.canonical as $c | if $c then ($c.owner+"/"+$c.repo) else (.repo.owner+"/"+.repo.name) end' "$FILE" 2>/dev/null || echo "ComplianceLoop/complianceloop-site")
           default_branch=$(jq -r '.repositories?.canonical.defaultBranch // .repo.defaultBranch // "main"' "$FILE")
-          vercel_team=$(jq -r '.vercel.team.slug // .vercel.team // "compliance-loop"' "$FILE")
+          vercel_team=$(jq -r '.vercel.team.slug // .vercel.team // "ComplianceLoop"' "$FILE")
           vercel_project=$(jq -r '.vercel.projects[]? | select(.role=="app/portal") | .name // empty' "$FILE")
-
           list_workflows=$(jq -r '.workflows[]? | .path' "$FILE" | sed 's/^/- `/; s/$/`/')
           list_phases=$(jq -r '.phases[]?' "$FILE" | nl -w1 -s") ")
 
-          mkdir -p /tmp
-          cat > /tmp/cl_block.md <<EOF
-<!-- CL:START -->
-# ComplianceLoop — Canonical Plan (Generated)
+          # Quoted heredoc to keep YAML safe
+          cat > /tmp/cl_block.md <<'EOF'
+          <!-- CL:START -->
+          # ComplianceLoop — Canonical Plan (Generated)
 
-**Repo:** ${title_repo} (\`${default_branch}\`)  
-**Vercel project:** ${vercel_project:-complianceloop-portal} (team: ${vercel_team})
+          **Repo:** ${title_repo} (`${default_branch}`)
+          **Vercel project:** ${vercel_project:-complianceloop-portal} (team: ${vercel_team})
 
-## Workflows (index)
-${list_workflows}
+          ## Workflows (index)
+          ${list_workflows}
 
-## 13 Phases
-${list_phases}
+          ## 13 Phases
+          ${list_phases}
 
-> Edit *decisions.json* to change phases/workflows, then re-run this workflow.
-<!-- CL:END -->
-EOF
+          > Edit *decisions.json* to change phases/workflows, then re-run this workflow.
+          <!-- CL:END -->
+          EOF
 
-      - name: Update playbook.md block (non-destructive)
-        run: |
+          # Now expand the shell variables safely into the template
+          eval "echo \"$(cat /tmp/cl_block.md)\"" > /tmp/cl_block_expanded.md
+
           PLAYBOOK="playbook.md"
           touch "$PLAYBOOK"
           if grep -q "<!-- CL:START -->" "$PLAYBOOK"; then
             awk '
               BEGIN{inblk=0}
-              /<!-- CL:START -->/{inblk=1; system("cat /tmp/cl_block.md"); next}
+              /<!-- CL:START -->/{inblk=1; system("cat /tmp/cl_block_expanded.md"); next}
               /<!-- CL:END -->/{inblk=0; next}
               { if (!inblk) print }
             ' "$PLAYBOOK" > /tmp/new.md
             mv /tmp/new.md "$PLAYBOOK"
           else
             printf "\n" >> "$PLAYBOOK"
-            cat /tmp/cl_block.md >> "$PLAYBOOK"
+            cat /tmp/cl_block_expanded.md >> "$PLAYBOOK"
           fi
 
       - name: Create PR
