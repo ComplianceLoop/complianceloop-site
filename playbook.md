@@ -89,3 +89,35 @@ Preview URLs change on every deployment. CI resolves the correct URL by querying
    $env:PREVIEW_URL = "<paste preview url>"
    # If protected:
    $env:VERCEL_BYPASS_TOKEN = "<paste bypass token>"
+
+<!-- CL:START -->
+# ComplianceLoop — Canonical Plan (Generated)
+
+**Repo:** ComplianceLoop/complianceloop-site ()
+**Vercel project:** complianceloop-portal (team: compliance-loop)
+
+## Workflows (index)
+- `.github/workflows/agent-smoke.yml`
+- `.github/workflows/design-skin-kit.yml`
+- `.github/workflows/phase-1-auth-db.yml`
+- `.github/workflows/phase-2-files-r2.yml`
+- `.github/workflows/seed-phase-1.yml`
+- `.github/workflows/update-allowlist.yml`
+
+## 13 Phases
+1) Admin console
+2) Airtable bridge (hybrid)
+3) Assignment engine (first-accept, soft-hold cascade, single-eligible auto-assign)
+4) Auth + DB base
+5) Customer dashboard
+6) Design Skin Kit
+7) Files & Certificates (R2)
+8) Job model + booking skeleton
+9) Notifications (email/SMS)
+10) Payments & invoices
+11) Polish & launch (SEO, A11y, QA, rate limits)
+12) Provider dashboard (+ day-of checklist, conflict)
+13) Provider directory & eligibility
+
+> Edit *decisions.json* to change phases/workflows, then re-run this workflow.
+<!-- CL:END -->
