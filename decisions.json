@@ -7,9 +7,9 @@
     "style": "step-by-step",
     "requirements": [
       "Include clickable links for every external step (GitHub, Vercel, etc.).",
-      "Spell out exact UI clicks/labels (e.g., Settings → Security → Protection → Preview Deployments).",
-      "Prefer terminal commands that are copy-pasteable with placeholders clearly marked.",
-      "Never print secrets; refer to them by secret name."
+      "Spell out exact UI click paths (e.g., Settings → Security → Protection → Preview Deployments).",
+      "Provide copy-pasteable terminal commands with placeholders clearly marked.",
+      "Never print secrets; refer to them by secret name (e.g., VERCEL_TOKEN)."
     ]
   },
   "repositories": {
@@ -20,9 +20,7 @@
     }
   },
   "vercel": {
-    "team": {
-      "slug": "compliance-loop"
-    },
+    "team": { "slug": "compliance-loop" },
     "projects": [
       {
         "name": "complianceloop-site",
@@ -32,53 +30,46 @@
       {
         "name": "complianceloop-portal",
         "role": "app/portal",
-        "notes": "Phase-1 auth/db work. Used for smoke testing in CI."
+        "notes": "Phase-1 auth/db; used by CI smoke."
       }
     ],
     "preview": {
-      "protection": "allowed",
+      "protection": "enabled",
       "bypassTokenSecretName": "VERCEL_BYPASS_TOKEN",
-      "urlResolution": "CI queries Vercel /v6/deployments for READY deployment with meta.githubCommitRef == PR branch; uses app=complianceloop-portal."
+      "urlResolution": "CI queries Vercel /v6/deployments for READY deployment where meta.githubCommitRef == PR branch and app=complianceloop-portal; falls back to latest READY preview if no branch match."
     }
   },
   "automation": {
     "workflows": [
       {
         "path": ".github/workflows/agent-smoke.yml",
-        "purpose": "Wait for Vercel Preview and run smoke test on every PR.",
+        "purpose": "Wait for Vercel Preview and run smoke test on each PR.",
         "inputs": {
-          "env": {
-            "VERCEL_APP": "complianceloop-portal"
-          },
+          "env": { "VERCEL_APP": "complianceloop-portal" },
           "secrets": [
             "VERCEL_TOKEN",
             "VERCEL_TEAM_ID",
-            "VERCEL_BYPASS_TOKEN (optional if preview protection is disabled)"
+            "VERCEL_BYPASS_TOKEN (required when preview protection is enabled)"
           ]
         },
         "successCriteria": [
-          "Preview URL resolved for the PR branch",
-          "Smoke script exits 0 and prints '✅ smoke passed.'"
+          "Workflow prints preview URL.",
+          "Smoke script prints 'Root page probe passed.' and '✅ smoke passed.'"
         ],
         "safeRollback": [
-          "Disable the workflow by setting on.pull_request to an empty list or delete the file.",
-          "Re-run previous READY deployment from Vercel if necessary."
+          "Disable or remove the workflow file.",
+          "Promote a prior READY deployment in Vercel if needed."
         ]
       }
     ]
   },
   "operationalNotes": [
-    "Preview URLs are dynamic per deployment; CI resolves at runtime via Vercel API.",
-    "If Preview protection is enabled, CI requires secret VERCEL_BYPASS_TOKEN. If not set, smoke will fail fast.",
-    "Repo currently has no package.json at root; smoke script runs with Node 20+ without installing dependencies."
+    "On 2025-09-25 the Agent Smoke workflow succeeded for PR #21 (feat/phase-1-auth-db) after updating the project-specific Vercel Protection Bypass token in repo secret VERCEL_BYPASS_TOKEN.",
+    "Preview URLs are dynamic per deployment; CI resolves at runtime.",
+    "Repo root currently does not require Node deps to run smoke; Node 20+ is sufficient.",
+    "If CI logs show 401 at bypass, update VERCEL_BYPASS_TOKEN with the exact token from the project’s Security → Protection → Preview Deployments."
   ],
   "quickLinks": {
+    "githubActions": "https://github.com/ComplianceLoop/complianceloop-site/actions",
     "githubSecrets": "https://github.com/ComplianceLoop/complianceloop-site/settings/secrets/actions",
-    "vercelTokens": "https://vercel.com/account/tokens",
-    "vercelTeamSettings": "https://vercel.com/teams/compliance-loop/settings",
-    "vercelProjectSecurity": "https://vercel.com/compliance-loop/complianceloop-portal/settings/security",
-    "workflowEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/agent-smoke.yml",
-    "playbookEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md",
-    "decisionsEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json"
-  }
-}
+    "vercelTokens": "https://vercel.com/account/tok
