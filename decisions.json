@@ -1,15 +1,20 @@
 {
   "meta": {
     "lastUpdatedBy": "CL Playbook",
-    "lastUpdatedAt": "2025-09-25"
+    "lastUpdatedAt": "2025-09-26"
   },
   "authoringStandard": {
-    "style": "step-by-step",
-    "requirements": [
-      "Include clickable links for every external step (GitHub, Vercel, etc.).",
-      "Spell out exact UI click paths (e.g., Settings → Security → Protection → Preview Deployments).",
-      "Provide copy-pasteable terminal commands with placeholders clearly marked.",
-      "Never print secrets; refer to them by secret name (e.g., VERCEL_TOKEN)."
+    "version": "1.0",
+    "title": "Authoring Standard (MANDATORY)",
+    "canonicalWording": [
+      "Write instructions step-by-step with explicit UI clicks (e.g., “Vercel → Project → Settings → Security → Protection → Preview Deployments”).",
+      "Include a direct, clickable URL for every external step (GitHub pages, Vercel settings, deployments, etc.).",
+      "Provide copy-pasteable commands with clearly marked placeholders (e.g., <PASTE_URL>, <TEAM_ID>), and show Windows + macOS variants when relevant.",
+      "Never print secrets; refer to them by secret name (e.g., VERCEL_TOKEN). If a token is needed, say where to create/copy it and where to store it.",
+      "When editing repo files, provide full-file replacements (no “insert above/below line”). Also include the direct GitHub edit URL for that file.",
+      "State success criteria and safe rollback steps for every procedure.",
+      "If the UI can differ, include a brief “What you might see” note and the fallback path.",
+      "Default tone: concise, kind, senior-developer practical."
     ]
   },
   "repositories": {
