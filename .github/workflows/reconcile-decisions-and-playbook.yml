@@ -26,30 +26,47 @@ jobs:
             echo '{}' > decisions.json
           fi
 
-      # IMPORTANT: Safe normalization — never index arrays as objects
-      - name: Normalize types (safe)
+      # ROBUST root fix + safe normalization
+      - name: Normalize types (root-safe)
         shell: bash
         run: |
           set -Eeuo pipefail
           cat decisions.json | jq '
+            # helpers
             def arr(x): if (x|type)=="array" then x else [] end;
             def str(x): if (x|type)=="string" then x else "" end;
             def obj(x): if (x|type)=="object" then x else {} end;
 
-            .repo = obj(.repo)
+            # root fix:
+            # - if object: keep
+            # - if array with one object: unwrap
+            # - else: empty object
+            def rootfix:
+              if (type=="object") then .
+              elif (type=="array") then
+                if (length>0 and (.[0]|type)=="object") then .[0] else {} end
+              else {}
+              end;
+
+            rootfix
+
+          | .repo = obj(.repo)
           | .repo.owner = str(.repo.owner)
           | .repo.name  = str(.repo.name)
           | .repo.defaultBranch = (if (.repo.defaultBranch|type)=="string" then .repo.defaultBranch else "main" end)
 
           | .vercel = obj(.vercel)
-          | .vercel.team = (if (.vercel.team|type)=="object" then .vercel.team
-                            else (if (.vercel.team|type)=="string" then {slug:.vercel.team} else {} end) end)
+          | .vercel.team = (
+              if (.vercel.team|type)=="object" then .vercel.team
+              else (if (.vercel.team|type)=="string" then {slug:.vercel.team} else {} end)
+              end
+            )
           | .vercel.team.slug = str(.vercel.team.slug)
           | .vercel.project = (if (.vercel.project|type)=="string" then .vercel.project else "" end)
 
-          | .workflows   = arr(.workflows)
-          | .phases      = arr(.phases)
-          | .phaseDetails= arr(.phaseDetails)
+          | .workflows    = arr(.workflows)
+          | .phases       = arr(.phases)
+          | .phaseDetails = arr(.phaseDetails)
 
           | .journeys = obj(.journeys)
           | .journeys.customer = obj(.journeys.customer)
@@ -66,7 +83,6 @@ jobs:
           repo="$(jq -r '.repo.owner+"/"+.repo.name // "ComplianceLoop/complianceloop-site"' "$F")"
           branch="$(jq -r '.repo.defaultBranch // "main"' "$F")"
 
-          # Resolve Vercel team+project with safe fallbacks
           vteam="$(jq -r '.vercel.team.slug // .vercel.team // "ComplianceLoop"' "$F")"
           vproj="$(jq -r '
             if (.vercel.project // "" ) != "" then .vercel.project
@@ -185,9 +201,9 @@ jobs:
         with:
           token: ${{ github.token }}
           branch: chore/reconcile-decisions-and-playbook
-          title: "chore(playbook): sync journeys, APIs, data, and phase details (safe normalization)"
+          title: "chore(playbook): sync journeys, APIs, data, and phase details (root-safe)"
           body: |
-            Regenerates the canonical Playbook block from `decisions.json`
-            using type-safe normalization (arrays/objects not mis-indexed).
+            Regenerates the canonical Playbook block from `decisions.json` with
+            robust root coercion (object), unwrapping single-object arrays.
           add-paths: |
             playbook.md
