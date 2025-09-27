@@ -1,0 +1,75 @@
+name: fix-auth-imports
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Run codemod
+        run: node scripts/fix-auth-imports.mjs
+
+      - name: Commit changes (if any)
+        id: commit
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "CL Playbook"
+          git config user.email "actions@users.noreply.github.com"
+          BRANCH="fix/auth-imports"
+          git checkout -B "$BRANCH"
+          git add -A
+          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          git commit -m "build: fix auth import paths (${TS})"
+          git push -fu origin "$BRANCH"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update PR (if changed)
+        if: steps.commit.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+            const branch = '${{ steps.commit.outputs.branch }}';
+            const title = 'build: fix auth import paths';
+            const body = [
+              'Automated codemod replacing:',
+              '- `@/app/../lib/db` -> `@/lib/db`',
+              '- `@/app/../db/schema` -> `@/db/schema`',
+              '- `@/app/../lib/auth` -> `@/lib/auth`',
+              '',
+              'No logic changes.'
+            ].join('\n');
+
+            const { data: prs } = await github.rest.pulls.list({
+              owner, repo, state: 'open', head: `${owner}:${branch}`, base: 'main'
+            });
+
+            if (prs.length) {
+              await github.rest.pulls.update({ owner, repo, pull_number: prs[0].number, title, body });
+              core.notice(`PR exists: ${prs[0].html_url}`);
+            } else {
+              const { data: pr } = await github.rest.pulls.create({
+                owner, repo, head: branch, base: 'main', title, body
+              });
+              core.notice(`PR created: ${pr.html_url}`);
+            }
