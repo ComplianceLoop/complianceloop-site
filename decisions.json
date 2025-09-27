@@ -1,4 +1,5 @@
 {
+  "version": "2025-09-26.2",
   "phases": [
     { "phase": "Design Skin Kit", "objective": "Theme tokens, brand, and UI primitives to speed all later pages.", "deliverables": ["theme.ts tokens", "globals.css", "Button/Input/Card", "/design-playground"], "acceptance": ["Preview renders", "Tokens adjustable with hot reload"] },
     { "phase": "Auth + DB base", "objective": "Neon + Drizzle schema, passwordless email code, sessions.", "deliverables": ["/api/auth/send-code", "/api/auth/verify-code", "users, sessions tables"], "acceptance": ["Vercel env DATABASE_URL set", "Auth code roundtrip works", "Dashboard gate honors session"], "status": "landed", "landedAt": "2025-09-26", "verification": ["DATABASE_URL set", "send-code 200", "verify-code 200 (session issued)"] },
@@ -61,7 +62,7 @@
         ]
       },
       "resetRun": {
-        "when": "Only if previous runs show no changes to commit or Playbook block is stale.",
+        "when": "Only if previous runs show no changes to commit or the Playbook block is stale.",
         "steps": [
           "Open links.editDecisions, paste full-file decisions.json, Commit changes",
           "Open links.editPlaybook, replace with '<!-- CL:START -->\\n<!-- CL:END -->', Commit changes with 'playbook: reset generated block'",
@@ -70,6 +71,10 @@
         ]
       }
     }
+  },
+  "status": {
+    "playbookGeneratedAt": null,
+    "lastReconciledAt": null
   },
   "handoff": {
     "purpose": "Allow any assistant/chat to resume seamlessly.",
@@ -89,5 +94,6 @@
       "Revert the last decisions.json commit on main.",
       "Reset playbook.md to only the CL block if needed and re-run the Reconciler."
     ]
-  }
+  },
+  "agentPromptTemplate": "You are the ComplianceLoop Playbook Agent. Use the repo and workflow details below, follow the single-run reconcile policy, and never write secrets.\\n\\nRepo & Project IDs\\n- Repo: ComplianceLoop/complianceloop-site (branch: main)\\n- Vercel project: complianceloop-portal (team: ComplianceLoop)\\n\\nAuthoritative Links\\n- Edit decisions.json: https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json\\n- Edit playbook.md: https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md\\n- Run Reconciler: https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml\\n- Pull Requests: https://github.com/ComplianceLoop/complianceloop-site/pulls\\n\\nPolicy\\n- decisions.json is the single source of truth. The CL block in playbook.md is generated—do not hand-edit inside it.\\n- Run the Reconciler once after committing decisions.json (and after a reset of playbook.md only if the block is stale).\\n\\nExpected Workflow\\n1) Fetch BOTH raw files.\\n2) Update decisions.json with full-file replacements only.\\n3) Run the Reconciler once.\\n4) Merge the PR.\\n\\nSuccess Criteria\\n- PR opens from the latest decisions.json and Playbook regenerates.\\n\\nSafe Rollbacks\\n- Revert the last decisions.json commit; reset playbook.md to the empty CL block if needed; rerun the Reconciler."
 }
