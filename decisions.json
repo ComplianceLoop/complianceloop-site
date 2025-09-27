@@ -1,5 +1,5 @@
 {
-  "version": "2025-09-26.2",
+  "version": "2025-09-26.3",
   "phases": [
     { "phase": "Design Skin Kit", "objective": "Theme tokens, brand, and UI primitives to speed all later pages.", "deliverables": ["theme.ts tokens", "globals.css", "Button/Input/Card", "/design-playground"], "acceptance": ["Preview renders", "Tokens adjustable with hot reload"] },
     { "phase": "Auth + DB base", "objective": "Neon + Drizzle schema, passwordless email code, sessions.", "deliverables": ["/api/auth/send-code", "/api/auth/verify-code", "users, sessions tables"], "acceptance": ["Vercel env DATABASE_URL set", "Auth code roundtrip works", "Dashboard gate honors session"], "status": "landed", "landedAt": "2025-09-26", "verification": ["DATABASE_URL set", "send-code 200", "verify-code 200 (session issued)"] },
@@ -70,6 +70,21 @@
           "Open links.pulls, open the PR, Merge pull request, Confirm merge"
         ]
       }
+    },
+    "anticipateNoPR": {
+      "whyItHappens": [
+        "decisions.json commit does not change anything the generator writes into the CL block.",
+        "playbook.md already exactly matches what the Reconciler would generate."
+      ],
+      "howToAnticipate": [
+        "Only run the Reconciler immediately after committing decisions.json changes intended to alter the Playbook block.",
+        "If you run it without such changes, expect 'no changes to commit' and no PR.",
+        "Before running, skim the last decisions.json diff; if it didn’t touch phases/links/notes that render in the block, you can predict no PR."
+      ],
+      "howToAvoidManualResets": [
+        "When you expect a PR, always bump 'version' in decisions.json (e.g., 2025-09-26.4). The generator includes it in the block, creating a tiny but valid diff.",
+        "If you *must* force a PR without semantic changes, do the documented one-time reset of playbook.md, then run once."
+      ]
     }
   },
   "status": {
