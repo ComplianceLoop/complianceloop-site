@@ -36,7 +36,7 @@ jobs:
           BRANCH="reconcile/playbook"
           git checkout -B "$BRANCH"
 
-          # Only commit if there is a diff
+          # Stage only if there is a diff
           if git diff --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -44,22 +44,42 @@ jobs:
 
           git add -A
           TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          git commit -m "playbook: regenerate from decisions.json ($TS)"
+          git commit -m "playbook: regenerate from decisions.json (${TS})"
+          git push -fu origin "$BRANCH"
           echo "changed=true" >> "$GITHUB_OUTPUT"
-
-      - name: Push branch (if changed)
-        if: steps.commit.outputs.changed == 'true'
-        run: |
-          set -euo pipefail
-          git push -fu origin reconcile/playbook
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Open or update PR (if changed)
         if: steps.commit.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          # Create PR if missing; else update title/body
-          gh pr view reconcile/playbook >/dev/null 2>&1 \
-            || gh pr create --base main --head reconcile/playbook --title "Playbook: reconcile from decisions.json" --body "Automated regeneration of the CL block from decisions.json."
-          gh pr edit reconcile/playbook --add-label "automation,playbook" || true
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const branch = core.getInput('branch') || process.env.BRANCH || '${{ steps.commit.outputs.branch }}';
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+
+            // Look for existing open PR from this branch
+            const { data: prs } = await github.rest.pulls.list({
+              owner, repo, state: 'open', head: `${owner}:${branch}`, base: 'main'
+            });
+
+            let pr;
+            if (prs.length > 0) {
+              pr = prs[0];
+              await github.rest.pulls.update({
+                owner, repo, pull_number: pr.number,
+                title: 'Playbook: reconcile from decisions.json',
+                body: 'Automated regeneration of the CL block from decisions.json.'
+              });
+            } else {
+              const { data } = await github.rest.pulls.create({
+                owner, repo, base: 'main', head: branch,
+                title: 'Playbook: reconcile from decisions.json',
+                body: 'Automated regeneration of the CL block from decisions.json.'
+              });
+              pr = data;
+            }
+
+            core.setOutput('pr', pr.html_url);
+            core.notice(`PR: ${pr.html_url}`);
