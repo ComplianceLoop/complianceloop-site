@@ -3,8 +3,8 @@ const path = require("node:path");
 
 /**
  * CommonJS config so Vercel/Next always pick it up.
- * Maps the odd imports seen in your logs directly to the real files,
- * and keeps the general "@/*" alias to repo root.
+ * Maps the odd imports shown in build logs directly to real files,
+ * and keeps the general "@/*" alias to the repo root.
  */
 const root = process.cwd();
 
@@ -18,13 +18,13 @@ const nextConfig = {
       // General: "@/something" -> repo root
       "@": path.resolve(root),
 
-      // Exact aliases for imports shown in build logs:
+      // Exact aliases for the imports failing in your logs:
       "@/app/../lib/db": path.resolve(root, "apps/portal/lib/db"),
       "@/app/../db/schema": path.resolve(root, "apps/portal/db/schema"),
       "@/app/../lib/auth": path.resolve(root, "apps/portal/lib/auth"),
 
-      // Normalize any other "@/app/../<...>" to repo root
-      "@/app/../": path.resolve(root) + "/",
+      // Fallback normalizer: any other "@/app/../<...>" -> repo root
+      "@/app/../": path.resolve(root) + "/"
     };
     return config;
   },
