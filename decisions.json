@@ -1,18 +1,18 @@
 {
   "phases": [
-    { "phase": "Design Skin Kit", "objective": "Theme tokens, brand, and UI primitives to speed all later pages.", "deliverables": [ "theme.ts tokens", "globals.css", "Button/Input/Card", "/design-playground" ], "acceptance": [ "Preview renders", "Tokens adjustable with hot reload" ] },
-    { "phase": "Auth + DB base", "objective": "Neon + Drizzle schema, passwordless email code, sessions.", "deliverables": [ "/api/auth/send-code", "/api/auth/verify-code", "users, sessions tables" ], "acceptance": [ "Vercel env DATABASE_URL set", "Auth code roundtrip works", "Dashboard gate honors session" ], "status": "landed", "landedAt": "2025-09-26", "verification": [ "DATABASE_URL set", "send-code 200", "verify-code 200 (session issued)" ] },
-    { "phase": "Files & Certificates (R2)", "objective": "Private file storage with signed streaming.", "deliverables": [ "/api/files/upload", "/api/files/:key", "R2 bucket + IAM" ], "acceptance": [ "Upload from provider portal → 200 r2Key", "Authorized GET streams; unauthorized 403" ] },
-    { "phase": "Airtable bridge (hybrid)", "objective": "Mirror critical records for ops; Neon remains source of record.", "deliverables": [ "sync script, cron", "idempotent mapping" ], "acceptance": [ "One-way sync green in CI", "Backfill job OK" ] },
-    { "phase": "Job model + booking skeleton", "objective": "Booking wizard + soft hold creation.", "deliverables": [ "/book wizard", "create Job(draft) API", "Soft-hold service" ], "acceptance": [ "30m hold for multi-property", "Single-property flow ok" ] },
-    { "phase": "Provider directory & eligibility", "objective": "Eligibility rules + instant decision.", "deliverables": [ "criteria engine", "provider onboarding form", "How-to-qualify guidance" ], "acceptance": [ "Pass/fail immediate", "Declined path shows guidance" ] },
-    { "phase": "Assignment engine", "objective": "First-accept wins + 15m soft-hold + single-eligible auto-assign.", "deliverables": [ "offer broadcast", "accept endpoint", "cascade logic" ], "acceptance": [ "Race handled; winner locks; cascade on timeout/decline" ] },
-    { "phase": "Customer dashboard", "objective": "List past/upcoming jobs + files/invoices.", "deliverables": [ "dashboard pages", "job detail route" ], "acceptance": [ "Auth required", "Documents stream correctly" ] },
-    { "phase": "Provider dashboard", "objective": "Job queue + day-of checklist + conflict report + tech email routing.", "deliverables": [ "checklist form", "conflict endpoint", "email routing field" ], "acceptance": [ "Late submission possible", "Conflict auto-cascade" ] },
-    { "phase": "Payments & invoices", "objective": "Invoice links and settlement (minimal MVP).", "deliverables": [ "invoice record", "link on job page" ], "acceptance": [ "Invoices viewable; payments later (toggle)" ] },
-    { "phase": "Notifications (email/SMS)", "objective": "Resend email events; SMS optional later.", "deliverables": [ "templates", "event triggers" ], "acceptance": [ "Email on accept, conflict, ready-to-download" ] },
-    { "phase": "Admin console", "objective": "Search jobs/providers; manual override tools.", "deliverables": [ "admin routes", "impersonate (guarded)" ], "acceptance": [ "Admin-only gate", "Audit trail" ] },
-    { "phase": "Polish & launch", "objective": "SEO, a11y, rate limits, QA.", "deliverables": [ "schema.org Business markup", "robots, sitemaps", "basic rate limiting" ], "acceptance": [ "Lighthouse \u226590", "No PII leaks", "Runbook updated" ] }
+    { "phase": "Design Skin Kit", "objective": "Theme tokens, brand, and UI primitives to speed all later pages.", "deliverables": ["theme.ts tokens", "globals.css", "Button/Input/Card", "/design-playground"], "acceptance": ["Preview renders", "Tokens adjustable with hot reload"] },
+    { "phase": "Auth + DB base", "objective": "Neon + Drizzle schema, passwordless email code, sessions.", "deliverables": ["/api/auth/send-code", "/api/auth/verify-code", "users, sessions tables"], "acceptance": ["Vercel env DATABASE_URL set", "Auth code roundtrip works", "Dashboard gate honors session"], "status": "landed", "landedAt": "2025-09-26", "verification": ["DATABASE_URL set", "send-code 200", "verify-code 200 (session issued)"] },
+    { "phase": "Files & Certificates (R2)", "objective": "Private file storage with signed streaming.", "deliverables": ["/api/files/upload", "/api/files/:key", "R2 bucket + IAM"], "acceptance": ["Upload from provider portal → 200 r2Key", "Authorized GET streams; unauthorized 403"] },
+    { "phase": "Airtable bridge (hybrid)", "objective": "Mirror critical records for ops; Neon remains source of record.", "deliverables": ["sync script, cron", "idempotent mapping"], "acceptance": ["One-way sync green in CI", "Backfill job OK"] },
+    { "phase": "Job model + booking skeleton", "objective": "Booking wizard + soft hold creation.", "deliverables": ["/book wizard", "create Job(draft) API", "Soft-hold service"], "acceptance": ["30m hold for multi-property", "Single-property flow ok"] },
+    { "phase": "Provider directory & eligibility", "objective": "Eligibility rules + instant decision.", "deliverables": ["criteria engine", "provider onboarding form", "How-to-qualify guidance"], "acceptance": ["Pass/fail immediate", "Declined path shows guidance"] },
+    { "phase": "Assignment engine", "objective": "First-accept wins + 15m soft-hold + single-eligible auto-assign.", "deliverables": ["offer broadcast", "accept endpoint", "cascade logic"], "acceptance": ["Race handled; winner locks; cascade on timeout/decline"] },
+    { "phase": "Customer dashboard", "objective": "List past/upcoming jobs + files/invoices.", "deliverables": ["dashboard pages", "job detail route"], "acceptance": ["Auth required", "Documents stream correctly"] },
+    { "phase": "Provider dashboard", "objective": "Job queue + day-of checklist + conflict report + tech email routing.", "deliverables": ["checklist form", "conflict endpoint", "email routing field"], "acceptance": ["Late submission possible", "Conflict auto-cascade"] },
+    { "phase": "Payments & invoices", "objective": "Invoice links and settlement (minimal MVP).", "deliverables": ["invoice record", "link on job page"], "acceptance": ["Invoices viewable; payments later (toggle)"] },
+    { "phase": "Notifications (email/SMS)", "objective": "Resend email events; SMS optional later.", "deliverables": ["templates", "event triggers"], "acceptance": ["Email on accept, conflict, ready-to-download"] },
+    { "phase": "Admin console", "objective": "Search jobs/providers; manual override tools.", "deliverables": ["admin routes", "impersonate (guarded)"], "acceptance": ["Admin-only gate", "Audit trail"] },
+    { "phase": "Polish & launch", "objective": "SEO, a11y, rate limits, QA.", "deliverables": ["schema.org Business markup", "robots, sitemaps", "basic rate limiting"], "acceptance": ["Lighthouse ≥90", "No PII leaks", "Runbook updated"] }
   ],
   "finances": {
     "currency": "USD",
@@ -41,5 +41,53 @@
       "arr": 1446.28
     },
     "lastUpdated": "2025-09-26"
+  },
+  "links": {
+    "editDecisions": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json",
+    "editPlaybook": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md",
+    "runReconciler": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml",
+    "pulls": "https://github.com/ComplianceLoop/complianceloop-site/pulls"
+  },
+  "operationalNotes": {
+    "reconcilerProcess": {
+      "summary": "Run the Reconciler once after edits. If the Playbook block is stuck or workflow says 'no changes to commit', reset playbook.md then run once.",
+      "normalRun": {
+        "commitTitle": "finances: add expenses + subscriptions and tallies; preserve phases",
+        "steps": [
+          "Open links.editDecisions",
+          "Paste full-file decisions.json (phases + finances) and Commit changes with commitTitle",
+          "Open links.runReconciler and Run workflow",
+          "Open links.pulls, open the PR, Merge pull request, Confirm merge"
+        ]
+      },
+      "resetRun": {
+        "when": "Only if previous runs show no changes to commit or Playbook block is stale.",
+        "steps": [
+          "Open links.editDecisions, paste full-file decisions.json, Commit changes",
+          "Open links.editPlaybook, replace with '<!-- CL:START -->\\n<!-- CL:END -->', Commit changes with 'playbook: reset generated block'",
+          "Open links.runReconciler and Run workflow",
+          "Open links.pulls, open the PR, Merge pull request, Confirm merge"
+        ]
+      }
+    }
+  },
+  "handoff": {
+    "purpose": "Allow any assistant/chat to resume seamlessly.",
+    "repo": { "owner": "ComplianceLoop", "name": "complianceloop-site", "branch": "main" },
+    "vercel": { "team": "ComplianceLoop", "project": "complianceloop-portal" },
+    "expectations": [
+      "Always fetch BOTH raw files before acting (decisions.json and playbook.md).",
+      "Decisions live only in decisions.json; the Playbook CL block is generated.",
+      "Never store secrets; refer by name (e.g., VERCEL_TOKEN, RESEND_API_KEY)."
+    ],
+    "successCriteria": [
+      "Reconciler PR opens from the latest decisions.json.",
+      "Playbook block regenerates to match decisions.json.",
+      "No manual edits inside <!-- CL:START --> … <!-- CL:END -->."
+    ],
+    "safeRollback": [
+      "Revert the last decisions.json commit on main.",
+      "Reset playbook.md to only the CL block if needed and re-run the Reconciler."
+    ]
   }
 }
