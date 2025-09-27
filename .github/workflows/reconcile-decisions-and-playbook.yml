@@ -26,61 +26,121 @@ jobs:
             echo '{}' > decisions.json
           fi
 
-      - name: Normalize arrays
-        shell: bash
-        run: |
-          jq '
-            .workflows = (.workflows // [])
-            | .phases    = (.phases // [])
-          ' decisions.json > /tmp/normalized.json
-          mv /tmp/normalized.json decisions.json
-
-      - name: Render canonical Playbook block (detailed)
+      # IMPORTANT: Safe normalization — never index arrays as objects
+      - name: Normalize types (safe)
         shell: bash
         run: |
           set -Eeuo pipefail
-          FILE="decisions.json"
-          title_repo=$(jq -r '.repo.owner+"/"+.repo.name' "$FILE" 2>/dev/null || echo "ComplianceLoop/complianceloop-site")
-          default_branch=$(jq -r '.repo.defaultBranch // "main"' "$FILE")
-          vercel_team=$(jq -r '.vercel.team.slug // .vercel.team // "ComplianceLoop"' "$FILE")
-          vercel_project=$(jq -r '.vercel.project // .vercel.projects[]? | select(.role=="app/portal") | .name // "complianceloop-portal"' "$FILE")
+          cat decisions.json | jq '
+            def arr(x): if (x|type)=="array" then x else [] end;
+            def str(x): if (x|type)=="string" then x else "" end;
+            def obj(x): if (x|type)=="object" then x else {} end;
 
-          workflows=$(jq -r '.workflows[]? | "- `\(.path)` — " + (.purpose // "")' "$FILE")
-          phases=$(jq -r '.phases[]?' "$FILE" | nl -w1 -s") ")
-          phase_rows=$(jq -r '
-            (.phaseDetails // [])[] |
-            "| " + (.phase // "") + " | " + (.objective // "") + " | " + ((.acceptance // []) | join("<br>")) + " |"
-          ' "$FILE")
+            .repo = obj(.repo)
+          | .repo.owner = str(.repo.owner)
+          | .repo.name  = str(.repo.name)
+          | .repo.defaultBranch = (if (.repo.defaultBranch|type)=="string" then .repo.defaultBranch else "main" end)
 
-          cust=$(jq -r '(.journeys.customer.flows // [])[] | "### " + .name + "\n" + (.summary // "") + "\n- " + ((.steps // []) | join("\n- ")) + "\n\n**Success:** " + ((.success // []) | join(", ")) + "\n"' "$FILE")
-          prov=$(jq -r '(.journeys.provider.flows // [])[] | "### " + .name + "\n" + (.summary // "") + "\n- " + ((.details // .rules // .steps // []) | join("\n- ")) + "\n"' "$FILE")
+          | .vercel = obj(.vercel)
+          | .vercel.team = (if (.vercel.team|type)=="object" then .vercel.team
+                            else (if (.vercel.team|type)=="string" then {slug:.vercel.team} else {} end) end)
+          | .vercel.team.slug = str(.vercel.team.slug)
+          | .vercel.project = (if (.vercel.project|type)=="string" then .vercel.project else "" end)
 
-          apis=$(jq -r '(.apis // [])[] | "- **\(.method)** `\(.path)` — " + (.out // "")' "$FILE")
-          models=$(jq -r 'to_entries | map("- **" + .key + "**: " + (.value | join(", "))) | join("\n")' <<< "$(jq '.dataModels' "$FILE")" )
+          | .workflows   = arr(.workflows)
+          | .phases      = arr(.phases)
+          | .phaseDetails= arr(.phaseDetails)
 
-          rules=$(jq -r '
-            "- softHoldMinutes: \(.assignmentRules.softHoldMinutes // 15)\n" +
-            "- customerMultiPropertyHoldMinutes: \(.assignmentRules.customerMultiPropertyHoldMinutes // 30)\n" +
-            "- singleEligibleAutoAssign: \(.assignmentRules.singleEligibleAutoAssign // true)\n" +
-            "- acceptWins: \(.assignmentRules.acceptWins // true)"
-          ' "$FILE")
+          | .journeys = obj(.journeys)
+          | .journeys.customer = obj(.journeys.customer)
+          | .journeys.provider = obj(.journeys.provider)
+          ' > /tmp/d.json
+          mv /tmp/d.json decisions.json
+
+      - name: Render canonical Playbook block (detailed + status)
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          F="decisions.json"
+
+          repo="$(jq -r '.repo.owner+"/"+.repo.name // "ComplianceLoop/complianceloop-site"' "$F")"
+          branch="$(jq -r '.repo.defaultBranch // "main"' "$F")"
+
+          # Resolve Vercel team+project with safe fallbacks
+          vteam="$(jq -r '.vercel.team.slug // .vercel.team // "ComplianceLoop"' "$F")"
+          vproj="$(jq -r '
+            if (.vercel.project // "" ) != "" then .vercel.project
+            else (.vercel.projects[]? | select(.role=="app/portal") | .name) // "complianceloop-portal"
+            end
+          ' "$F")"
+
+          workflows="$(jq -r '
+            (.workflows // [])[]?
+            | "- `" + (.path // "") + "` — " + ((.purpose // "") )
+          ' "$F")"
+
+          phases_ov="$(jq -r '(.phases // [])[]?' "$F" | nl -w1 -s") ")"
+
+          phase_rows="$(jq -r '
+            (.phaseDetails // [])[]? |
+            "| " + (.phase // "") + " | " +
+            (.objective // "") + " | " +
+            ((.status // "planned")) + " | " +
+            ((.acceptance // []) | join("<br>")) + " |"
+          ' "$F")"
+
+          cust="$(jq -r '
+            (.journeys.customer.flows // [])[]? |
+              "### " + (.name // "") + "\n" +
+              ((.summary // "") ) + "\n" +
+              ((.steps // []) | map("- " + .) | join("\n")) + "\n\n" +
+              "**Success:** " + ((.success // []) | join(", ")) + "\n"
+          ' "$F")"
+
+          prov="$(jq -r '
+            (.journeys.provider.flows // [])[]? |
+              "### " + (.name // "") + "\n" +
+              ((.summary // "") ) + "\n" +
+              (
+                (.details // .rules // .steps // [])
+                | map("- " + .) | join("\n")
+              ) + "\n"
+          ' "$F")"
+
+          apis="$(jq -r '
+            (.apis // [])[]? |
+              "- **" + ((.method // "") | ascii_upcase) + "** `" + (.path // "") + "` — " + ((.out // "") )
+          ' "$F")"
+
+          models="$(jq -r '
+            (.dataModels // {}) | to_entries
+            | map("- **" + .key + "**: " + (.value | join(", ")))
+            | join("\n")
+          ' "$F")"
+
+          rules="$(jq -r '
+            "- softHoldMinutes: " + ((.assignmentRules.softHoldMinutes // 15)|tostring) + "\n" +
+            "- customerMultiPropertyHoldMinutes: " + ((.assignmentRules.customerMultiPropertyHoldMinutes // 30)|tostring) + "\n" +
+            "- singleEligibleAutoAssign: " + ((.assignmentRules.singleEligibleAutoAssign // true)|tostring) + "\n" +
+            "- acceptWins: " + ((.assignmentRules.acceptWins // true)|tostring)
+          ' "$F")"
 
           cat > /tmp/cl_block.md <<'EOF'
           <!-- CL:START -->
           # ComplianceLoop — Canonical Plan (Generated)
 
-          **Repo:** ${title_repo} (`${default_branch}`)  
-          **Vercel:** project **${vercel_project}** (team: **${vercel_team}**)
+          **Repo:** ${repo} (`${branch}`)  
+          **Vercel:** project **${vproj}** (team: **${vteam}**)
 
           ## Workflows (index)
           ${workflows}
 
           ## 13 Phases (overview)
-          ${phases}
+          ${phases_ov}
 
-          ## Phase Details (objective & acceptance)
-          | Phase | Objective | Acceptance |
-          |---|---|---|
+          ## Phase Details (objective, status & acceptance)
+          | Phase | Objective | Status | Acceptance |
+          |---|---|---|---|
           ${phase_rows}
 
           ## Journey Specs
@@ -125,9 +185,9 @@ jobs:
         with:
           token: ${{ github.token }}
           branch: chore/reconcile-decisions-and-playbook
-          title: "chore(playbook): sync journeys, APIs, data, and phase details from decisions.json"
+          title: "chore(playbook): sync journeys, APIs, data, and phase details (safe normalization)"
           body: |
-            This PR regenerates the canonical block in `playbook.md` with Journeys, APIs, Data Models, and Phase Details.
-            Edit `decisions.json` only; re-run this workflow to refresh.
+            Regenerates the canonical Playbook block from `decisions.json`
+            using type-safe normalization (arrays/objects not mis-indexed).
           add-paths: |
             playbook.md
