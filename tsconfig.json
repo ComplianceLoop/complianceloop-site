@@ -10,9 +10,7 @@
     "strict": true,
     "noEmit": true,
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["*"]
-    },
+    "paths": { "@/*": ["*"] },
     "resolveJsonModule": true,
     "isolatedModules": true,
     "incremental": true,
