@@ -1,11 +1,11 @@
 <!-- CL:START -->
 # ComplianceLoop — Canonical Plan (Generated)
 
-Version: 2025-09-26.4
-Generated: 2025-09-27T03:59:40.529Z
+Version: 2025-09-27.1
+Generated: 2025-09-27T04:22:25.091Z
 
 ## Phases (13)
-- **Design Skin Kit**: Theme tokens, brand, and UI primitives to speed all later pages.
+- **Design Skin Kit**: Theme tokens, brand, and UI primitives to speed all later pages. — _landed_
 - **Auth + DB base**: Neon + Drizzle schema, passwordless email code, sessions. — _landed_
 - **Files & Certificates (R2)**: Private file storage with signed streaming.
 - **Airtable bridge (hybrid)**: Mirror critical records for ops; Neon remains source of record.
