@@ -11,8 +11,7 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["*"],
-      "@/app/../*": ["*"]        // <-- handles imports like "@/app/../lib/db"
+      "@/*": ["*"]
     },
     "resolveJsonModule": true,
     "isolatedModules": true,
