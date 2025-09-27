@@ -1,0 +1,131 @@
+name: mark-phase-status
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: "Phase label exactly as it appears in decisions.json (e.g. 'Auth + DB base')"
+        required: true
+        type: string
+      status:
+        description: "planned | in-progress | landed | blocked"
+        required: true
+        default: "landed"
+        type: choice
+        options: [planned, in-progress, landed, blocked]
+      landed_at:
+        description: "YYYY-MM-DD (optional, defaults to today if status=landed)"
+        required: false
+        type: string
+      verification:
+        description: "Optional verification checklist as a single line separated by | (e.g. 'DATABASE_URL set|send-code 200|verify-code 200')"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update -y && sudo apt-get install -y jq
+
+      - name: Guard file exists
+        run: |
+          test -f decisions.json || { echo "decisions.json missing at repo root"; exit 1; }
+
+      - name: Prepare vars
+        id: vars
+        shell: bash
+        run: |
+          PHASE="${{ inputs.phase }}"
+          STATUS="${{ inputs.status }}"
+          LANDED_IN="${{ inputs.landed_at }}"
+          VERIFY_RAW="${{ inputs.verification }}"
+
+          # fallback landed_at = today if landed and not provided
+          if [ "$STATUS" = "landed" ] && [ -z "$LANDED_IN" ]; then
+            LANDED_IN="$(date +%F)"
+          fi
+
+          # verification array (split on |) or keep existing if empty input
+          if [ -n "$VERIFY_RAW" ]; then
+            echo "verify_json=$(jq -cn --arg v "$VERIFY_RAW" '($v|split("|"))')" >> "$GITHUB_OUTPUT"
+          else
+            echo "verify_json=" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "phase=$PHASE" >> "$GITHUB_OUTPUT"
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "landed_at=$LANDED_IN" >> "$GITHUB_OUTPUT"
+
+      - name: Update decisions.json (phase status)
+        env:
+          PHASE: ${{ steps.vars.outputs.phase }}
+          STATUS: ${{ steps.vars.outputs.status }}
+          LANDED_AT: ${{ steps.vars.outputs.landed_at }}
+          VERIFY_JSON: ${{ steps.vars.outputs.verify_json }}
+        run: |
+          set -Eeuo pipefail
+
+          # Ensure phaseDetails array exists
+          if ! jq -e '.phaseDetails' decisions.json >/dev/null; then
+            jq '. + {phaseDetails: []}' decisions.json > /tmp/d.json && mv /tmp/d.json decisions.json
+          fi
+
+          # Update matching phase object
+          if [ -n "${VERIFY_JSON:-}" ]; then
+            jq --arg phase "$PHASE" \
+               --arg status "$STATUS" \
+               --arg landed "$LANDED_AT" \
+               --argjson verify "$VERIFY_JSON" \
+               '
+               .phaseDetails = (.phaseDetails // []) |
+               (.phaseDetails | map(
+                 if .phase == $phase then
+                   .status = $status
+                   | (if ($landed != "") then (.landedAt = $landed) else . end)
+                   | (.verification = $verify)
+                 else . end
+               ))
+               ' decisions.json > /tmp/d.json
+          else
+            jq --arg phase "$PHASE" \
+               --arg status "$STATUS" \
+               --arg landed "$LANDED_AT" \
+               '
+               .phaseDetails = (.phaseDetails // []) |
+               (.phaseDetails | map(
+                 if .phase == $phase then
+                   .status = $status
+                   | (if ($landed != "") then (.landedAt = $landed) else . end)
+                 else . end
+               ))
+               ' decisions.json > /tmp/d.json
+          fi
+
+          mv /tmp/d.json decisions.json
+
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ github.token }}
+          branch: chore/phase-status-update
+          title: "docs(phase-status): update '${{ inputs.phase }}' → ${{ inputs.status }}"
+          body: |
+            Automated update to `decisions.json` phase status.
+
+            **Phase:** `${{ inputs.phase }}`
+            **Status:** `${{ inputs.status }}`
+            **Landed at:** `${{ inputs.landed_at }}`
+            **Verification:** `${{ inputs.verification }}`
+
+            After merging, run the *Reconciler* to refresh the Playbook block:
+            https://github.com/${{ github.repository }}/actions/workflows/reconcile-decisions-and-playbook.yml
+          add-paths: |
+            decisions.json
