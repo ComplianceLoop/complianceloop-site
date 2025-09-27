@@ -1,5 +1,5 @@
 {
-  "version": "2025-09-27.1",
+  "version": "2025-09-27.2",
   "phases": [
     {
       "phase": "Design Skin Kit",
@@ -22,7 +22,9 @@
       "phase": "Files & Certificates (R2)",
       "objective": "Private file storage with signed streaming.",
       "deliverables": ["/api/files/upload", "/api/files/:key", "R2 bucket + IAM"],
-      "acceptance": ["Upload from provider portal → 200 r2Key", "Authorized GET streams; unauthorized 403"]
+      "acceptance": ["Upload from provider portal → 200 r2Key", "Authorized GET streams; unauthorized 403"],
+      "status": "in_progress",
+      "startedAt": "2025-09-27"
     },
     {
       "phase": "Airtable bridge (hybrid)",
@@ -117,91 +119,15 @@
     "editDecisions": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json",
     "editPlaybook": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md",
     "runReconciler": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml",
-    "pulls": "https://github.com/ComplianceLoop/complianceloop-site/pulls"
+    "pulls": "https://github.com/ComplianceLoop/complianceloop-site/pulls",
+    "vercelEnv": "https://vercel.com/ComplianceLoop/complianceloop-portal/settings/environment-variables"
   },
   "fileActions": {
     "policy": "Use EDIT links if file exists; otherwise use CREATE links.",
     "items": [
-      {
-        "path": "tailwind.config.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/tailwind.config.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=tailwind.config.ts",
-        "purpose": "Tailwind config",
-        "lastChecked": "2025-09-27"
-      },
-      {
-        "path": "app/globals.css",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/globals.css",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fglobals.css",
-        "purpose": "Global CSS + tokens",
-        "lastChecked": "2025-09-27"
-      },
-      {
-        "path": "app/layout.tsx",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/layout.tsx",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Flayout.tsx",
-        "purpose": "Root layout importing globals.css",
-        "lastChecked": "2025-09-27"
-      },
-      {
-        "path": "postcss.config.js",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/postcss.config.js",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=postcss.config.js",
-        "purpose": "PostCSS plugins",
-        "lastChecked": "2025-09-27"
-      },
-      {
-        "path": "lib/cn.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/cn.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fcn.ts",
-        "purpose": "classNames helper",
-        "lastChecked": "2025-09-27"
-      },
-      {
-        "path": "src/theme.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/src/theme.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=src%2Ftheme.ts",
-        "purpose": "Design tokens",
-        "lastChecked": "2025-09-27"
-      },
-      {
-        "path": "components/ui/button.tsx",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/components/ui/button.tsx",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=components%2Fui%2Fbutton.tsx",
-        "purpose": "Button primitive",
-        "lastChecked": "2025-09-27"
-      },
-      {
-        "path": "components/ui/input.tsx",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/components/ui/input.tsx",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=components%2Fui%2Finput.tsx",
-        "purpose": "Input primitive",
-        "lastChecked": "2025-09-27"
-      },
-      {
-        "path": "components/ui/card.tsx",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/components/ui/card.tsx",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=components%2Fui%2Fcard.tsx",
-        "purpose": "Card primitive",
-        "lastChecked": "2025-09-27"
-      },
-      {
-        "path": "app/design-playground/page.tsx",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/design-playground/page.tsx",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fdesign-playground%2Fpage.tsx",
-        "purpose": "Tokens/primitives demo",
-        "lastChecked": "2025-09-27"
-      }
+      { "path": "app/api/files/upload/route.ts", "exists": false, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/files/upload/route.ts", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Ffiles%2Fupload%2Froute.ts", "purpose": "POST → presigned PUT URL + r2Key", "lastChecked": "2025-09-27" },
+      { "path": "app/api/files/[key]/route.ts", "exists": false, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/files/%5Bkey%5D/route.ts", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Ffiles%2F%5Bkey%5D%2Froute.ts", "purpose": "GET → authorized stream from R2", "lastChecked": "2025-09-27" },
+      { "path": "lib/r2-signer.ts", "exists": false, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/r2-signer.ts", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fr2-signer.ts", "purpose": "AWS SigV4 presign (no deps)", "lastChecked": "2025-09-27" }
     ]
   },
   "operationalNotes": {
@@ -226,26 +152,12 @@
         ]
       }
     },
-    "anticipateNoPR": {
-      "whyItHappens": [
-        "decisions.json commit does not change anything the generator writes into the CL block.",
-        "playbook.md already exactly matches what the Reconciler would generate."
-      ],
-      "howToAnticipate": [
-        "Only run the Reconciler immediately after committing decisions.json changes intended to alter the Playbook block.",
-        "If you run it without such changes, expect 'no changes to commit' and no PR.",
-        "Before running, skim the last decisions.json diff; if it didn’t touch phases/links/notes that render in the block, you can predict no PR."
-      ],
-      "howToAvoidManualResets": [
-        "When you expect a PR, always bump 'version' in decisions.json (e.g., 2025-09-27.2). The generator includes it in the block, creating a tiny but valid diff.",
-        "If you must force a PR without semantic changes, do the documented one-time reset of playbook.md, then run once."
-      ]
+    "r2Env": {
+      "note": "Set env vars in Vercel; store no secrets in repo.",
+      "vars": ["R2_ENDPOINT", "R2_REGION", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"]
     }
   },
-  "status": {
-    "playbookGeneratedAt": null,
-    "lastReconciledAt": null
-  },
+  "status": { "playbookGeneratedAt": null, "lastReconciledAt": null },
   "handoff": {
     "purpose": "Allow any assistant/chat to resume seamlessly.",
     "repo": { "owner": "ComplianceLoop", "name": "complianceloop-site", "branch": "main" },
@@ -265,5 +177,5 @@
       "Reset playbook.md to only the CL block if needed and re-run the Reconciler."
     ]
   },
-  "agentPromptTemplate": "You are the ComplianceLoop Playbook Agent. Use the repo and workflow details below, follow the single-run reconcile policy, and never write secrets.\\n\\nRepo & Project IDs\\n- Repo: ComplianceLoop/complianceloop-site (branch: main)\\n- Vercel project: complianceloop-portal (team: ComplianceLoop)\\n\\nAuthoritative Links\\n- Edit decisions.json: https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json\\n- Edit playbook.md: https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md\\n- Run Reconciler: https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml\\n- Pull Requests: https://github.com/ComplianceLoop/complianceloop-site/pulls\\n\\nPolicy\\n- decisions.json is the single source of truth. The CL block in playbook.md is generated—do not hand-edit inside it.\\n- Run the Reconciler once after committing decisions.json (and after a reset of playbook.md only if the block is stale).\\n\\nExpected Workflow\\n1) Fetch BOTH raw files.\\n2) Update decisions.json with full-file replacements only.\\n3) Run the Reconciler once.\\n4) Merge the PR.\\n\\nSuccess Criteria\\n- PR opens from the latest decisions.json and Playbook regenerates.\\n\\nSafe Rollbacks\\n- Revert the last decisions.json commit; reset playbook.md to the empty CL block if needed; rerun the Reconciler."
+  "agentPromptTemplate": "You are the ComplianceLoop Playbook Agent. Implement the current phase using the fileActions list. Never write secrets to the repo. Use Vercel env for secrets (link provided)."
 }
