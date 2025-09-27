@@ -1,413 +1,173 @@
-{
-  "meta": {
-    "lastUpdatedBy": "CL Playbook",
-    "lastUpdatedAt": "2025-09-26"
-  },
-  "authoringStandard": {
-    "version": "1.0",
-    "title": "Authoring Standard (MANDATORY)",
-    "canonicalWording": [
-      "Write instructions step-by-step with explicit UI clicks (e.g., “Vercel → Project → Settings → Security → Protection → Preview Deployments”).",
-      "Include a direct, clickable URL for every external step (GitHub pages, Vercel settings, deployments, etc.).",
-      "Provide copy-pasteable commands with clearly marked placeholders (e.g., <PASTE_URL>, <TEAM_ID>), and show Windows + macOS variants when relevant.",
-      "Never print secrets; refer to them by secret name (e.g., VERCEL_TOKEN). If a token is needed, say where to create/copy it and where to store it.",
-      "When editing repo files, provide full-file replacements (no “insert above/below line”). Also include the direct GitHub edit URL for that file.",
-      "State success criteria and safe rollback steps for every procedure.",
-      "If the UI can differ, include a brief “What you might see” note and the fallback path.",
-      "Default tone: concise, kind, senior-developer practical."
-    ]
-  },
-  "repositories": {
-    "canonical": {
-      "owner": "ComplianceLoop",
-      "repo": "complianceloop-site",
-      "defaultBranch": "main"
-    }
-  },
-  "vercel": {
-    "team": {
-      "slug": "compliance-loop"
-    },
-    "projects": [
-      {
-        "name": "complianceloop-site",
-        "role": "marketing/docs",
-        "notes": "Original canonical project."
-      },
-      {
-        "name": "complianceloop-portal",
-        "role": "app/portal",
-        "notes": "Phase-1 auth/db; used by CI smoke."
-      }
-    ],
-    "preview": {
-      "protection": "enabled",
-      "bypassTokenSecretName": "VERCEL_BYPASS_TOKEN",
-      "urlResolution": "CI queries Vercel /v6/deployments for READY deployment where meta.githubCommitRef == PR branch and app=complianceloop-portal; falls back to latest READY preview if no branch match."
-    }
-  },
-  "automation": {
-    "workflows": [
-      {
-        "path": ".github/workflows/agent-smoke.yml",
-        "purpose": "Wait for Vercel Preview and run smoke test on each PR.",
-        "inputs": {
-          "env": {
-            "VERCEL_APP": "complianceloop-portal"
-          },
-          "secrets": [
-            "VERCEL_TOKEN",
-            "VERCEL_TEAM_ID",
-            "VERCEL_BYPASS_TOKEN (required when preview protection is enabled)"
-          ]
-        },
-        "successCriteria": [
-          "Workflow prints preview URL.",
-          "Smoke script prints 'Root page probe passed.' and '✅ smoke passed.'"
-        ],
-        "safeRollback": [
-          "Disable or remove the workflow file.",
-          "Promote a prior READY deployment in Vercel if needed."
-        ]
-      },
-      {
-        "path": ".github/workflows/design-skin-kit.yml",
-        "purpose": "Add theme tokens, global styles, /design-playground",
-        "successCriteria": [
-          "Preview builds green; /design-playground renders"
-        ],
-        "safeRollback": [
-          "Revert PR"
-        ]
-      },
-      {
-        "path": ".github/workflows/phase-1-auth-db.yml",
-        "purpose": "Neon + Drizzle schema; passwordless auth APIs",
-        "successCriteria": [
-          "Preview endpoints /api/auth/* return 200"
-        ],
-        "safeRollback": [
-          "Revert PR"
-        ]
-      },
-      {
-        "path": ".github/workflows/phase-2-files-r2.yml",
-        "purpose": "Private file uploads to R2; secure streaming via /api/files/[...key]",
-        "successCriteria": [
-          "Upload returns key; signed-in download streams 200"
-        ],
-        "safeRollback": [
-          "Revert PR"
-        ]
-      },
-      {
-        "path": ".github/workflows/seed-phase-1.yml",
-        "purpose": "Optional seed of demo customer/jobs",
-        "successCriteria": [
-          "Seed script completes"
-        ],
-        "safeRollback": [
-          "Re-run with corrected env or revert"
-        ]
-      },
-      {
-        "path": ".github/workflows/update-allowlist.yml",
-        "purpose": "Maintain preview allowlist/protection bypass as needed",
-        "successCriteria": [
-          "Protected previews accessible to CI; prod unaffected"
-        ],
-        "safeRollback": [
-          "Revert PR; rotate bypass token if leaked"
-        ]
-      }
-    ]
-  },
-  "operationalNotes": [
-    "On 2025-09-25 the Agent Smoke workflow succeeded for PR #21 (feat/phase-1-auth-db) after updating the project-specific Vercel Protection Bypass token in repo secret VERCEL_BYPASS_TOKEN.",
-    "Preview URLs are dynamic per deployment; CI resolves at runtime.",
-    "Repo root currently does not require Node deps to run smoke; Node 20+ is sufficient.",
-    "If CI logs show 401 at bypass, update VERCEL_BYPASS_TOKEN with the exact token from the project’s Security → Protection → Preview Deployments."
-  ],
-  "quickLinks": {
-    "githubActions": "https://github.com/ComplianceLoop/complianceloop-site/actions",
-    "githubSecrets": "https://github.com/ComplianceLoop/complianceloop-site/settings/secrets/actions",
-    "vercelTokens": "https://vercel.com/account/tokens",
-    "vercelTeamSettings": "https://vercel.com/teams/compliance-loop/settings",
-    "vercelProjectSecurity": "https://vercel.com/compliance-loop/complianceloop-portal/settings/security",
-    "vercelProjectGit": "https://vercel.com/compliance-loop/complianceloop-portal/settings/git",
-    "vercelDeployments": "https://vercel.com/compliance-loop/complianceloop-portal/deployments",
-    "workflowEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/agent-smoke.yml",
-    "playbookEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md",
-    "decisionsEdit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json"
-  },
-  "workflows": [
-    {
-      "path": ".github/workflows/agent-smoke.yml",
-      "purpose": "Wait for Vercel Preview and run smoke test on each PR.",
-      "inputs": {
-        "env": {
-          "VERCEL_APP": "complianceloop-portal"
-        },
-        "secrets": [
-          "VERCEL_TOKEN",
-          "VERCEL_TEAM_ID",
-          "VERCEL_BYPASS_TOKEN (required when preview protection is enabled)"
-        ]
-      },
-      "successCriteria": [
-        "Workflow prints preview URL.",
-        "Smoke script prints 'Root page probe passed.' and '✅ smoke passed.'"
-      ],
-      "safeRollback": [
-        "Disable or remove the workflow file.",
-        "Promote a prior READY deployment in Vercel if needed."
-      ]
-    },
-    {
-      "path": ".github/workflows/design-skin-kit.yml",
-      "purpose": "Add theme tokens, global styles, /design-playground",
-      "successCriteria": [
-        "Preview builds green; /design-playground renders"
-      ],
-      "safeRollback": [
-        "Revert PR"
-      ]
-    },
-    {
-      "path": ".github/workflows/phase-1-auth-db.yml",
-      "purpose": "Neon + Drizzle schema; passwordless auth APIs",
-      "successCriteria": [
-        "Preview endpoints /api/auth/* return 200"
-      ],
-      "safeRollback": [
-        "Revert PR"
-      ]
-    },
-    {
-      "path": ".github/workflows/phase-2-files-r2.yml",
-      "purpose": "Private file uploads to R2; secure streaming via /api/files/[...key]",
-      "successCriteria": [
-        "Upload returns key; signed-in download streams 200"
-      ],
-      "safeRollback": [
-        "Revert PR"
-      ]
-    },
-    {
-      "path": ".github/workflows/seed-phase-1.yml",
-      "purpose": "Optional seed of demo customer/jobs",
-      "successCriteria": [
-        "Seed script completes"
-      ],
-      "safeRollback": [
-        "Re-run with corrected env or revert"
-      ]
-    },
-    {
-      "path": ".github/workflows/update-allowlist.yml",
-      "purpose": "Maintain preview allowlist/protection bypass as needed",
-      "successCriteria": [
-        "Protected previews accessible to CI; prod unaffected"
-      ],
-      "safeRollback": [
-        "Revert PR; rotate bypass token if leaked"
-      ]
-    }
-  ],
-  "phases": [
-    "Admin console",
-    "Airtable bridge (hybrid)",
-    "Assignment engine (first-accept, soft-hold cascade, single-eligible auto-assign)",
-    "Auth + DB base",
-    "Customer dashboard",
-    "Design Skin Kit",
-    "Files & Certificates (R2)",
-    "Job model + booking skeleton",
-    "Notifications (email/SMS)",
-    "Payments & invoices",
-    "Polish & launch (SEO, A11y, QA, rate limits)",
-    "Provider dashboard (+ day-of checklist, conflict)",
-    "Provider directory & eligibility"
-  ]
-,
-"journeys": {
-  "customer": {
-    "intents": ["book", "reschedule", "cancel", "download"],
-    "flows": [
-      {
-        "name": "Book Job",
-        "summary": "Customer submits property + contact; system places a soft hold and starts provider assignment.",
-        "steps": [
-          "Customer opens /book (phase 3) → address autocomplete (MapLibre+Photon, free) or fallback manual.",
-          "Validates property, date window, and intent (inspection/cert).",
-          "Creates Job(draft) in Neon; optional mirror row in Airtable.",
-          "If multiple properties: place a 30-minute hold across selected slots.",
-          "Shows confirmation + 'magic link' to dashboard (passwordless)."
-        ],
-        "success": ["Job created", "Soft hold established (30m for multi-property)", "Customer gets email link"]
-      },
-      {
-        "name": "Dashboard (Passwordless)",
-        "summary": "Email magic code → session → list of past/upcoming jobs and documents.",
-        "steps": [
-          "Customer enters email → receives 6-digit code (Resend).",
-          "On success, session cookie issued; dashboard shows Jobs grouped by status.",
-          "Each Job page: certificate (R2), photos (R2), invoice, activity history."
-        ],
-        "success": ["Auth code verified", "Jobs visible", "Files stream from R2 with auth gate"]
-      },
-      {
-        "name": "Reschedule/Cancel",
-        "summary": "Customer requests change; system re-runs assignment logic.",
-        "steps": [
-          "Customer picks new window or cancel reason.",
-          "If reschedule: releases old hold, re-runs provider offer cascade.",
-          "If cancel inside lock window, fee policy applied (playbook docs)."
-        ],
-        "success": ["Job updated", "Provider(s) notified", "Policy respected"]
-      }
-    ]
-  },
-  "provider": {
-    "intents": ["accept", "report-conflict", "upload", "complete"],
-    "flows": [
-      {
-        "name": "Onboarding & Eligibility",
-        "summary": "Instant check—no manual wait—against configured criteria.",
-        "criteria": [
-          "Service area match (zip/polygon)",
-          "Credential dates valid",
-          "Capacity limits (max jobs/day)",
-          "Hours from ICS or fallback business hours"
-        ],
-        "decision": "If pass → listed as eligible; if fail → show 'How to qualify' mini-guide."
-      },
-      {
-        "name": "Assignment & Acceptance",
-        "summary": "First-accept wins with 15-minute soft hold; single-eligible auto-assign.",
-        "rules": [
-          "If 2+ eligible: broadcast offer; first Accept wins; hold 15m then confirm automatically.",
-          "If exactly 1 eligible and free: auto-assign; provider may Report Conflict.",
-          "Soft-hold cascade: if winner declines or times out → next eligible; or admin fallback list."
-        ],
-        "conflict": "Report Conflict (reason codes) triggers automatic cascade—no manual admin."
-      },
-      {
-        "name": "Day-of Checklist & Files",
-        "summary": "Provider completes checklist; can upload later; can route comms to a technician email.",
-        "details": [
-          "Checklist submitted via portal; late submission allowed.",
-          "Uploads stored in R2 under job prefix; streamed via signed route.",
-          "Notification email target can be set per provider (technician routing)."
-        ]
-      }
-    ]
-  }
-},
-"assignmentRules": {
-  "softHoldMinutes": 15,
-  "customerMultiPropertyHoldMinutes": 30,
-  "singleEligibleAutoAssign": true,
-  "acceptWins": true,
-  "fallback": ["resend offer", "expand radius/time window", "admin fallback pool (auto)"]
-},
-"addressAutocomplete": {
-  "default": "MapLibre + Photon (OpenStreetMap) — $0",
-  "optional": "Google Places (paid) — switchable by env flag"
-},
-"apis": [
-  { "path": "/api/auth/send-code", "method": "POST", "body": "{ email }", "out": "200, code sent via Resend" },
-  { "path": "/api/auth/verify-code", "method": "POST", "body": "{ email, code }", "out": "200, session cookie" },
-  { "path": "/api/jobs", "method": "POST", "body": "{ property, window, intent }", "out": "201, jobId + holds" },
-  { "path": "/api/jobs/:id/accept", "method": "POST", "auth": "provider", "out": "200, accepted or 409" },
-  { "path": "/api/jobs/:id/conflict", "method": "POST", "auth": "provider", "out": "202, cascade triggered" },
-  { "path": "/api/files/upload", "method": "POST", "auth": "provider", "out": "200, r2Key" },
-  { "path": "/api/files/:key", "method": "GET", "auth": "customer|provider", "out": "200 stream if authorized" }
-],
-"dataModels": {
-  "Job": ["id", "customerEmail", "property", "windowStart", "windowEnd", "status", "providerId?", "holdUntil?", "kind", "invoiceId?"],
-  "Provider": ["id", "name", "email", "serviceArea", "credentials", "maxJobsPerDay", "hours", "icsUrl?", "techEmail?"],
-  "AssignmentEvent": ["id", "jobId", "providerId", "type", "ts", "meta"],
-  "File": ["id", "jobId", "ownerRole", "r2Key", "kind", "ts"]
-},
-"phaseDetails": [
+[
   {
     "phase": "Design Skin Kit",
     "objective": "Theme tokens, brand, and UI primitives to speed all later pages.",
-    "deliverables": ["theme.ts tokens", "globals.css", "Button/Input/Card", "/design-playground"],
-    "acceptance": ["Preview renders", "Tokens adjustable with hot reload"]
+    "deliverables": [
+      "theme.ts tokens",
+      "globals.css",
+      "Button/Input/Card",
+      "/design-playground"
+    ],
+    "acceptance": [
+      "Preview renders",
+      "Tokens adjustable with hot reload"
+    ]
   },
   {
     "phase": "Auth + DB base",
     "objective": "Neon + Drizzle schema, passwordless email code, sessions.",
-    "deliverables": ["/api/auth/send-code", "/api/auth/verify-code", "users, sessions tables"],
-    "acceptance": ["Vercel env DATABASE_URL set", "Auth code roundtrip works", "Dashboard gate honors session"]
+    "deliverables": [
+      "/api/auth/send-code",
+      "/api/auth/verify-code",
+      "users, sessions tables"
+    ],
+    "acceptance": [
+      "Vercel env DATABASE_URL set",
+      "Auth code roundtrip works",
+      "Dashboard gate honors session"
+    ],
+    "status": "landed",
+    "landedAt": "2025-09-26",
+    "verification": [
+      "DATABASE_URL set",
+      "send-code 200",
+      "verify-code 200 (session issued)"
+    ]
   },
   {
     "phase": "Files & Certificates (R2)",
     "objective": "Private file storage with signed streaming.",
-    "deliverables": ["/api/files/upload", "/api/files/:key", "R2 bucket + IAM"],
-    "acceptance": ["Upload from provider portal → 200 r2Key", "Authorized GET streams; unauthorized 403"]
+    "deliverables": [
+      "/api/files/upload",
+      "/api/files/:key",
+      "R2 bucket + IAM"
+    ],
+    "acceptance": [
+      "Upload from provider portal → 200 r2Key",
+      "Authorized GET streams; unauthorized 403"
+    ]
   },
   {
     "phase": "Airtable bridge (hybrid)",
     "objective": "Mirror critical records for ops; Neon remains source of record.",
-    "deliverables": ["sync script, cron", "idempotent mapping"],
-    "acceptance": ["One-way sync green in CI", "Backfill job OK"]
+    "deliverables": [
+      "sync script, cron",
+      "idempotent mapping"
+    ],
+    "acceptance": [
+      "One-way sync green in CI",
+      "Backfill job OK"
+    ]
   },
   {
     "phase": "Job model + booking skeleton",
     "objective": "Booking wizard + soft hold creation.",
-    "deliverables": ["/book wizard", "create Job(draft) API", "Soft-hold service"],
-    "acceptance": ["30m hold for multi-property", "Single-property flow ok"]
+    "deliverables": [
+      "/book wizard",
+      "create Job(draft) API",
+      "Soft-hold service"
+    ],
+    "acceptance": [
+      "30m hold for multi-property",
+      "Single-property flow ok"
+    ]
   },
   {
     "phase": "Provider directory & eligibility",
     "objective": "Eligibility rules + instant decision.",
-    "deliverables": ["criteria engine", "provider onboarding form", "How-to-qualify guidance"],
-    "acceptance": ["Pass/fail immediate", "Declined path shows guidance"]
+    "deliverables": [
+      "criteria engine",
+      "provider onboarding form",
+      "How-to-qualify guidance"
+    ],
+    "acceptance": [
+      "Pass/fail immediate",
+      "Declined path shows guidance"
+    ]
   },
   {
     "phase": "Assignment engine",
     "objective": "First-accept wins + 15m soft-hold + single-eligible auto-assign.",
-    "deliverables": ["offer broadcast", "accept endpoint", "cascade logic"],
-    "acceptance": ["Race handled; winner locks; cascade on timeout/decline"]
+    "deliverables": [
+      "offer broadcast",
+      "accept endpoint",
+      "cascade logic"
+    ],
+    "acceptance": [
+      "Race handled; winner locks; cascade on timeout/decline"
+    ]
   },
   {
     "phase": "Customer dashboard",
     "objective": "List past/upcoming jobs + files/invoices.",
-    "deliverables": ["dashboard pages", "job detail route"],
-    "acceptance": ["Auth required", "Documents stream correctly"]
+    "deliverables": [
+      "dashboard pages",
+      "job detail route"
+    ],
+    "acceptance": [
+      "Auth required",
+      "Documents stream correctly"
+    ]
   },
   {
     "phase": "Provider dashboard",
     "objective": "Job queue + day-of checklist + conflict report + tech email routing.",
-    "deliverables": ["checklist form", "conflict endpoint", "email routing field"],
-    "acceptance": ["Late submission possible", "Conflict auto-cascade"]
+    "deliverables": [
+      "checklist form",
+      "conflict endpoint",
+      "email routing field"
+    ],
+    "acceptance": [
+      "Late submission possible",
+      "Conflict auto-cascade"
+    ]
   },
   {
     "phase": "Payments & invoices",
     "objective": "Invoice links and settlement (minimal MVP).",
-    "deliverables": ["invoice record", "link on job page"],
-    "acceptance": ["Invoices viewable; payments later (toggle)"]
+    "deliverables": [
+      "invoice record",
+      "link on job page"
+    ],
+    "acceptance": [
+      "Invoices viewable; payments later (toggle)"
+    ]
   },
   {
     "phase": "Notifications (email/SMS)",
     "objective": "Resend email events; SMS optional later.",
-    "deliverables": ["templates", "event triggers"],
-    "acceptance": ["Email on accept, conflict, ready-to-download"]
+    "deliverables": [
+      "templates",
+      "event triggers"
+    ],
+    "acceptance": [
+      "Email on accept, conflict, ready-to-download"
+    ]
   },
   {
     "phase": "Admin console",
     "objective": "Search jobs/providers; manual override tools.",
-    "deliverables": ["admin routes", "impersonate (guarded)"],
-    "acceptance": ["Admin-only gate", "Audit trail"]
+    "deliverables": [
+      "admin routes",
+      "impersonate (guarded)"
+    ],
+    "acceptance": [
+      "Admin-only gate",
+      "Audit trail"
+    ]
   },
   {
     "phase": "Polish & launch",
     "objective": "SEO, a11y, rate limits, QA.",
-    "deliverables": ["schema.org Business markup", "robots, sitemaps", "basic rate limiting"],
-    "acceptance": ["Lighthouse ≥90", "No PII leaks", "Runbook updated"]
+    "deliverables": [
+      "schema.org Business markup",
+      "robots, sitemaps",
+      "basic rate limiting"
+    ],
+    "acceptance": [
+      "Lighthouse ≥90",
+      "No PII leaks",
+      "Runbook updated"
+    ]
   }
 ]
-}
