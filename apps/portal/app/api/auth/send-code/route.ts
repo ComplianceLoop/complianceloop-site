@@ -1,5 +1,5 @@
-import { db } from "@/app/../lib/db";
-import { loginCodes } from "@/app/../db/schema";
+import { db } from "@/lib/db";
+import { loginCodes } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { Resend } from "resend";
 
