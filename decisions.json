@@ -49,6 +49,91 @@
     "runReconciler": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml",
     "pulls": "https://github.com/ComplianceLoop/complianceloop-site/pulls"
   },
+  "fileActions": {
+    "policy": "Use EDIT links if file exists; otherwise use CREATE links. This map is updated by humans as files land.",
+    "items": [
+      {
+        "path": "tailwind.config.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/tailwind.config.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=tailwind.config.ts",
+        "purpose": "Tailwind config for token aliases",
+        "lastChecked": "2025-09-26"
+      },
+      {
+        "path": "app/globals.css",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/globals.css",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fglobals.css",
+        "purpose": "Global CSS that exposes CSS variables + base styles",
+        "lastChecked": "2025-09-26"
+      },
+      {
+        "path": "app/layout.tsx",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/layout.tsx",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Flayout.tsx",
+        "purpose": "Root layout imports globals.css",
+        "lastChecked": "2025-09-26"
+      },
+      {
+        "path": "postcss.config.js",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/postcss.config.js",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=postcss.config.js",
+        "purpose": "PostCSS plugins (tailwindcss, autoprefixer)",
+        "lastChecked": "2025-09-26"
+      },
+      {
+        "path": "lib/cn.ts",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/cn.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fcn.ts",
+        "purpose": "Class name join helper",
+        "lastChecked": "2025-09-26"
+      },
+      {
+        "path": "src/theme.ts",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/src/theme.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=src%2Ftheme.ts",
+        "purpose": "Design tokens (colors, radii, space, fonts)",
+        "lastChecked": "2025-09-26"
+      },
+      {
+        "path": "components/ui/button.tsx",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/components/ui/button.tsx",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=components%2Fui%2Fbutton.tsx",
+        "purpose": "Button primitive",
+        "lastChecked": "2025-09-26"
+      },
+      {
+        "path": "components/ui/input.tsx",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/components/ui/input.tsx",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=components%2Fui%2Finput.tsx",
+        "purpose": "Input primitive",
+        "lastChecked": "2025-09-26"
+      },
+      {
+        "path": "components/ui/card.tsx",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/components/ui/card.tsx",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=components%2Fui%2Fcard.tsx",
+        "purpose": "Card primitive",
+        "lastChecked": "2025-09-26"
+      },
+      {
+        "path": "app/design-playground/page.tsx",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/design-playground/page.tsx",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fdesign-playground%2Fpage.tsx",
+        "purpose": "Tokens + primitives demo route",
+        "lastChecked": "2025-09-26"
+      }
+    ]
+  },
   "operationalNotes": {
     "reconcilerProcess": {
       "summary": "Run the Reconciler once after edits. If the Playbook block is stuck or workflow says 'no changes to commit', reset playbook.md then run once.",
@@ -70,27 +155,9 @@
           "Open links.pulls, open the PR, Merge pull request, Confirm merge"
         ]
       }
-    },
-    "anticipateNoPR": {
-      "whyItHappens": [
-        "decisions.json commit does not change anything the generator writes into the CL block.",
-        "playbook.md already exactly matches what the Reconciler would generate."
-      ],
-      "howToAnticipate": [
-        "Only run the Reconciler immediately after committing decisions.json changes intended to alter the Playbook block.",
-        "If you run it without such changes, expect 'no changes to commit' and no PR.",
-        "Before running, skim the last decisions.json diff; if it didn’t touch phases/links/notes that render in the block, you can predict no PR."
-      ],
-      "howToAvoidManualResets": [
-        "When you expect a PR, always bump 'version' in decisions.json (e.g., 2025-09-26.4). The generator includes it in the block, creating a tiny but valid diff.",
-        "If you *must* force a PR without semantic changes, do the documented one-time reset of playbook.md, then run once."
-      ]
     }
   },
-  "status": {
-    "playbookGeneratedAt": null,
-    "lastReconciledAt": null
-  },
+  "status": { "playbookGeneratedAt": null, "lastReconciledAt": null },
   "handoff": {
     "purpose": "Allow any assistant/chat to resume seamlessly.",
     "repo": { "owner": "ComplianceLoop", "name": "complianceloop-site", "branch": "main" },
