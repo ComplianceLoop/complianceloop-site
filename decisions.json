@@ -1,19 +1,89 @@
 {
-  "version": "2025-09-26.4",
+  "version": "2025-09-27.1",
   "phases": [
-    { "phase": "Design Skin Kit", "objective": "Theme tokens, brand, and UI primitives to speed all later pages.", "deliverables": ["theme.ts tokens", "globals.css", "Button/Input/Card", "/design-playground"], "acceptance": ["Preview renders", "Tokens adjustable with hot reload"] },
-    { "phase": "Auth + DB base", "objective": "Neon + Drizzle schema, passwordless email code, sessions.", "deliverables": ["/api/auth/send-code", "/api/auth/verify-code", "users, sessions tables"], "acceptance": ["Vercel env DATABASE_URL set", "Auth code roundtrip works", "Dashboard gate honors session"], "status": "landed", "landedAt": "2025-09-26", "verification": ["DATABASE_URL set", "send-code 200", "verify-code 200 (session issued)"] },
-    { "phase": "Files & Certificates (R2)", "objective": "Private file storage with signed streaming.", "deliverables": ["/api/files/upload", "/api/files/:key", "R2 bucket + IAM"], "acceptance": ["Upload from provider portal → 200 r2Key", "Authorized GET streams; unauthorized 403"] },
-    { "phase": "Airtable bridge (hybrid)", "objective": "Mirror critical records for ops; Neon remains source of record.", "deliverables": ["sync script, cron", "idempotent mapping"], "acceptance": ["One-way sync green in CI", "Backfill job OK"] },
-    { "phase": "Job model + booking skeleton", "objective": "Booking wizard + soft hold creation.", "deliverables": ["/book wizard", "create Job(draft) API", "Soft-hold service"], "acceptance": ["30m hold for multi-property", "Single-property flow ok"] },
-    { "phase": "Provider directory & eligibility", "objective": "Eligibility rules + instant decision.", "deliverables": ["criteria engine", "provider onboarding form", "How-to-qualify guidance"], "acceptance": ["Pass/fail immediate", "Declined path shows guidance"] },
-    { "phase": "Assignment engine", "objective": "First-accept wins + 15m soft-hold + single-eligible auto-assign.", "deliverables": ["offer broadcast", "accept endpoint", "cascade logic"], "acceptance": ["Race handled; winner locks; cascade on timeout/decline"] },
-    { "phase": "Customer dashboard", "objective": "List past/upcoming jobs + files/invoices.", "deliverables": ["dashboard pages", "job detail route"], "acceptance": ["Auth required", "Documents stream correctly"] },
-    { "phase": "Provider dashboard", "objective": "Job queue + day-of checklist + conflict report + tech email routing.", "deliverables": ["checklist form", "conflict endpoint", "email routing field"], "acceptance": ["Late submission possible", "Conflict auto-cascade"] },
-    { "phase": "Payments & invoices", "objective": "Invoice links and settlement (minimal MVP).", "deliverables": ["invoice record", "link on job page"], "acceptance": ["Invoices viewable; payments later (toggle)"] },
-    { "phase": "Notifications (email/SMS)", "objective": "Resend email events; SMS optional later.", "deliverables": ["templates", "event triggers"], "acceptance": ["Email on accept, conflict, ready-to-download"] },
-    { "phase": "Admin console", "objective": "Search jobs/providers; manual override tools.", "deliverables": ["admin routes", "impersonate (guarded)"], "acceptance": ["Admin-only gate", "Audit trail"] },
-    { "phase": "Polish & launch", "objective": "SEO, a11y, rate limits, QA.", "deliverables": ["schema.org Business markup", "robots, sitemaps", "basic rate limiting"], "acceptance": ["Lighthouse ≥90", "No PII leaks", "Runbook updated"] }
+    {
+      "phase": "Design Skin Kit",
+      "objective": "Theme tokens, brand, and UI primitives to speed all later pages.",
+      "deliverables": ["theme.ts tokens", "globals.css", "Button/Input/Card", "/design-playground"],
+      "acceptance": ["Preview renders", "Tokens adjustable with hot reload"],
+      "status": "landed",
+      "landedAt": "2025-09-27"
+    },
+    {
+      "phase": "Auth + DB base",
+      "objective": "Neon + Drizzle schema, passwordless email code, sessions.",
+      "deliverables": ["/api/auth/send-code", "/api/auth/verify-code", "users, sessions tables"],
+      "acceptance": ["Vercel env DATABASE_URL set", "Auth code roundtrip works", "Dashboard gate honors session"],
+      "status": "landed",
+      "landedAt": "2025-09-26",
+      "verification": ["DATABASE_URL set", "send-code 200", "verify-code 200 (session issued)"]
+    },
+    {
+      "phase": "Files & Certificates (R2)",
+      "objective": "Private file storage with signed streaming.",
+      "deliverables": ["/api/files/upload", "/api/files/:key", "R2 bucket + IAM"],
+      "acceptance": ["Upload from provider portal → 200 r2Key", "Authorized GET streams; unauthorized 403"]
+    },
+    {
+      "phase": "Airtable bridge (hybrid)",
+      "objective": "Mirror critical records for ops; Neon remains source of record.",
+      "deliverables": ["sync script, cron", "idempotent mapping"],
+      "acceptance": ["One-way sync green in CI", "Backfill job OK"]
+    },
+    {
+      "phase": "Job model + booking skeleton",
+      "objective": "Booking wizard + soft hold creation.",
+      "deliverables": ["/book wizard", "create Job(draft) API", "Soft-hold service"],
+      "acceptance": ["30m hold for multi-property", "Single-property flow ok"]
+    },
+    {
+      "phase": "Provider directory & eligibility",
+      "objective": "Eligibility rules + instant decision.",
+      "deliverables": ["criteria engine", "provider onboarding form", "How-to-qualify guidance"],
+      "acceptance": ["Pass/fail immediate", "Declined path shows guidance"]
+    },
+    {
+      "phase": "Assignment engine",
+      "objective": "First-accept wins + 15m soft-hold + single-eligible auto-assign.",
+      "deliverables": ["offer broadcast", "accept endpoint", "cascade logic"],
+      "acceptance": ["Race handled; winner locks; cascade on timeout/decline"]
+    },
+    {
+      "phase": "Customer dashboard",
+      "objective": "List past/upcoming jobs + files/invoices.",
+      "deliverables": ["dashboard pages", "job detail route"],
+      "acceptance": ["Auth required", "Documents stream correctly"]
+    },
+    {
+      "phase": "Provider dashboard",
+      "objective": "Job queue + day-of checklist + conflict report + tech email routing.",
+      "deliverables": ["checklist form", "conflict endpoint", "email routing field"],
+      "acceptance": ["Late submission possible", "Conflict auto-cascade"]
+    },
+    {
+      "phase": "Payments & invoices",
+      "objective": "Invoice links and settlement (minimal MVP).",
+      "deliverables": ["invoice record", "link on job page"],
+      "acceptance": ["Invoices viewable; payments later (toggle)"]
+    },
+    {
+      "phase": "Notifications (email/SMS)",
+      "objective": "Resend email events; SMS optional later.",
+      "deliverables": ["templates", "event triggers"],
+      "acceptance": ["Email on accept, conflict, ready-to-download"]
+    },
+    {
+      "phase": "Admin console",
+      "objective": "Search jobs/providers; manual override tools.",
+      "deliverables": ["admin routes", "impersonate (guarded)"],
+      "acceptance": ["Admin-only gate", "Audit trail"]
+    },
+    {
+      "phase": "Polish & launch",
+      "objective": "SEO, a11y, rate limits, QA.",
+      "deliverables": ["schema.org Business markup", "robots, sitemaps", "basic rate limiting"],
+      "acceptance": ["Lighthouse ≥90", "No PII leaks", "Runbook updated"]
+    }
   ],
   "finances": {
     "currency": "USD",
@@ -52,16 +122,86 @@
   "fileActions": {
     "policy": "Use EDIT links if file exists; otherwise use CREATE links.",
     "items": [
-      { "path": "tailwind.config.ts", "exists": true, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/tailwind.config.ts", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=tailwind.config.ts", "purpose": "Tailwind config", "lastChecked": "2025-09-26" },
-      { "path": "app/globals.css", "exists": true, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/globals.css", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fglobals.css", "purpose": "Global CSS + tokens", "lastChecked": "2025-09-26" },
-      { "path": "app/layout.tsx", "exists": true, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/layout.tsx", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Flayout.tsx", "purpose": "Root layout importing globals.css", "lastChecked": "2025-09-26" },
-      { "path": "postcss.config.js", "exists": true, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/postcss.config.js", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=postcss.config.js", "purpose": "PostCSS plugins", "lastChecked": "2025-09-26" },
-      { "path": "lib/cn.ts", "exists": true, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/cn.ts", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fcn.ts", "purpose": "classNames helper", "lastChecked": "2025-09-26" },
-      { "path": "src/theme.ts", "exists": true, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/src/theme.ts", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=src%2Ftheme.ts", "purpose": "Design tokens", "lastChecked": "2025-09-26" },
-      { "path": "components/ui/button.tsx", "exists": true, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/components/ui/button.tsx", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=components%2Fui%2Fbutton.tsx", "purpose": "Button primitive", "lastChecked": "2025-09-26" },
-      { "path": "components/ui/input.tsx", "exists": true, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/components/ui/input.tsx", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=components%2Fui%2Finput.tsx", "purpose": "Input primitive", "lastChecked": "2025-09-26" },
-      { "path": "components/ui/card.tsx", "exists": true, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/components/ui/card.tsx", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=components%2Fui%2Fcard.tsx", "purpose": "Card primitive", "lastChecked": "2025-09-26" },
-      { "path": "app/design-playground/page.tsx", "exists": true, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/design-playground/page.tsx", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fdesign-playground%2Fpage.tsx", "purpose": "Tokens/primitives demo", "lastChecked": "2025-09-26" }
+      {
+        "path": "tailwind.config.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/tailwind.config.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=tailwind.config.ts",
+        "purpose": "Tailwind config",
+        "lastChecked": "2025-09-27"
+      },
+      {
+        "path": "app/globals.css",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/globals.css",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fglobals.css",
+        "purpose": "Global CSS + tokens",
+        "lastChecked": "2025-09-27"
+      },
+      {
+        "path": "app/layout.tsx",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/layout.tsx",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Flayout.tsx",
+        "purpose": "Root layout importing globals.css",
+        "lastChecked": "2025-09-27"
+      },
+      {
+        "path": "postcss.config.js",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/postcss.config.js",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=postcss.config.js",
+        "purpose": "PostCSS plugins",
+        "lastChecked": "2025-09-27"
+      },
+      {
+        "path": "lib/cn.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/cn.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fcn.ts",
+        "purpose": "classNames helper",
+        "lastChecked": "2025-09-27"
+      },
+      {
+        "path": "src/theme.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/src/theme.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=src%2Ftheme.ts",
+        "purpose": "Design tokens",
+        "lastChecked": "2025-09-27"
+      },
+      {
+        "path": "components/ui/button.tsx",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/components/ui/button.tsx",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=components%2Fui%2Fbutton.tsx",
+        "purpose": "Button primitive",
+        "lastChecked": "2025-09-27"
+      },
+      {
+        "path": "components/ui/input.tsx",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/components/ui/input.tsx",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=components%2Fui%2Finput.tsx",
+        "purpose": "Input primitive",
+        "lastChecked": "2025-09-27"
+      },
+      {
+        "path": "components/ui/card.tsx",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/components/ui/card.tsx",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=components%2Fui%2Fcard.tsx",
+        "purpose": "Card primitive",
+        "lastChecked": "2025-09-27"
+      },
+      {
+        "path": "app/design-playground/page.tsx",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/design-playground/page.tsx",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fdesign-playground%2Fpage.tsx",
+        "purpose": "Tokens/primitives demo",
+        "lastChecked": "2025-09-27"
+      }
     ]
   },
   "operationalNotes": {
@@ -85,9 +225,27 @@
           "Open links.pulls, open the PR, Merge pull request, Confirm merge"
         ]
       }
+    },
+    "anticipateNoPR": {
+      "whyItHappens": [
+        "decisions.json commit does not change anything the generator writes into the CL block.",
+        "playbook.md already exactly matches what the Reconciler would generate."
+      ],
+      "howToAnticipate": [
+        "Only run the Reconciler immediately after committing decisions.json changes intended to alter the Playbook block.",
+        "If you run it without such changes, expect 'no changes to commit' and no PR.",
+        "Before running, skim the last decisions.json diff; if it didn’t touch phases/links/notes that render in the block, you can predict no PR."
+      ],
+      "howToAvoidManualResets": [
+        "When you expect a PR, always bump 'version' in decisions.json (e.g., 2025-09-27.2). The generator includes it in the block, creating a tiny but valid diff.",
+        "If you must force a PR without semantic changes, do the documented one-time reset of playbook.md, then run once."
+      ]
     }
   },
-  "status": { "playbookGeneratedAt": null, "lastReconciledAt": null },
+  "status": {
+    "playbookGeneratedAt": null,
+    "lastReconciledAt": null
+  },
   "handoff": {
     "purpose": "Allow any assistant/chat to resume seamlessly.",
     "repo": { "owner": "ComplianceLoop", "name": "complianceloop-site", "branch": "main" },
