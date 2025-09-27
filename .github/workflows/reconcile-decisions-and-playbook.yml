@@ -1,11 +1,7 @@
 name: reconcile-decisions-and-playbook
+
 on:
   workflow_dispatch: {}
-  pull_request:
-    paths:
-      - "decisions.json"
-      - "playbook.md"
-      - ".github/workflows/reconcile-decisions-and-playbook.yml"
 
 permissions:
   contents: write
@@ -15,195 +11,55 @@ jobs:
   reconcile:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install jq
-        run: sudo apt-get update -y && sudo apt-get install -y jq
-
-      - name: Ensure decisions.json exists
-        run: |
-          if [ ! -f decisions.json ]; then
-            echo '{}' > decisions.json
-          fi
-
-      # ROBUST root fix + safe normalization
-      - name: Normalize types (root-safe)
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          cat decisions.json | jq '
-            # helpers
-            def arr(x): if (x|type)=="array" then x else [] end;
-            def str(x): if (x|type)=="string" then x else "" end;
-            def obj(x): if (x|type)=="object" then x else {} end;
-
-            # root fix:
-            # - if object: keep
-            # - if array with one object: unwrap
-            # - else: empty object
-            def rootfix:
-              if (type=="object") then .
-              elif (type=="array") then
-                if (length>0 and (.[0]|type)=="object") then .[0] else {} end
-              else {}
-              end;
-
-            rootfix
-
-          | .repo = obj(.repo)
-          | .repo.owner = str(.repo.owner)
-          | .repo.name  = str(.repo.name)
-          | .repo.defaultBranch = (if (.repo.defaultBranch|type)=="string" then .repo.defaultBranch else "main" end)
-
-          | .vercel = obj(.vercel)
-          | .vercel.team = (
-              if (.vercel.team|type)=="object" then .vercel.team
-              else (if (.vercel.team|type)=="string" then {slug:.vercel.team} else {} end)
-              end
-            )
-          | .vercel.team.slug = str(.vercel.team.slug)
-          | .vercel.project = (if (.vercel.project|type)=="string" then .vercel.project else "" end)
-
-          | .workflows    = arr(.workflows)
-          | .phases       = arr(.phases)
-          | .phaseDetails = arr(.phaseDetails)
-
-          | .journeys = obj(.journeys)
-          | .journeys.customer = obj(.journeys.customer)
-          | .journeys.provider = obj(.journeys.provider)
-          ' > /tmp/d.json
-          mv /tmp/d.json decisions.json
-
-      - name: Render canonical Playbook block (detailed + status)
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          F="decisions.json"
-
-          repo="$(jq -r '.repo.owner+"/"+.repo.name // "ComplianceLoop/complianceloop-site"' "$F")"
-          branch="$(jq -r '.repo.defaultBranch // "main"' "$F")"
-
-          vteam="$(jq -r '.vercel.team.slug // .vercel.team // "ComplianceLoop"' "$F")"
-          vproj="$(jq -r '
-            if (.vercel.project // "" ) != "" then .vercel.project
-            else (.vercel.projects[]? | select(.role=="app/portal") | .name) // "complianceloop-portal"
-            end
-          ' "$F")"
-
-          workflows="$(jq -r '
-            (.workflows // [])[]?
-            | "- `" + (.path // "") + "` — " + ((.purpose // "") )
-          ' "$F")"
-
-          phases_ov="$(jq -r '(.phases // [])[]?' "$F" | nl -w1 -s") ")"
-
-          phase_rows="$(jq -r '
-            (.phaseDetails // [])[]? |
-            "| " + (.phase // "") + " | " +
-            (.objective // "") + " | " +
-            ((.status // "planned")) + " | " +
-            ((.acceptance // []) | join("<br>")) + " |"
-          ' "$F")"
-
-          cust="$(jq -r '
-            (.journeys.customer.flows // [])[]? |
-              "### " + (.name // "") + "\n" +
-              ((.summary // "") ) + "\n" +
-              ((.steps // []) | map("- " + .) | join("\n")) + "\n\n" +
-              "**Success:** " + ((.success // []) | join(", ")) + "\n"
-          ' "$F")"
-
-          prov="$(jq -r '
-            (.journeys.provider.flows // [])[]? |
-              "### " + (.name // "") + "\n" +
-              ((.summary // "") ) + "\n" +
-              (
-                (.details // .rules // .steps // [])
-                | map("- " + .) | join("\n")
-              ) + "\n"
-          ' "$F")"
-
-          apis="$(jq -r '
-            (.apis // [])[]? |
-              "- **" + ((.method // "") | ascii_upcase) + "** `" + (.path // "") + "` — " + ((.out // "") )
-          ' "$F")"
-
-          models="$(jq -r '
-            (.dataModels // {}) | to_entries
-            | map("- **" + .key + "**: " + (.value | join(", ")))
-            | join("\n")
-          ' "$F")"
-
-          rules="$(jq -r '
-            "- softHoldMinutes: " + ((.assignmentRules.softHoldMinutes // 15)|tostring) + "\n" +
-            "- customerMultiPropertyHoldMinutes: " + ((.assignmentRules.customerMultiPropertyHoldMinutes // 30)|tostring) + "\n" +
-            "- singleEligibleAutoAssign: " + ((.assignmentRules.singleEligibleAutoAssign // true)|tostring) + "\n" +
-            "- acceptWins: " + ((.assignmentRules.acceptWins // true)|tostring)
-          ' "$F")"
-
-          cat > /tmp/cl_block.md <<'EOF'
-          <!-- CL:START -->
-          # ComplianceLoop — Canonical Plan (Generated)
-
-          **Repo:** ${repo} (`${branch}`)  
-          **Vercel:** project **${vproj}** (team: **${vteam}**)
-
-          ## Workflows (index)
-          ${workflows}
-
-          ## 13 Phases (overview)
-          ${phases_ov}
-
-          ## Phase Details (objective, status & acceptance)
-          | Phase | Objective | Status | Acceptance |
-          |---|---|---|---|
-          ${phase_rows}
-
-          ## Journey Specs
-          ### Customer
-          ${cust}
-
-          ### Provider
-          ${prov}
-
-          ## APIs (MVP)
-          ${apis}
-
-          ## Data Models
-          ${models}
-
-          ## Assignment Rules
-          ${rules}
-
-          > Edit *decisions.json* to change these sections, then re-run this workflow.
-          <!-- CL:END -->
-          EOF
-
-          eval "echo \"$(cat /tmp/cl_block.md)\"" > /tmp/cl_block_expanded.md
-
-          PLAYBOOK="playbook.md"
-          touch "$PLAYBOOK"
-          if grep -q "<!-- CL:START -->" "$PLAYBOOK"; then
-            awk '
-              BEGIN{inblk=0}
-              /<!-- CL:START -->/{inblk=1; system("cat /tmp/cl_block_expanded.md"); next}
-              /<!-- CL:END -->/{inblk=0; next}
-              { if (!inblk) print }
-            ' "$PLAYBOOK" > /tmp/new.md
-            mv /tmp/new.md "$PLAYBOOK"
-          else
-            printf "\n" >> "$PLAYBOOK"
-            cat /tmp/cl_block_expanded.md >> "$PLAYBOOK"
-          fi
-
-      - name: Create PR
-        uses: peter-evans/create-pull-request@v6
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          token: ${{ github.token }}
-          branch: chore/reconcile-decisions-and-playbook
-          title: "chore(playbook): sync journeys, APIs, data, and phase details (root-safe)"
-          body: |
-            Regenerates the canonical Playbook block from `decisions.json` with
-            robust root coercion (object), unwrapping single-object arrays.
-          add-paths: |
-            playbook.md
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate Playbook block
+        run: |
+          set -euo pipefail
+          node scripts/generate-playbook.mjs
+
+      - name: Commit changes (if any)
+        id: commit
+        run: |
+          set -euo pipefail
+          git config user.name "CL Playbook"
+          git config user.email "actions@users.noreply.github.com"
+
+          BRANCH="reconcile/playbook"
+          git checkout -B "$BRANCH"
+
+          # Only commit if there is a diff
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git add -A
+          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          git commit -m "playbook: regenerate from decisions.json ($TS)"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Push branch (if changed)
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git push -fu origin reconcile/playbook
+
+      - name: Open or update PR (if changed)
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Create PR if missing; else update title/body
+          gh pr view reconcile/playbook >/dev/null 2>&1 \
+            || gh pr create --base main --head reconcile/playbook --title "Playbook: reconcile from decisions.json" --body "Automated regeneration of the CL block from decisions.json."
+          gh pr edit reconcile/playbook --add-label "automation,playbook" || true
