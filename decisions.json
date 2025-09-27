@@ -1,173 +1,45 @@
-[
-  {
-    "phase": "Design Skin Kit",
-    "objective": "Theme tokens, brand, and UI primitives to speed all later pages.",
-    "deliverables": [
-      "theme.ts tokens",
-      "globals.css",
-      "Button/Input/Card",
-      "/design-playground"
-    ],
-    "acceptance": [
-      "Preview renders",
-      "Tokens adjustable with hot reload"
-    ]
-  },
-  {
-    "phase": "Auth + DB base",
-    "objective": "Neon + Drizzle schema, passwordless email code, sessions.",
-    "deliverables": [
-      "/api/auth/send-code",
-      "/api/auth/verify-code",
-      "users, sessions tables"
-    ],
-    "acceptance": [
-      "Vercel env DATABASE_URL set",
-      "Auth code roundtrip works",
-      "Dashboard gate honors session"
-    ],
-    "status": "landed",
-    "landedAt": "2025-09-26",
-    "verification": [
-      "DATABASE_URL set",
-      "send-code 200",
-      "verify-code 200 (session issued)"
-    ]
-  },
-  {
-    "phase": "Files & Certificates (R2)",
-    "objective": "Private file storage with signed streaming.",
-    "deliverables": [
-      "/api/files/upload",
-      "/api/files/:key",
-      "R2 bucket + IAM"
-    ],
-    "acceptance": [
-      "Upload from provider portal → 200 r2Key",
-      "Authorized GET streams; unauthorized 403"
-    ]
-  },
-  {
-    "phase": "Airtable bridge (hybrid)",
-    "objective": "Mirror critical records for ops; Neon remains source of record.",
-    "deliverables": [
-      "sync script, cron",
-      "idempotent mapping"
-    ],
-    "acceptance": [
-      "One-way sync green in CI",
-      "Backfill job OK"
-    ]
-  },
-  {
-    "phase": "Job model + booking skeleton",
-    "objective": "Booking wizard + soft hold creation.",
-    "deliverables": [
-      "/book wizard",
-      "create Job(draft) API",
-      "Soft-hold service"
-    ],
-    "acceptance": [
-      "30m hold for multi-property",
-      "Single-property flow ok"
-    ]
-  },
-  {
-    "phase": "Provider directory & eligibility",
-    "objective": "Eligibility rules + instant decision.",
-    "deliverables": [
-      "criteria engine",
-      "provider onboarding form",
-      "How-to-qualify guidance"
-    ],
-    "acceptance": [
-      "Pass/fail immediate",
-      "Declined path shows guidance"
-    ]
-  },
-  {
-    "phase": "Assignment engine",
-    "objective": "First-accept wins + 15m soft-hold + single-eligible auto-assign.",
-    "deliverables": [
-      "offer broadcast",
-      "accept endpoint",
-      "cascade logic"
-    ],
-    "acceptance": [
-      "Race handled; winner locks; cascade on timeout/decline"
-    ]
-  },
-  {
-    "phase": "Customer dashboard",
-    "objective": "List past/upcoming jobs + files/invoices.",
-    "deliverables": [
-      "dashboard pages",
-      "job detail route"
-    ],
-    "acceptance": [
-      "Auth required",
-      "Documents stream correctly"
-    ]
-  },
-  {
-    "phase": "Provider dashboard",
-    "objective": "Job queue + day-of checklist + conflict report + tech email routing.",
-    "deliverables": [
-      "checklist form",
-      "conflict endpoint",
-      "email routing field"
-    ],
-    "acceptance": [
-      "Late submission possible",
-      "Conflict auto-cascade"
-    ]
-  },
-  {
-    "phase": "Payments & invoices",
-    "objective": "Invoice links and settlement (minimal MVP).",
-    "deliverables": [
-      "invoice record",
-      "link on job page"
-    ],
-    "acceptance": [
-      "Invoices viewable; payments later (toggle)"
-    ]
-  },
-  {
-    "phase": "Notifications (email/SMS)",
-    "objective": "Resend email events; SMS optional later.",
-    "deliverables": [
-      "templates",
-      "event triggers"
-    ],
-    "acceptance": [
-      "Email on accept, conflict, ready-to-download"
-    ]
-  },
-  {
-    "phase": "Admin console",
-    "objective": "Search jobs/providers; manual override tools.",
-    "deliverables": [
-      "admin routes",
-      "impersonate (guarded)"
-    ],
-    "acceptance": [
-      "Admin-only gate",
-      "Audit trail"
-    ]
-  },
-  {
-    "phase": "Polish & launch",
-    "objective": "SEO, a11y, rate limits, QA.",
-    "deliverables": [
-      "schema.org Business markup",
-      "robots, sitemaps",
-      "basic rate limiting"
-    ],
-    "acceptance": [
-      "Lighthouse ≥90",
-      "No PII leaks",
-      "Runbook updated"
-    ]
+{
+  "phases": [
+    { "phase": "Design Skin Kit", "objective": "Theme tokens, brand, and UI primitives to speed all later pages.", "deliverables": [ "theme.ts tokens", "globals.css", "Button/Input/Card", "/design-playground" ], "acceptance": [ "Preview renders", "Tokens adjustable with hot reload" ] },
+    { "phase": "Auth + DB base", "objective": "Neon + Drizzle schema, passwordless email code, sessions.", "deliverables": [ "/api/auth/send-code", "/api/auth/verify-code", "users, sessions tables" ], "acceptance": [ "Vercel env DATABASE_URL set", "Auth code roundtrip works", "Dashboard gate honors session" ], "status": "landed", "landedAt": "2025-09-26", "verification": [ "DATABASE_URL set", "send-code 200", "verify-code 200 (session issued)" ] },
+    { "phase": "Files & Certificates (R2)", "objective": "Private file storage with signed streaming.", "deliverables": [ "/api/files/upload", "/api/files/:key", "R2 bucket + IAM" ], "acceptance": [ "Upload from provider portal → 200 r2Key", "Authorized GET streams; unauthorized 403" ] },
+    { "phase": "Airtable bridge (hybrid)", "objective": "Mirror critical records for ops; Neon remains source of record.", "deliverables": [ "sync script, cron", "idempotent mapping" ], "acceptance": [ "One-way sync green in CI", "Backfill job OK" ] },
+    { "phase": "Job model + booking skeleton", "objective": "Booking wizard + soft hold creation.", "deliverables": [ "/book wizard", "create Job(draft) API", "Soft-hold service" ], "acceptance": [ "30m hold for multi-property", "Single-property flow ok" ] },
+    { "phase": "Provider directory & eligibility", "objective": "Eligibility rules + instant decision.", "deliverables": [ "criteria engine", "provider onboarding form", "How-to-qualify guidance" ], "acceptance": [ "Pass/fail immediate", "Declined path shows guidance" ] },
+    { "phase": "Assignment engine", "objective": "First-accept wins + 15m soft-hold + single-eligible auto-assign.", "deliverables": [ "offer broadcast", "accept endpoint", "cascade logic" ], "acceptance": [ "Race handled; winner locks; cascade on timeout/decline" ] },
+    { "phase": "Customer dashboard", "objective": "List past/upcoming jobs + files/invoices.", "deliverables": [ "dashboard pages", "job detail route" ], "acceptance": [ "Auth required", "Documents stream correctly" ] },
+    { "phase": "Provider dashboard", "objective": "Job queue + day-of checklist + conflict report + tech email routing.", "deliverables": [ "checklist form", "conflict endpoint", "email routing field" ], "acceptance": [ "Late submission possible", "Conflict auto-cascade" ] },
+    { "phase": "Payments & invoices", "objective": "Invoice links and settlement (minimal MVP).", "deliverables": [ "invoice record", "link on job page" ], "acceptance": [ "Invoices viewable; payments later (toggle)" ] },
+    { "phase": "Notifications (email/SMS)", "objective": "Resend email events; SMS optional later.", "deliverables": [ "templates", "event triggers" ], "acceptance": [ "Email on accept, conflict, ready-to-download" ] },
+    { "phase": "Admin console", "objective": "Search jobs/providers; manual override tools.", "deliverables": [ "admin routes", "impersonate (guarded)" ], "acceptance": [ "Admin-only gate", "Audit trail" ] },
+    { "phase": "Polish & launch", "objective": "SEO, a11y, rate limits, QA.", "deliverables": [ "schema.org Business markup", "robots, sitemaps", "basic rate limiting" ], "acceptance": [ "Lighthouse \u226590", "No PII leaks", "Runbook updated" ] }
+  ],
+  "finances": {
+    "currency": "USD",
+    "oneTime": {
+      "items": [
+        { "date": "2025-09-26", "label": "New laptop", "amount": 175, "notes": "", "source": "user" },
+        { "date": "2025-08-23", "label": "Connecticut LLC filing fee", "amount": 120, "notes": "", "source": "user" },
+        { "date": "2025-09-26", "label": "Chat GPT credits", "amount": 100, "notes": "", "source": "user" }
+      ],
+      "total": 395
+    },
+    "subscriptions": {
+      "items": [
+        { "label": "ChatGPT Business", "plan": "Business", "billingInterval": "monthly", "amount": 60, "status": "active", "notes": "" },
+        { "label": "Vercel Pro Plan", "plan": "Pro", "billingInterval": "monthly", "amount": 20, "status": "active", "notes": "" },
+        { "label": "GitHub Base Plan", "plan": "Free", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "" },
+        { "label": "Porkbun", "plan": "Domain", "billingInterval": "annual", "amount": 11.08, "status": "active", "notes": "" },
+        { "label": "Cal.com", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "not_set_up", "notes": "" },
+        { "label": "Make", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "" },
+        { "label": "Stripe", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "not_set_up", "notes": "" },
+        { "label": "Airtable", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "" },
+        { "label": "Google Workspace", "plan": "", "billingInterval": "monthly", "amount": 39.60, "status": "active", "notes": "" }
+      ],
+      "monthlyTotal": 119.6,
+      "annualOnlyTotal": 11.08,
+      "arr": 1446.28
+    },
+    "lastUpdated": "2025-09-26"
   }
-]
+}
