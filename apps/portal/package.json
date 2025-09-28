@@ -17,7 +17,10 @@
     "@neondatabase/serverless": "0.10.1",
     "uuid": "9.0.1",
     "cookie": "0.6.0",
-    "resend": "3.5.0"
+    "resend": "3.5.0",
+    "tailwindcss": "3.4.10",
+    "postcss": "8.4.41",
+    "autoprefixer": "10.4.20"
   },
   "devDependencies": {
     "typescript": "5.4.5",
