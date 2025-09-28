@@ -19,7 +19,9 @@ export default function DesignPlayground() {
           {Object.entries(theme.color).map(([k, v]) => (
             <div key={k} className="flex items-center gap-sm">
               <div className="h-8 w-8 rounded-md border" style={{ background: v }} />
-              <code className="text-sm">{k}: {v}</code>
+              <code className="text-sm">
+                {k}: {v}
+              </code>
             </div>
           ))}
         </CardContent>
