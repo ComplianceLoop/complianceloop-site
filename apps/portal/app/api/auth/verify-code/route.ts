@@ -1,7 +1,7 @@
-import { db } from "@/lib/db";
-import { loginCodes, customers } from "@/db/schema";
+import { db } from "../../../../lib/db";
+import { loginCodes, customers } from "../../../../db/schema";
 import { and, eq, gt } from "drizzle-orm";
-import { createSession } from "@/lib/auth";
+import { createSession } from "../../../../lib/auth";
 
 export const dynamic = "force-dynamic";
 
