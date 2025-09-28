@@ -1,8 +1,8 @@
 // app/design-playground/page.tsx
-import { theme } from "@/src/theme";
-import Button from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { theme } from "../../src/theme";
+import Button from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Card, CardContent, CardHeader } from "../../components/ui/card";
 
 export const dynamic = "force-static";
 
