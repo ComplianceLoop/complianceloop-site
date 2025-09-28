@@ -1,5 +1,5 @@
 {
-  "version": "2025-09-27.2",
+  "version": "2025-09-27.3",
   "phases": [
     {
       "phase": "Design Skin Kit",
@@ -120,7 +120,7 @@
     "editPlaybook": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md",
     "runReconciler": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml",
     "pulls": "https://github.com/ComplianceLoop/complianceloop-site/pulls",
-    "vercelEnv": "https://vercel.com/ComplianceLoop/complianceloop-portal/settings/environment-variables"
+    "vercelEnv": "https://vercel.com/compliance-loop/complianceloop-portal/settings/environment-variables"
   },
   "fileActions": {
     "policy": "Use EDIT links if file exists; otherwise use CREATE links.",
@@ -155,8 +155,52 @@
     "r2Env": {
       "note": "Set env vars in Vercel; store no secrets in repo.",
       "vars": ["R2_ENDPOINT", "R2_REGION", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"]
-    }
+    },
+    "moduleResolution.playbook": [
+      "Avoid imports like '@/app/../…'. Prefer '@/lib/…' and '@/db/…', or stable relative paths.",
+      "When API routes under app/api/** error on imports, switch to **relative** imports targeting root shims (e.g., '../../../../lib/db').",
+      "Root shims mapping to apps/portal code: lib/db.ts, db/schema.ts, lib/auth.ts."
+    ],
+    "tailwind.setup": [
+      "Install tailwindcss, postcss, autoprefixer as **dependencies** in both root/package.json and apps/portal/package.json.",
+      "apps/portal/postcss.config.js: { plugins: { tailwindcss: {}, autoprefixer: {} } }",
+      "apps/portal/tailwind.config.ts content globs include portal and shared roots.",
+      "apps/portal/styles/globals.css must start with Tailwind directives.",
+      "apps/portal/app/layout.tsx must import '../styles/globals.css'."
+    ],
+    "designPlayground": [
+      "Single source of truth at app/design-playground/page.tsx.",
+      "Use **lowercase** component filenames and **relative** imports.",
+      "Delete duplicate at apps/portal/app/design-playground/page.tsx and remove .github/workflows/design-skin-kit.yml."
+    ],
+    "vercel.deploy": [
+      "When debugging builds, always redeploy with **Use existing Build Cache** unchecked.",
+      "If 'Cannot find module tailwindcss', ensure Tailwind/PostCSS/Autoprefixer exist in dependencies at both root and apps/portal."
+    ],
+    "agentInstructionStyle": [
+      "Always provide full-file replacements (no snippets).",
+      "Precede steps with a matching **Edit** or **Create** link.",
+      "Default to create links when a file might not exist; fall back to edit links if it does.",
+      "Run the Reconciler once after both files are updated."
+    ]
   },
+  "checklists": {
+    "prePhase3-ready": [
+      "✅ Production deployment is green in Vercel (no-cache redeploy verified).",
+      "✅ app/design-playground/page.tsx uses relative, lowercase imports.",
+      "✅ Duplicate design-playground page removed under apps/portal/app/…",
+      "✅ .github/workflows/design-skin-kit.yml removed.",
+      "✅ Root shims exist: lib/db.ts, db/schema.ts, lib/auth.ts.",
+      "✅ Tailwind configured: deps at root & apps/portal; postcss & tailwind config present; globals.css has directives; layout imports it.",
+      "✅ Vercel env vars (R2) present."
+    ]
+  },
+  "accomplishments": [
+    "Resolved module resolution errors by replacing '@/app/../*' imports and adding root shims to apps/portal code.",
+    "Normalized design playground imports; removed duplicate page and generator workflow.",
+    "Installed and configured Tailwind for apps/portal; ensured production builds can resolve tailwindcss.",
+    "Achieved successful production redeploy without cache."
+  ],
   "status": { "playbookGeneratedAt": null, "lastReconciledAt": null },
   "handoff": {
     "purpose": "Allow any assistant/chat to resume seamlessly.",
@@ -177,5 +221,5 @@
       "Reset playbook.md to only the CL block if needed and re-run the Reconciler."
     ]
   },
-  "agentPromptTemplate": "You are the ComplianceLoop Playbook Agent. Implement the current phase using the fileActions list. Never write secrets to the repo. Use Vercel env for secrets (link provided)."
+  "agentPromptTemplate": "You are the ComplianceLoop Playbook Agent. Implement the current phase using the fileActions list. Never write secrets to the repo. Use Vercel env for secrets (link provided). Avoid '@/app/../*' imports; prefer '@/lib/*' or stable relative paths. Ensure Tailwind is installed in both root and apps/portal package.json; apps/portal has postcss.config.js, tailwind.config.ts, and globals.css with Tailwind directives, imported from layout. Redeploy with cache disabled when debugging. Success: green build, /design-playground loads, auth routes compile, Tailwind styles present."
 }
