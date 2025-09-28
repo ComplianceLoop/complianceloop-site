@@ -1,5 +1,6 @@
 {
-  "version": "2025-09-27.3",
+  "version": "2025-09-28.1",
+  "currentPhase": "Files & Certificates (R2)",
   "phases": [
     {
       "phase": "Design Skin Kit",
@@ -87,6 +88,16 @@
       "acceptance": ["Lighthouse ≥90", "No PII leaks", "Runbook updated"]
     }
   ],
+  "phaseProgress": {
+    "Files & Certificates (R2)": {
+      "tasks": [
+        { "id": "r2-signer", "title": "lib/r2-signer.ts", "status": "pending" },
+        { "id": "upload-route", "title": "POST /api/files/upload", "status": "pending" },
+        { "id": "get-route", "title": "GET /api/files/[key]", "status": "pending" },
+        { "id": "verify", "title": "Verification: 200 on upload, authorized stream 200, unauth 403", "status": "pending" }
+      ]
+    }
+  ],
   "finances": {
     "currency": "USD",
     "oneTime": {
@@ -120,14 +131,36 @@
     "editPlaybook": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md",
     "runReconciler": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml",
     "pulls": "https://github.com/ComplianceLoop/complianceloop-site/pulls",
-    "vercelEnv": "https://vercel.com/compliance-loop/complianceloop-portal/settings/environment-variables"
+    "vercelEnv": "https://vercel.com/compliance-loop/complianceloop-portal/settings/environment-variables",
+    "vercelDeployments": "https://vercel.com/compliance-loop/complianceloop-portal/deployments"
   },
   "fileActions": {
     "policy": "Use EDIT links if file exists; otherwise use CREATE links.",
     "items": [
-      { "path": "app/api/files/upload/route.ts", "exists": false, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/files/upload/route.ts", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Ffiles%2Fupload%2Froute.ts", "purpose": "POST → presigned PUT URL + r2Key", "lastChecked": "2025-09-27" },
-      { "path": "app/api/files/[key]/route.ts", "exists": false, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/files/%5Bkey%5D/route.ts", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Ffiles%2F%5Bkey%5D%2Froute.ts", "purpose": "GET → authorized stream from R2", "lastChecked": "2025-09-27" },
-      { "path": "lib/r2-signer.ts", "exists": false, "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/r2-signer.ts", "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fr2-signer.ts", "purpose": "AWS SigV4 presign (no deps)", "lastChecked": "2025-09-27" }
+      {
+        "path": "lib/r2-signer.ts",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/r2-signer.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fr2-signer.ts",
+        "purpose": "AWS SigV4 presign/sign helper (no deps)",
+        "lastChecked": "2025-09-28"
+      },
+      {
+        "path": "app/api/files/upload/route.ts",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/files/upload/route.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Ffiles%2Fupload%2Froute.ts",
+        "purpose": "POST → presigned PUT URL + r2Key",
+        "lastChecked": "2025-09-28"
+      },
+      {
+        "path": "app/api/files/%5Bkey%5D/route.ts",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/files/%5Bkey%5D/route.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Ffiles%2F%5Bkey%5D%2Froute.ts",
+        "purpose": "GET → authorized stream from R2",
+        "lastChecked": "2025-09-28"
+      }
     ]
   },
   "operationalNotes": {
@@ -137,7 +170,7 @@
         "commitTitle": "finances: add expenses + subscriptions and tallies; preserve phases",
         "steps": [
           "Open links.editDecisions",
-          "Paste full-file decisions.json (phases + finances) and Commit changes with commitTitle",
+          "Paste full-file decisions.json and Commit changes with commitTitle",
           "Open links.runReconciler and Run workflow",
           "Open links.pulls, open the PR, Merge pull request, Confirm merge"
         ]
@@ -146,7 +179,7 @@
         "when": "Only if previous runs show no changes to commit or the Playbook block is stale.",
         "steps": [
           "Open links.editDecisions, paste full-file decisions.json, Commit changes",
-          "Open links.editPlaybook, replace with '<!-- CL:START -->\\n<!-- CL:END -->', Commit changes with 'playbook: reset generated block'",
+          "Open links.editPlaybook, replace with '<!-- CL:START -->\\n<!-- CL:END -->', Commit with 'playbook: reset generated block'",
           "Open links.runReconciler and Run workflow",
           "Open links.pulls, open the PR, Merge pull request, Confirm merge"
         ]
@@ -154,10 +187,10 @@
     },
     "r2Env": {
       "note": "Set env vars in Vercel; store no secrets in repo.",
-      "vars": ["R2_ENDPOINT", "R2_REGION", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"]
+      "vars": ["R2_ACCOUNT_ID", "R2_REGION", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"]
     },
     "moduleResolution.playbook": [
-      "Avoid imports like '@/app/../…'. Prefer '@/lib/…' and '@/db/…', or stable relative paths.",
+      "Avoid imports like '@/app/../…'. Prefer '@/lib/*' and '@/db/*', or stable relative paths.",
       "When API routes under app/api/** error on imports, switch to **relative** imports targeting root shims (e.g., '../../../../lib/db').",
       "Root shims mapping to apps/portal code: lib/db.ts, db/schema.ts, lib/auth.ts."
     ],
@@ -169,20 +202,28 @@
       "apps/portal/app/layout.tsx must import '../styles/globals.css'."
     ],
     "designPlayground": [
-      "Single source of truth at app/design-playground/page.tsx.",
-      "Use **lowercase** component filenames and **relative** imports.",
-      "Delete duplicate at apps/portal/app/design-playground/page.tsx and remove .github/workflows/design-skin-kit.yml."
+      "Single source at app/design-playground/page.tsx.",
+      "Use lowercase component filenames and relative imports.",
+      "Ensure no duplicate under apps/portal/app/…; do not recreate .github/workflows/design-skin-kit.yml."
     ],
     "vercel.deploy": [
-      "When debugging builds, always redeploy with **Use existing Build Cache** unchecked.",
+      "When debugging builds, redeploy with 'Use existing Build Cache' unchecked.",
       "If 'Cannot find module tailwindcss', ensure Tailwind/PostCSS/Autoprefixer exist in dependencies at both root and apps/portal."
     ],
-    "agentInstructionStyle": [
-      "Always provide full-file replacements (no snippets).",
-      "Precede steps with a matching **Edit** or **Create** link.",
-      "Default to create links when a file might not exist; fall back to edit links if it does.",
-      "Run the Reconciler once after both files are updated."
-    ]
+    "assistant.houseStyle": {
+      "musts": [
+        "Always provide full-file replacements for code/workflows. No snippets.",
+        "For each file, show EDIT and (if applicable) CREATE link immediately above the steps.",
+        "Numbered, click-by-click steps.",
+        "Include a short commit title.",
+        "Include a 'Verify' checklist with exact URLs/cURL and expected statuses.",
+        "Do not re-open landed phases; respect currentPhase and phases[].status."
+      ],
+      "antiPatterns": [
+        "Do not invent files under apps/portal/app if the source of truth is root app/…",
+        "Do not change Design Skin once landed unless explicitly asked."
+      ]
+    }
   },
   "checklists": {
     "prePhase3-ready": [
@@ -191,15 +232,15 @@
       "✅ Duplicate design-playground page removed under apps/portal/app/…",
       "✅ .github/workflows/design-skin-kit.yml removed.",
       "✅ Root shims exist: lib/db.ts, db/schema.ts, lib/auth.ts.",
-      "✅ Tailwind configured: deps at root & apps/portal; postcss & tailwind config present; globals.css has directives; layout imports it.",
+      "✅ Tailwind configured in root and apps/portal; configs present; globals.css has directives; layout imports it.",
       "✅ Vercel env vars (R2) present."
     ]
   },
   "accomplishments": [
-    "Resolved module resolution errors by replacing '@/app/../*' imports and adding root shims to apps/portal code.",
-    "Normalized design playground imports; removed duplicate page and generator workflow.",
-    "Installed and configured Tailwind for apps/portal; ensured production builds can resolve tailwindcss.",
-    "Achieved successful production redeploy without cache."
+    "Resolved module resolution errors via stable imports and root shims.",
+    "Normalized design playground; removed duplicate generator workflow.",
+    "Installed and configured Tailwind for apps/portal; builds green.",
+    "Successful production redeploy without cache."
   ],
   "status": { "playbookGeneratedAt": null, "lastReconciledAt": null },
   "handoff": {
@@ -207,9 +248,9 @@
     "repo": { "owner": "ComplianceLoop", "name": "complianceloop-site", "branch": "main" },
     "vercel": { "team": "ComplianceLoop", "project": "complianceloop-portal" },
     "expectations": [
-      "Always fetch BOTH raw files before acting (decisions.json and playbook.md).",
+      "Fetch BOTH raw files (decisions.json, playbook.md) before acting.",
       "Decisions live only in decisions.json; the Playbook CL block is generated.",
-      "Never store secrets; refer by name (e.g., VERCEL_TOKEN, RESEND_API_KEY)."
+      "Never store secrets; refer by name only."
     ],
     "successCriteria": [
       "Reconciler PR opens from the latest decisions.json.",
@@ -219,7 +260,8 @@
     "safeRollback": [
       "Revert the last decisions.json commit on main.",
       "Reset playbook.md to only the CL block if needed and re-run the Reconciler."
-    ]
+    ],
+    "prompt": "SYNC FROM REPO — ComplianceLoop (MANDATORY)\\n\\nSingle source of truth\\n- decisions.json (raw): https://raw.githubusercontent.com/ComplianceLoop/complianceloop-site/main/decisions.json\\n- playbook.md (raw): https://raw.githubusercontent.com/ComplianceLoop/complianceloop-site/main/playbook.md\\n\\nDirect edit / run links\\n- Edit decisions.json: https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json\\n- Reconciler workflow (Run): https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml\\n- Pull requests: https://github.com/ComplianceLoop/complianceloop-site/pulls\\n- Vercel deployments: https://vercel.com/compliance-loop/complianceloop-portal/deployments\\n- Vercel environment variables: https://vercel.com/compliance-loop/complianceloop-portal/settings/environment-variables\\n\\nRepo & project context\\n- Repo: ComplianceLoop/complianceloop-site (branch: main)\\n- Vercel project: complianceloop-portal (team: ComplianceLoop)\\n\\nHOUSE STYLE (MANDATORY)\\n- Always: full-file code replacements, numbered click-by-click steps, commit title, EDIT/CREATE links above steps, Verify checklist with URLs/cURL and expected statuses.\\n- Respect currentPhase in decisions.json and phases[].status; do NOT reopen landed phases.\\n\\nTROUBLESHOOTING GOTCHAS\\n- Imports: avoid '@/app/../…'. Prefer '@/lib/*', '@/db/*', or stable relative paths. Root shims allowed.\\n- Tailwind: tailwindcss/postcss/autoprefixer must be dependencies in both root and apps/portal package.json. apps/portal has postcss.config.js + tailwind.config.ts; globals.css starts with tailwind directives; layout imports it.\\n- Design Playground: only app/design-playground/page.tsx (lowercase/relative).\\n\\nYOUR JOB\\n- Read decisions.json → use currentPhase + phaseProgress to pick up work.\\n- Produce the exact steps and full files to complete remaining tasks in the current phase.\\n- After commits, ask me to redeploy (no cache) and verify acceptance; then mark progress back into decisions.json and have me run the Reconciler once."
   },
-  "agentPromptTemplate": "You are the ComplianceLoop Playbook Agent. Implement the current phase using the fileActions list. Never write secrets to the repo. Use Vercel env for secrets (link provided). Avoid '@/app/../*' imports; prefer '@/lib/*' or stable relative paths. Ensure Tailwind is installed in both root and apps/portal package.json; apps/portal has postcss.config.js, tailwind.config.ts, and globals.css with Tailwind directives, imported from layout. Redeploy with cache disabled when debugging. Success: green build, /design-playground loads, auth routes compile, Tailwind styles present."
+  "agentPromptTemplate": "You are the ComplianceLoop Playbook Agent. Implement the current phase using fileActions and phaseProgress. Follow HOUSE STYLE strictly. Never write secrets to the repo. Use Vercel env for secrets. Avoid '@/app/../*' imports; prefer '@/lib/*' or stable relative paths. Ensure Tailwind is installed in both root and apps/portal; apps/portal has postcss.config.js, tailwind.config.ts, and globals.css with Tailwind directives, imported from layout. Redeploy with cache disabled when debugging. Success: green build, endpoints/pages live, acceptance in decisions.json verified."
 }
