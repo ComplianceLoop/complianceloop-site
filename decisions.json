@@ -1,5 +1,5 @@
 {
-  "version": "2025-09-28.1",
+  "version": "2025-09-28.2",
   "currentPhase": "Files & Certificates (R2)",
   "phases": [
     {
@@ -85,7 +85,7 @@
       "phase": "Polish & launch",
       "objective": "SEO, a11y, rate limits, QA.",
       "deliverables": ["schema.org Business markup", "robots, sitemaps", "basic rate limiting"],
-      "acceptance": ["Lighthouse ≥90", "No PII leaks", "Runbook updated"]
+      "acceptance": ["Lighthouse \u226590", "No PII leaks", "Runbook updated"]
     }
   ],
   "phaseProgress": {
@@ -94,7 +94,7 @@
         { "id": "r2-signer", "title": "lib/r2-signer.ts", "status": "pending" },
         { "id": "upload-route", "title": "POST /api/files/upload", "status": "pending" },
         { "id": "get-route", "title": "GET /api/files/[key]", "status": "pending" },
-        { "id": "verify", "title": "Verification: 200 on upload, authorized stream 200, unauth 403", "status": "pending" }
+        { "id": "verify", "title": "Verification: 200 upload, 200 authorized stream, 403 unauth", "status": "pending" }
       ]
     }
   ],
@@ -189,59 +189,19 @@
       "note": "Set env vars in Vercel; store no secrets in repo.",
       "vars": ["R2_ACCOUNT_ID", "R2_REGION", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"]
     },
-    "moduleResolution.playbook": [
-      "Avoid imports like '@/app/../…'. Prefer '@/lib/*' and '@/db/*', or stable relative paths.",
-      "When API routes under app/api/** error on imports, switch to **relative** imports targeting root shims (e.g., '../../../../lib/db').",
-      "Root shims mapping to apps/portal code: lib/db.ts, db/schema.ts, lib/auth.ts."
-    ],
-    "tailwind.setup": [
-      "Install tailwindcss, postcss, autoprefixer as **dependencies** in both root/package.json and apps/portal/package.json.",
-      "apps/portal/postcss.config.js: { plugins: { tailwindcss: {}, autoprefixer: {} } }",
-      "apps/portal/tailwind.config.ts content globs include portal and shared roots.",
-      "apps/portal/styles/globals.css must start with Tailwind directives.",
-      "apps/portal/app/layout.tsx must import '../styles/globals.css'."
-    ],
-    "designPlayground": [
-      "Single source at app/design-playground/page.tsx.",
-      "Use lowercase component filenames and relative imports.",
-      "Ensure no duplicate under apps/portal/app/…; do not recreate .github/workflows/design-skin-kit.yml."
-    ],
-    "vercel.deploy": [
-      "When debugging builds, redeploy with 'Use existing Build Cache' unchecked.",
-      "If 'Cannot find module tailwindcss', ensure Tailwind/PostCSS/Autoprefixer exist in dependencies at both root and apps/portal."
-    ],
-    "assistant.houseStyle": {
-      "musts": [
-        "Always provide full-file replacements for code/workflows. No snippets.",
-        "For each file, show EDIT and (if applicable) CREATE link immediately above the steps.",
-        "Numbered, click-by-click steps.",
-        "Include a short commit title.",
-        "Include a 'Verify' checklist with exact URLs/cURL and expected statuses.",
-        "Do not re-open landed phases; respect currentPhase and phases[].status."
+    "assistant": {
+      "houseStyleMusts": [
+        "Full-file code replacements only.",
+        "For each file, show EDIT and CREATE links immediately above numbered steps.",
+        "Provide a concise commit title and a Verify checklist.",
+        "Respect currentPhase and do not reopen landed phases."
       ],
-      "antiPatterns": [
-        "Do not invent files under apps/portal/app if the source of truth is root app/…",
-        "Do not change Design Skin once landed unless explicitly asked."
+      "gotchas": [
+        "Avoid '@/app/../*' imports; prefer '@/lib/*', '@/db/*' or stable relative paths.",
+        "If Vercel says 'Cannot find module tailwindcss', ensure tailwind/postcss/autoprefixer are dependencies in root and apps/portal, with postcss.config.js and tailwind.config.ts present and globals.css imported in layout."
       ]
     }
   },
-  "checklists": {
-    "prePhase3-ready": [
-      "✅ Production deployment is green in Vercel (no-cache redeploy verified).",
-      "✅ app/design-playground/page.tsx uses relative, lowercase imports.",
-      "✅ Duplicate design-playground page removed under apps/portal/app/…",
-      "✅ .github/workflows/design-skin-kit.yml removed.",
-      "✅ Root shims exist: lib/db.ts, db/schema.ts, lib/auth.ts.",
-      "✅ Tailwind configured in root and apps/portal; configs present; globals.css has directives; layout imports it.",
-      "✅ Vercel env vars (R2) present."
-    ]
-  },
-  "accomplishments": [
-    "Resolved module resolution errors via stable imports and root shims.",
-    "Normalized design playground; removed duplicate generator workflow.",
-    "Installed and configured Tailwind for apps/portal; builds green.",
-    "Successful production redeploy without cache."
-  ],
   "status": { "playbookGeneratedAt": null, "lastReconciledAt": null },
   "handoff": {
     "purpose": "Allow any assistant/chat to resume seamlessly.",
@@ -261,7 +221,7 @@
       "Revert the last decisions.json commit on main.",
       "Reset playbook.md to only the CL block if needed and re-run the Reconciler."
     ],
-    "prompt": "SYNC FROM REPO — ComplianceLoop (MANDATORY)\\n\\nSingle source of truth\\n- decisions.json (raw): https://raw.githubusercontent.com/ComplianceLoop/complianceloop-site/main/decisions.json\\n- playbook.md (raw): https://raw.githubusercontent.com/ComplianceLoop/complianceloop-site/main/playbook.md\\n\\nDirect edit / run links\\n- Edit decisions.json: https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json\\n- Reconciler workflow (Run): https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml\\n- Pull requests: https://github.com/ComplianceLoop/complianceloop-site/pulls\\n- Vercel deployments: https://vercel.com/compliance-loop/complianceloop-portal/deployments\\n- Vercel environment variables: https://vercel.com/compliance-loop/complianceloop-portal/settings/environment-variables\\n\\nRepo & project context\\n- Repo: ComplianceLoop/complianceloop-site (branch: main)\\n- Vercel project: complianceloop-portal (team: ComplianceLoop)\\n\\nHOUSE STYLE (MANDATORY)\\n- Always: full-file code replacements, numbered click-by-click steps, commit title, EDIT/CREATE links above steps, Verify checklist with URLs/cURL and expected statuses.\\n- Respect currentPhase in decisions.json and phases[].status; do NOT reopen landed phases.\\n\\nTROUBLESHOOTING GOTCHAS\\n- Imports: avoid '@/app/../…'. Prefer '@/lib/*', '@/db/*', or stable relative paths. Root shims allowed.\\n- Tailwind: tailwindcss/postcss/autoprefixer must be dependencies in both root and apps/portal package.json. apps/portal has postcss.config.js + tailwind.config.ts; globals.css starts with tailwind directives; layout imports it.\\n- Design Playground: only app/design-playground/page.tsx (lowercase/relative).\\n\\nYOUR JOB\\n- Read decisions.json → use currentPhase + phaseProgress to pick up work.\\n- Produce the exact steps and full files to complete remaining tasks in the current phase.\\n- After commits, ask me to redeploy (no cache) and verify acceptance; then mark progress back into decisions.json and have me run the Reconciler once."
+    "prompt": "SYNC FROM REPO — ComplianceLoop (MANDATORY). Fetch BOTH raw files first. Use decisions.json as the only editable truth. Follow HOUSE STYLE: full-file replacements; EDIT/CREATE links above numbered steps; commit title; Verify checklist; respect currentPhase; no secrets in repo."
   },
-  "agentPromptTemplate": "You are the ComplianceLoop Playbook Agent. Implement the current phase using fileActions and phaseProgress. Follow HOUSE STYLE strictly. Never write secrets to the repo. Use Vercel env for secrets. Avoid '@/app/../*' imports; prefer '@/lib/*' or stable relative paths. Ensure Tailwind is installed in both root and apps/portal; apps/portal has postcss.config.js, tailwind.config.ts, and globals.css with Tailwind directives, imported from layout. Redeploy with cache disabled when debugging. Success: green build, endpoints/pages live, acceptance in decisions.json verified."
+  "agentPromptTemplate": "You are the ComplianceLoop Playbook Agent. Implement the current phase using fileActions and phaseProgress. Follow HOUSE STYLE strictly. Never write secrets to the repo. Use Vercel env for secrets."
 }
