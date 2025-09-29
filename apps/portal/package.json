@@ -1,8 +1,8 @@
 {
-  "name": "complianceloop-portal",
+  "name": "complianceloop-portal-app",
   "version": "0.1.0",
   "private": true,
-  "description": "ComplianceLoop provider/customer portal",
+  "description": "ComplianceLoop provider/customer portal (app workspace)",
   "scripts": {
     "dev": "next dev --port 4000",
     "build": "next build",
@@ -10,9 +10,11 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "drizzle-orm": "^0.33.0",
     "next": "14.2.5",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "resend": "^3.5.0"
   },
   "devDependencies": {
     "@types/react": "18.3.11",
