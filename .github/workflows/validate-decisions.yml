@@ -1,0 +1,15 @@
+name: validate-decisions
+on:
+  push:
+    branches: [ main ]
+    paths: [ "decisions.json" ]
+  pull_request:
+    branches: [ main ]
+    paths: [ "decisions.json" ]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON (node)
+        run: node -e "JSON.parse(require('fs').readFileSync('decisions.json','utf8')); console.log('decisions.json valid')"
