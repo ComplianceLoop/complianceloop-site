@@ -1,5 +1,5 @@
 {
-  "version": "2025-09-28.2",
+  "version": "2025-09-28.3",
   "currentPhase": "Files & Certificates (R2)",
   "phases": [
     {
@@ -23,14 +23,14 @@
       "phase": "Files & Certificates (R2)",
       "objective": "Private file storage with signed streaming.",
       "deliverables": ["/api/files/upload", "/api/files/:key", "R2 bucket + IAM"],
-      "acceptance": ["Upload from provider portal → 200 r2Key", "Authorized GET streams; unauthorized 403"],
+      "acceptance": ["Upload returns 200 and r2Key", "Authorized GET streams 200; unauthorized 403"],
       "status": "in_progress",
       "startedAt": "2025-09-27"
     },
     {
       "phase": "Airtable bridge (hybrid)",
       "objective": "Mirror critical records for ops; Neon remains source of record.",
-      "deliverables": ["sync script, cron", "idempotent mapping"],
+      "deliverables": ["sync script", "cron", "idempotent mapping"],
       "acceptance": ["One-way sync green in CI", "Backfill job OK"]
     },
     {
@@ -84,8 +84,8 @@
     {
       "phase": "Polish & launch",
       "objective": "SEO, a11y, rate limits, QA.",
-      "deliverables": ["schema.org Business markup", "robots, sitemaps", "basic rate limiting"],
-      "acceptance": ["Lighthouse \u226590", "No PII leaks", "Runbook updated"]
+      "deliverables": ["schema.org Business markup", "robots", "sitemaps", "basic rate limiting"],
+      "acceptance": ["Lighthouse >=90", "No PII leaks", "Runbook updated"]
     }
   ],
   "phaseProgress": {
@@ -94,7 +94,7 @@
         { "id": "r2-signer", "title": "lib/r2-signer.ts", "status": "pending" },
         { "id": "upload-route", "title": "POST /api/files/upload", "status": "pending" },
         { "id": "get-route", "title": "GET /api/files/[key]", "status": "pending" },
-        { "id": "verify", "title": "Verification: 200 upload, 200 authorized stream, 403 unauth", "status": "pending" }
+        { "id": "verify", "title": "Verification: upload 200, auth GET 200, unauth 403", "status": "pending" }
       ]
     }
   ],
@@ -150,7 +150,7 @@
         "exists": false,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/files/upload/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Ffiles%2Fupload%2Froute.ts",
-        "purpose": "POST → presigned PUT URL + r2Key",
+        "purpose": "POST -> return r2Key and presigned PUT URL",
         "lastChecked": "2025-09-28"
       },
       {
@@ -158,70 +158,59 @@
         "exists": false,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/files/%5Bkey%5D/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Ffiles%2F%5Bkey%5D%2Froute.ts",
-        "purpose": "GET → authorized stream from R2",
+        "purpose": "GET -> authorized stream from R2",
         "lastChecked": "2025-09-28"
       }
     ]
   },
   "operationalNotes": {
     "reconcilerProcess": {
-      "summary": "Run the Reconciler once after edits. If the Playbook block is stuck or workflow says 'no changes to commit', reset playbook.md then run once.",
+      "summary": "Run the Reconciler once after edits. If it says 'no changes to commit' or the CL block is stale, reset playbook.md and run once.",
       "normalRun": {
-        "commitTitle": "finances: add expenses + subscriptions and tallies; preserve phases",
+        "commitTitle": "playbook: sync decisions",
         "steps": [
-          "Open links.editDecisions",
-          "Paste full-file decisions.json and Commit changes with commitTitle",
           "Open links.runReconciler and Run workflow",
-          "Open links.pulls, open the PR, Merge pull request, Confirm merge"
+          "Open links.pulls and merge the PR it opens"
         ]
       },
       "resetRun": {
-        "when": "Only if previous runs show no changes to commit or the Playbook block is stale.",
+        "when": "Only if prior runs report no changes or block is stale.",
         "steps": [
-          "Open links.editDecisions, paste full-file decisions.json, Commit changes",
-          "Open links.editPlaybook, replace with '<!-- CL:START -->\\n<!-- CL:END -->', Commit with 'playbook: reset generated block'",
+          "Open links.editPlaybook and replace content with '<!-- CL:START -->\\n<!-- CL:END -->' and commit with 'playbook: reset generated block'",
           "Open links.runReconciler and Run workflow",
-          "Open links.pulls, open the PR, Merge pull request, Confirm merge"
+          "Open links.pulls and merge the PR it opens"
         ]
       }
     },
     "r2Env": {
-      "note": "Set env vars in Vercel; store no secrets in repo.",
+      "note": "Set env vars only in Vercel; never commit secrets.",
       "vars": ["R2_ACCOUNT_ID", "R2_REGION", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"]
     },
     "assistant": {
-      "houseStyleMusts": [
-        "Full-file code replacements only.",
-        "For each file, show EDIT and CREATE links immediately above numbered steps.",
-        "Provide a concise commit title and a Verify checklist.",
-        "Respect currentPhase and do not reopen landed phases."
-      ],
-      "gotchas": [
-        "Avoid '@/app/../*' imports; prefer '@/lib/*', '@/db/*' or stable relative paths.",
-        "If Vercel says 'Cannot find module tailwindcss', ensure tailwind/postcss/autoprefixer are dependencies in root and apps/portal, with postcss.config.js and tailwind.config.ts present and globals.css imported in layout."
+      "houseStyle": [
+        "Full-file replacements only",
+        "Show EDIT and CREATE links immediately above numbered steps",
+        "Provide a commit title and a Verify checklist",
+        "Respect currentPhase; do not reopen landed phases"
       ]
     }
   },
   "status": { "playbookGeneratedAt": null, "lastReconciledAt": null },
   "handoff": {
-    "purpose": "Allow any assistant/chat to resume seamlessly.",
+    "purpose": "Let any chat resume seamlessly.",
     "repo": { "owner": "ComplianceLoop", "name": "complianceloop-site", "branch": "main" },
     "vercel": { "team": "ComplianceLoop", "project": "complianceloop-portal" },
     "expectations": [
-      "Fetch BOTH raw files (decisions.json, playbook.md) before acting.",
-      "Decisions live only in decisions.json; the Playbook CL block is generated.",
-      "Never store secrets; refer by name only."
+      "Fetch BOTH raw files before acting",
+      "Only decisions.json is the source of truth",
+      "No secrets in repo"
     ],
     "successCriteria": [
-      "Reconciler PR opens from the latest decisions.json.",
-      "Playbook block regenerates to match decisions.json.",
-      "No manual edits inside <!-- CL:START --> … <!-- CL:END -->."
+      "Reconciler PR opens and is merged",
+      "Playbook CL block matches decisions.json",
+      "No edits inside <!-- CL:START --> ... <!-- CL:END -->"
     ],
-    "safeRollback": [
-      "Revert the last decisions.json commit on main.",
-      "Reset playbook.md to only the CL block if needed and re-run the Reconciler."
-    ],
-    "prompt": "SYNC FROM REPO — ComplianceLoop (MANDATORY). Fetch BOTH raw files first. Use decisions.json as the only editable truth. Follow HOUSE STYLE: full-file replacements; EDIT/CREATE links above numbered steps; commit title; Verify checklist; respect currentPhase; no secrets in repo."
+    "prompt": "SYNC FROM REPO — ComplianceLoop (MANDATORY). Follow house style. Implement currentPhase."
   },
-  "agentPromptTemplate": "You are the ComplianceLoop Playbook Agent. Implement the current phase using fileActions and phaseProgress. Follow HOUSE STYLE strictly. Never write secrets to the repo. Use Vercel env for secrets."
+  "agentPromptTemplate": "You are the ComplianceLoop Playbook Agent. Implement the current phase using fileActions and phaseProgress. Follow house style. Never write secrets to the repo; use Vercel env."
 }
