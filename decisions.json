@@ -1,5 +1,5 @@
 {
-  "version": "2025-09-28.7",
+  "version": "2025-09-28.9",
   "currentPhase": "Files & Certificates (R2)",
   "phases": [
     {
@@ -12,8 +12,8 @@
     },
     {
       "phase": "Auth + DB base",
-      "objective": "Neon + Drizzle schema, passwordless email code, sessions.",
-      "deliverables": ["/api/auth/send-code", "/api/auth/verify-code", "users, sessions tables"],
+      "objective": "Neon and Drizzle schema, passwordless email code, sessions.",
+      "deliverables": ["/api/auth/send-code", "/api/auth/verify-code", "users and sessions tables"],
       "acceptance": ["Vercel env DATABASE_URL set", "Auth code roundtrip works", "Dashboard gate honors session"],
       "status": "landed",
       "landedAt": "2025-09-26",
@@ -36,18 +36,18 @@
     {
       "phase": "Job model + booking skeleton",
       "objective": "Booking wizard and soft hold creation.",
-      "deliverables": ["/book wizard", "create Job(draft) API", "Soft-hold service"],
-      "acceptance": ["30m hold for multi-property", "Single-property flow ok"]
+      "deliverables": ["/book wizard", "create Job draft API", "Soft-hold service"],
+      "acceptance": ["30m hold for multi property", "Single property flow ok"]
     },
     {
       "phase": "Provider directory & eligibility",
       "objective": "Eligibility rules and instant decision.",
-      "deliverables": ["criteria engine", "provider onboarding form", "how-to-qualify guidance"],
-      "acceptance": ["Pass/fail immediate", "Declined path shows guidance"]
+      "deliverables": ["criteria engine", "provider onboarding form", "how to qualify guidance"],
+      "acceptance": ["Pass or fail immediate", "Declined path shows guidance"]
     },
     {
       "phase": "Assignment engine",
-      "objective": "First-accept wins with 15m soft-hold and single-eligible auto-assign.",
+      "objective": "First accept wins with 15m soft hold and single eligible auto assign.",
       "deliverables": ["offer broadcast", "accept endpoint", "cascade logic"],
       "acceptance": ["Race handled; winner locks; cascade on timeout or decline"]
     },
@@ -59,33 +59,33 @@
     },
     {
       "phase": "Provider dashboard",
-      "objective": "Job queue, day-of checklist, conflict report, tech email routing.",
+      "objective": "Job queue, day of checklist, conflict report, tech email routing.",
       "deliverables": ["checklist form", "conflict endpoint", "email routing field"],
-      "acceptance": ["Late submission possible", "Conflict auto-cascade"]
+      "acceptance": ["Late submission possible", "Conflict auto cascade"]
     },
     {
       "phase": "Payments & invoices",
-      "objective": "Invoice links and settlement (minimal MVP).",
+      "objective": "Invoice links and settlement minimal MVP.",
       "deliverables": ["invoice record", "link on job page"],
-      "acceptance": ["Invoices viewable; payments later (toggle)"]
+      "acceptance": ["Invoices viewable; payments later via toggle"]
     },
     {
       "phase": "Notifications (email/SMS)",
       "objective": "Resend email events; SMS optional later.",
       "deliverables": ["templates", "event triggers"],
-      "acceptance": ["Email on accept, conflict, ready-to-download"]
+      "acceptance": ["Email on accept, conflict, ready to download"]
     },
     {
       "phase": "Admin console",
       "objective": "Search jobs and providers; manual override tools.",
-      "deliverables": ["admin routes", "impersonate (guarded)"],
-      "acceptance": ["Admin-only gate", "Audit trail"]
+      "deliverables": ["admin routes", "impersonate guarded"],
+      "acceptance": ["Admin only gate", "Audit trail"]
     },
     {
       "phase": "Polish & launch",
       "objective": "SEO, accessibility, rate limits, QA.",
-      "deliverables": ["schema.org Business markup", "robots", "sitemaps", "basic rate limiting"],
-      "acceptance": ["Lighthouse >= 90", "No PII leaks", "Runbook updated"]
+      "deliverables": ["schema.org business markup", "robots", "sitemaps", "basic rate limiting"],
+      "acceptance": ["Lighthouse at least 90", "No PII leaks", "Runbook updated"]
     }
   ],
   "phaseProgress": {
@@ -94,10 +94,10 @@
         { "id": "r2-signer", "title": "lib/r2-signer.ts", "status": "pending" },
         { "id": "upload-route", "title": "POST /api/files/upload", "status": "pending" },
         { "id": "get-route", "title": "GET /api/files/[key]", "status": "pending" },
-        { "id": "verify", "title": "Verify: upload 200, auth GET 200, unauth 403", "status": "pending" }
+        { "id": "verify", "title": "Verify: upload 200; auth GET 200; unauth 403", "status": "pending" }
       ]
     }
-  ],
+  },
   "finances": {
     "currency": "USD",
     "oneTime": {
@@ -142,7 +142,7 @@
         "exists": false,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/r2-signer.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fr2-signer.ts",
-        "purpose": "AWS SigV4 presign helper (no deps)",
+        "purpose": "AWS SigV4 presign helper without extra deps",
         "lastChecked": "2025-09-28"
       },
       {
@@ -150,7 +150,7 @@
         "exists": false,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/files/upload/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Ffiles%2Fupload%2Froute.ts",
-        "purpose": "POST -> return r2Key and presigned PUT URL",
+        "purpose": "POST returns r2Key and presigned PUT URL",
         "lastChecked": "2025-09-28"
       },
       {
@@ -158,7 +158,7 @@
         "exists": false,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/files/%5Bkey%5D/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Ffiles%2F%5Bkey%5D%2Froute.ts",
-        "purpose": "GET -> authorized stream from R2",
+        "purpose": "GET streams from R2 after auth",
         "lastChecked": "2025-09-28"
       }
     ]
@@ -169,15 +169,15 @@
       "normalRun": {
         "commitTitle": "playbook: sync decisions",
         "steps": [
-          "Open links.runReconciler and Run workflow",
+          "Open links.runReconciler and run it",
           "Open links.pulls and merge the PR it opens"
         ]
       },
       "resetRun": {
         "when": "Only if prior runs report no changes or the block is stale.",
         "steps": [
-          "Open links.editPlaybook and replace content with '<!-- CL:START -->\\n<!-- CL:END -->' and commit with 'playbook: reset generated block'",
-          "Open links.runReconciler and Run workflow",
+          "Open links.editPlaybook and replace with '<!-- CL:START -->\\n<!-- CL:END -->' then commit with 'playbook: reset generated block'",
+          "Open links.runReconciler and run it",
           "Open links.pulls and merge the PR it opens"
         ]
       }
