@@ -1,5 +1,5 @@
 {
-  "version": "2025-09-28.6",
+  "version": "2025-09-28.7",
   "currentPhase": "Files & Certificates (R2)",
   "phases": [
     {
@@ -189,20 +189,8 @@
   },
   "status": { "playbookGeneratedAt": null, "lastReconciledAt": null },
   "handoff": {
-    "purpose": "Let any chat resume seamlessly.",
+    "promptPath": "handoff/prompt.md",
     "repo": { "owner": "ComplianceLoop", "name": "complianceloop-site", "branch": "main" },
-    "vercel": { "team": "ComplianceLoop", "project": "complianceloop-portal" },
-    "expectations": [
-      "Fetch BOTH raw files first",
-      "Only decisions.json is the source of truth",
-      "No secrets in repo"
-    ],
-    "successCriteria": [
-      "Reconciler PR opens and is merged",
-      "Playbook CL block matches decisions.json",
-      "No edits inside <!-- CL:START --> ... <!-- CL:END -->"
-    ],
-    "prompt": "SYNC FROM REPO - ComplianceLoop (MANDATORY). Follow house style. Implement currentPhase."
-  },
-  "agentPromptTemplate": "You are the ComplianceLoop Playbook Agent. Implement the current phase using fileActions and phaseProgress. Follow house style. Never write secrets to the repo; use Vercel env."
+    "vercel": { "team": "ComplianceLoop", "project": "complianceloop-portal" }
+  }
 }
