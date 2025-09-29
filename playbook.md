@@ -1,23 +1,23 @@
 <!-- CL:START -->
 # ComplianceLoop — Canonical Plan (Generated)
 
-Version: 2025-09-27.3
-Generated: 2025-09-28T03:53:02.487Z
+Version: 2025-09-28.9
+Generated: 2025-09-29T19:06:55.292Z
 
 ## Phases (13)
 - **Design Skin Kit**: Theme tokens, brand, and UI primitives to speed all later pages. — _landed_
-- **Auth + DB base**: Neon + Drizzle schema, passwordless email code, sessions. — _landed_
+- **Auth + DB base**: Neon and Drizzle schema, passwordless email code, sessions. — _landed_
 - **Files & Certificates (R2)**: Private file storage with signed streaming. — _in_progress_
 - **Airtable bridge (hybrid)**: Mirror critical records for ops; Neon remains source of record.
-- **Job model + booking skeleton**: Booking wizard + soft hold creation.
-- **Provider directory & eligibility**: Eligibility rules + instant decision.
-- **Assignment engine**: First-accept wins + 15m soft-hold + single-eligible auto-assign.
-- **Customer dashboard**: List past/upcoming jobs + files/invoices.
-- **Provider dashboard**: Job queue + day-of checklist + conflict report + tech email routing.
-- **Payments & invoices**: Invoice links and settlement (minimal MVP).
+- **Job model + booking skeleton**: Booking wizard and soft hold creation.
+- **Provider directory & eligibility**: Eligibility rules and instant decision.
+- **Assignment engine**: First accept wins with 15m soft hold and single eligible auto assign.
+- **Customer dashboard**: List past and upcoming jobs plus files and invoices.
+- **Provider dashboard**: Job queue, day of checklist, conflict report, tech email routing.
+- **Payments & invoices**: Invoice links and settlement minimal MVP.
 - **Notifications (email/SMS)**: Resend email events; SMS optional later.
-- **Admin console**: Search jobs/providers; manual override tools.
-- **Polish & launch**: SEO, a11y, rate limits, QA.
+- **Admin console**: Search jobs and providers; manual override tools.
+- **Polish & launch**: SEO, accessibility, rate limits, QA.
 
 ## Finances (summary)
 - One-time total: $395.00
