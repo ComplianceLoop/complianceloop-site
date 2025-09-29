@@ -1,5 +1,5 @@
 {
-  "version": "2025-09-28.3",
+  "version": "2025-09-28.4",
   "currentPhase": "Files & Certificates (R2)",
   "phases": [
     {
@@ -22,7 +22,7 @@
     {
       "phase": "Files & Certificates (R2)",
       "objective": "Private file storage with signed streaming.",
-      "deliverables": ["/api/files/upload", "/api/files/:key", "R2 bucket + IAM"],
+      "deliverables": ["/api/files/upload", "/api/files/:key", "R2 bucket and IAM"],
       "acceptance": ["Upload returns 200 and r2Key", "Authorized GET streams 200; unauthorized 403"],
       "status": "in_progress",
       "startedAt": "2025-09-27"
@@ -41,25 +41,25 @@
     },
     {
       "phase": "Provider directory & eligibility",
-      "objective": "Eligibility rules + instant decision.",
-      "deliverables": ["criteria engine", "provider onboarding form", "How-to-qualify guidance"],
+      "objective": "Eligibility rules and instant decision.",
+      "deliverables": ["criteria engine", "provider onboarding form", "how-to-qualify guidance"],
       "acceptance": ["Pass/fail immediate", "Declined path shows guidance"]
     },
     {
       "phase": "Assignment engine",
-      "objective": "First-accept wins + 15m soft-hold + single-eligible auto-assign.",
+      "objective": "First-accept wins plus 15m soft-hold and single-eligible auto-assign.",
       "deliverables": ["offer broadcast", "accept endpoint", "cascade logic"],
-      "acceptance": ["Race handled; winner locks; cascade on timeout/decline"]
+      "acceptance": ["Race handled; winner locks; cascade on timeout or decline"]
     },
     {
       "phase": "Customer dashboard",
-      "objective": "List past/upcoming jobs + files/invoices.",
+      "objective": "List past and upcoming jobs plus files and invoices.",
       "deliverables": ["dashboard pages", "job detail route"],
       "acceptance": ["Auth required", "Documents stream correctly"]
     },
     {
       "phase": "Provider dashboard",
-      "objective": "Job queue + day-of checklist + conflict report + tech email routing.",
+      "objective": "Job queue, day-of checklist, conflict report, tech email routing.",
       "deliverables": ["checklist form", "conflict endpoint", "email routing field"],
       "acceptance": ["Late submission possible", "Conflict auto-cascade"]
     },
@@ -77,15 +77,15 @@
     },
     {
       "phase": "Admin console",
-      "objective": "Search jobs/providers; manual override tools.",
+      "objective": "Search jobs and providers; manual override tools.",
       "deliverables": ["admin routes", "impersonate (guarded)"],
       "acceptance": ["Admin-only gate", "Audit trail"]
     },
     {
       "phase": "Polish & launch",
-      "objective": "SEO, a11y, rate limits, QA.",
+      "objective": "SEO, accessibility, rate limits, QA.",
       "deliverables": ["schema.org Business markup", "robots", "sitemaps", "basic rate limiting"],
-      "acceptance": ["Lighthouse >=90", "No PII leaks", "Runbook updated"]
+      "acceptance": ["Lighthouse >= 90", "No PII leaks", "Runbook updated"]
     }
   ],
   "phaseProgress": {
@@ -94,7 +94,7 @@
         { "id": "r2-signer", "title": "lib/r2-signer.ts", "status": "pending" },
         { "id": "upload-route", "title": "POST /api/files/upload", "status": "pending" },
         { "id": "get-route", "title": "GET /api/files/[key]", "status": "pending" },
-        { "id": "verify", "title": "Verification: upload 200, auth GET 200, unauth 403", "status": "pending" }
+        { "id": "verify", "title": "Verify: upload 200, auth GET 200, unauth 403", "status": "pending" }
       ]
     }
   ],
@@ -142,7 +142,7 @@
         "exists": false,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/r2-signer.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fr2-signer.ts",
-        "purpose": "AWS SigV4 presign/sign helper (no deps)",
+        "purpose": "AWS SigV4 presign helper (no deps)",
         "lastChecked": "2025-09-28"
       },
       {
@@ -165,7 +165,7 @@
   },
   "operationalNotes": {
     "reconcilerProcess": {
-      "summary": "Run the Reconciler once after edits. If it says 'no changes to commit' or the CL block is stale, reset playbook.md and run once.",
+      "summary": "Run once after edits. If Playbook block is stale or it says no changes, reset playbook.md then run once.",
       "normalRun": {
         "commitTitle": "playbook: sync decisions",
         "steps": [
@@ -174,7 +174,7 @@
         ]
       },
       "resetRun": {
-        "when": "Only if prior runs report no changes or block is stale.",
+        "when": "Only if prior runs report no changes or the block is stale.",
         "steps": [
           "Open links.editPlaybook and replace content with '<!-- CL:START -->\\n<!-- CL:END -->' and commit with 'playbook: reset generated block'",
           "Open links.runReconciler and Run workflow",
@@ -185,14 +185,6 @@
     "r2Env": {
       "note": "Set env vars only in Vercel; never commit secrets.",
       "vars": ["R2_ACCOUNT_ID", "R2_REGION", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"]
-    },
-    "assistant": {
-      "houseStyle": [
-        "Full-file replacements only",
-        "Show EDIT and CREATE links immediately above numbered steps",
-        "Provide a commit title and a Verify checklist",
-        "Respect currentPhase; do not reopen landed phases"
-      ]
     }
   },
   "status": { "playbookGeneratedAt": null, "lastReconciledAt": null },
@@ -201,7 +193,7 @@
     "repo": { "owner": "ComplianceLoop", "name": "complianceloop-site", "branch": "main" },
     "vercel": { "team": "ComplianceLoop", "project": "complianceloop-portal" },
     "expectations": [
-      "Fetch BOTH raw files before acting",
+      "Fetch BOTH raw files first",
       "Only decisions.json is the source of truth",
       "No secrets in repo"
     ],
