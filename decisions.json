@@ -1,6 +1,6 @@
 {
-  "version": "2025-09-28.9",
-  "currentPhase": "Files & Certificates (R2)",
+  "version": "2025-09-29.1",
+  "currentPhase": "Airtable bridge (hybrid)",
   "phases": [
     {
       "phase": "Design Skin Kit",
@@ -24,14 +24,21 @@
       "objective": "Private file storage with signed streaming.",
       "deliverables": ["/api/files/upload", "/api/files/:key", "R2 bucket and IAM"],
       "acceptance": ["Upload returns 200 and r2Key", "Authorized GET streams 200; unauthorized 403"],
-      "status": "in_progress",
-      "startedAt": "2025-09-27"
+      "status": "landed",
+      "landedAt": "2025-09-29",
+      "notes": [
+        "Signer uses R2_ACCOUNT_ID (or R2_ENDPOINT override).",
+        "POST /api/files/upload returns { r2Key, putUrl }.",
+        "GET /api/files/[key] streams when authed; 403 when unauth."
+      ]
     },
     {
       "phase": "Airtable bridge (hybrid)",
       "objective": "Mirror critical records for ops; Neon remains source of record.",
       "deliverables": ["sync script", "cron", "idempotent mapping"],
-      "acceptance": ["One-way sync green in CI", "Backfill job OK"]
+      "acceptance": ["One-way sync green in CI", "Backfill job OK"],
+      "status": "in_progress",
+      "startedAt": "2025-09-29"
     },
     {
       "phase": "Job model + booking skeleton",
@@ -91,10 +98,10 @@
   "phaseProgress": {
     "Files & Certificates (R2)": {
       "tasks": [
-        { "id": "r2-signer", "title": "lib/r2-signer.ts", "status": "pending" },
-        { "id": "upload-route", "title": "POST /api/files/upload", "status": "pending" },
-        { "id": "get-route", "title": "GET /api/files/[key]", "status": "pending" },
-        { "id": "verify", "title": "Verify: upload 200; auth GET 200; unauth 403", "status": "pending" }
+        { "id": "r2-signer", "title": "lib/r2-signer.ts", "status": "implemented" },
+        { "id": "upload-route", "title": "POST /api/files/upload", "status": "implemented" },
+        { "id": "get-route", "title": "GET /api/files/[key]", "status": "implemented" },
+        { "id": "verify", "title": "Verify: upload 200; auth GET 200; unauth 403", "status": "implemented" }
       ]
     }
   },
@@ -124,7 +131,7 @@
       "annualOnlyTotal": 11.08,
       "arr": 1446.28
     },
-    "lastUpdated": "2025-09-26"
+    "lastUpdated": "2025-09-29"
   },
   "links": {
     "editDecisions": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json",
@@ -139,27 +146,27 @@
     "items": [
       {
         "path": "lib/r2-signer.ts",
-        "exists": false,
+        "exists": true,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/r2-signer.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fr2-signer.ts",
         "purpose": "AWS SigV4 presign helper without extra deps",
-        "lastChecked": "2025-09-28"
+        "lastChecked": "2025-09-29"
       },
       {
         "path": "app/api/files/upload/route.ts",
-        "exists": false,
+        "exists": true,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/files/upload/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Ffiles%2Fupload%2Froute.ts",
         "purpose": "POST returns r2Key and presigned PUT URL",
-        "lastChecked": "2025-09-28"
+        "lastChecked": "2025-09-29"
       },
       {
         "path": "app/api/files/%5Bkey%5D/route.ts",
-        "exists": false,
+        "exists": true,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/files/%5Bkey%5D/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Ffiles%2F%5Bkey%5D%2Froute.ts",
         "purpose": "GET streams from R2 after auth",
-        "lastChecked": "2025-09-28"
+        "lastChecked": "2025-09-29"
       }
     ]
   },
@@ -184,7 +191,7 @@
     },
     "r2Env": {
       "note": "Set env vars only in Vercel; never commit secrets.",
-      "vars": ["R2_ACCOUNT_ID", "R2_REGION", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"]
+      "vars": ["R2_ACCOUNT_ID", "R2_REGION", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_ENDPOINT?"]
     }
   },
   "status": { "playbookGeneratedAt": null, "lastReconciledAt": null },
