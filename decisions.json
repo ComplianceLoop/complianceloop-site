@@ -1,5 +1,5 @@
 {
-  "version": "2025-09-28.5",
+  "version": "2025-09-28.6",
   "currentPhase": "Files & Certificates (R2)",
   "phases": [
     {
@@ -35,7 +35,7 @@
     },
     {
       "phase": "Job model + booking skeleton",
-      "objective": "Booking wizard + soft hold creation.",
+      "objective": "Booking wizard and soft hold creation.",
       "deliverables": ["/book wizard", "create Job(draft) API", "Soft-hold service"],
       "acceptance": ["30m hold for multi-property", "Single-property flow ok"]
     },
@@ -47,7 +47,7 @@
     },
     {
       "phase": "Assignment engine",
-      "objective": "First-accept wins plus 15m soft-hold and single-eligible auto-assign.",
+      "objective": "First-accept wins with 15m soft-hold and single-eligible auto-assign.",
       "deliverables": ["offer broadcast", "accept endpoint", "cascade logic"],
       "acceptance": ["Race handled; winner locks; cascade on timeout or decline"]
     },
@@ -118,7 +118,7 @@
         { "label": "Make", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "" },
         { "label": "Stripe", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "not_set_up", "notes": "" },
         { "label": "Airtable", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "" },
-        { "label": "Google Workspace", "plan": "", "billingInterval": "monthly", "amount": 39.60, "status": "active", "notes": "" }
+        { "label": "Google Workspace", "plan": "", "billingInterval": "monthly", "amount": 39.6, "status": "active", "notes": "" }
       ],
       "monthlyTotal": 119.6,
       "annualOnlyTotal": 11.08,
@@ -202,7 +202,7 @@
       "Playbook CL block matches decisions.json",
       "No edits inside <!-- CL:START --> ... <!-- CL:END -->"
     ],
-    "prompt": "SYNC FROM REPO — ComplianceLoop (MANDATORY). Follow house style. Implement currentPhase."
+    "prompt": "SYNC FROM REPO - ComplianceLoop (MANDATORY). Follow house style. Implement currentPhase."
   },
   "agentPromptTemplate": "You are the ComplianceLoop Playbook Agent. Implement the current phase using fileActions and phaseProgress. Follow house style. Never write secrets to the repo; use Vercel env."
 }
