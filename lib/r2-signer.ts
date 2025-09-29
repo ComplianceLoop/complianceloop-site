@@ -1,41 +1,65 @@
 // lib/r2-signer.ts
-// Minimal AWS SigV4 presigner for Cloudflare R2 (S3 compatible). No extra deps.
-// Env (set in Vercel): R2_ENDPOINT, R2_REGION, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET
+// Minimal AWS SigV4 presigner for Cloudflare R2 (S3-compatible). No extra deps.
+//
+// ENV (Vercel):
+//   R2_ACCOUNT_ID            // preferred; we derive endpoint as https://<acct>.r2.cloudflarestorage.com
+//   R2_REGION
+//   R2_ACCESS_KEY_ID
+//   R2_SECRET_ACCESS_KEY
+//   R2_BUCKET
+// Optional:
+//   R2_ENDPOINT              // if set, overrides the derived endpoint completely
+//
+// Exposes:
+//   presignUrl({ method, key, expiresSeconds?, contentType? }): string
+//   signHeadersForGet(key): { url: string; headers: Record<string, string> }
+//
+// Notes:
+// - Uploads use presigned PUT (UNSIGNED-PAYLOAD).
+// - Downloads use server-side signed headers (no client creds).
 import crypto from "crypto";
 
 export type PresignInput = {
   method: "PUT" | "GET" | "HEAD" | "DELETE";
   key: string;
   expiresSeconds?: number; // default 900 (15m). Max 7 days.
-  contentType?: string; // if provided, the client must send this exact header on upload
+  contentType?: string; // if provided, client must send this exact header on upload
 };
 
 const env = () => {
   const {
-    R2_ENDPOINT,
+    R2_ACCOUNT_ID,
     R2_REGION,
     R2_ACCESS_KEY_ID,
     R2_SECRET_ACCESS_KEY,
     R2_BUCKET,
+    R2_ENDPOINT,
   } = process.env;
-  if (
-    !R2_ENDPOINT ||
-    !R2_REGION ||
-    !R2_ACCESS_KEY_ID ||
-    !R2_SECRET_ACCESS_KEY ||
-    !R2_BUCKET
-  ) {
+
+  if (!R2_REGION || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET) {
     throw new Error(
-      "Missing one or more R2 env vars: R2_ENDPOINT, R2_REGION, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET"
+      "Missing required R2 vars: R2_REGION, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET"
     );
   }
-  const base = new URL(R2_ENDPOINT);
+
+  let endpointUrl: URL | null = null;
+  if (R2_ENDPOINT && R2_ENDPOINT.trim()) {
+    endpointUrl = new URL(R2_ENDPOINT);
+  } else {
+    if (!R2_ACCOUNT_ID) {
+      throw new Error(
+        "Provide R2_ACCOUNT_ID (preferred) or R2_ENDPOINT to construct the R2 S3 endpoint"
+      );
+    }
+    endpointUrl = new URL(`https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`);
+  }
+
   return {
-    endpoint: base, // e.g. https://<accountid>.r2.cloudflarestorage.com
+    endpoint: endpointUrl, // e.g. https://<acct>.r2.cloudflarestorage.com
     region: R2_REGION,
-    accessKeyId: R2_ACCESS_KEY_ID,
-    secretAccessKey: R2_SECRET_ACCESS_KEY,
-    bucket: R2_BUCKET,
+    accessKeyId: R2_ACCESS_KEY_ID as string,
+    secretAccessKey: R2_SECRET_ACCESS_KEY as string,
+    bucket: R2_BUCKET as string,
   };
 };
 
@@ -89,9 +113,7 @@ const canonicalHeadersString = (headers: Record<string, string>) => {
 const service = "s3";
 
 const objectUrl = (endpoint: URL, bucket: string, key: string) => {
-  // path-style: https://endpoint/bucket/key
   const u = new URL(endpoint.toString());
-  // Ensure single slashes
   u.pathname = `/${bucket}/${key}`.replace(/\/{2,}/g, "/");
   return u;
 };
