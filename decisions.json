@@ -1,5 +1,5 @@
 {
-  "version": "2025-09-29.1",
+  "version": "2025-09-30.1",
   "currentPhase": "Airtable bridge (hybrid)",
   "phases": [
     {
@@ -24,13 +24,8 @@
       "objective": "Private file storage with signed streaming.",
       "deliverables": ["/api/files/upload", "/api/files/:key", "R2 bucket and IAM"],
       "acceptance": ["Upload returns 200 and r2Key", "Authorized GET streams 200; unauthorized 403"],
-      "status": "landed",
-      "landedAt": "2025-09-29",
-      "notes": [
-        "Signer uses R2_ACCOUNT_ID (or R2_ENDPOINT override).",
-        "POST /api/files/upload returns { r2Key, putUrl }.",
-        "GET /api/files/[key] streams when authed; 403 when unauth."
-      ]
+      "status": "in_progress",
+      "startedAt": "2025-09-27"
     },
     {
       "phase": "Airtable bridge (hybrid)",
@@ -38,7 +33,7 @@
       "deliverables": ["sync script", "cron", "idempotent mapping"],
       "acceptance": ["One-way sync green in CI", "Backfill job OK"],
       "status": "in_progress",
-      "startedAt": "2025-09-29"
+      "startedAt": "2025-09-30"
     },
     {
       "phase": "Job model + booking skeleton",
@@ -98,10 +93,20 @@
   "phaseProgress": {
     "Files & Certificates (R2)": {
       "tasks": [
-        { "id": "r2-signer", "title": "lib/r2-signer.ts", "status": "implemented" },
-        { "id": "upload-route", "title": "POST /api/files/upload", "status": "implemented" },
-        { "id": "get-route", "title": "GET /api/files/[key]", "status": "implemented" },
-        { "id": "verify", "title": "Verify: upload 200; auth GET 200; unauth 403", "status": "implemented" }
+        { "id": "r2-signer", "title": "lib/r2-signer.ts", "status": "pending" },
+        { "id": "upload-route", "title": "POST /api/files/upload", "status": "pending" },
+        { "id": "get-route", "title": "GET /api/files/[key]", "status": "pending" },
+        { "id": "verify", "title": "Verify: upload 200; auth GET 200; unauth 403", "status": "pending" }
+      ]
+    },
+    "Airtable bridge (hybrid)": {
+      "tasks": [
+        { "id": "client-lib", "title": "lib/airtable.ts", "status": "pending" },
+        { "id": "source-route", "title": "GET /api/airtable/source", "status": "pending" },
+        { "id": "sync-script", "title": "scripts/airtable-sync.mjs", "status": "pending" },
+        { "id": "workflow", "title": ".github/workflows/airtable-sync.yml", "status": "pending" },
+        { "id": "optional-trigger", "title": "POST /api/airtable/sync", "status": "pending" },
+        { "id": "verify", "title": "Verify: source 200; dry-run OK; real sync OK", "status": "pending" }
       ]
     }
   },
@@ -131,7 +136,7 @@
       "annualOnlyTotal": 11.08,
       "arr": 1446.28
     },
-    "lastUpdated": "2025-09-29"
+    "lastUpdated": "2025-09-26"
   },
   "links": {
     "editDecisions": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json",
@@ -146,44 +151,81 @@
     "items": [
       {
         "path": "lib/r2-signer.ts",
-        "exists": true,
+        "exists": false,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/r2-signer.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fr2-signer.ts",
         "purpose": "AWS SigV4 presign helper without extra deps",
-        "lastChecked": "2025-09-29"
+        "lastChecked": "2025-09-28"
       },
       {
         "path": "app/api/files/upload/route.ts",
-        "exists": true,
+        "exists": false,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/files/upload/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Ffiles%2Fupload%2Froute.ts",
         "purpose": "POST returns r2Key and presigned PUT URL",
-        "lastChecked": "2025-09-29"
+        "lastChecked": "2025-09-28"
       },
       {
         "path": "app/api/files/%5Bkey%5D/route.ts",
-        "exists": true,
+        "exists": false,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/files/%5Bkey%5D/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Ffiles%2F%5Bkey%5D%2Froute.ts",
         "purpose": "GET streams from R2 after auth",
-        "lastChecked": "2025-09-29"
+        "lastChecked": "2025-09-28"
+      },
+      {
+        "path": "lib/airtable.ts",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/airtable.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fairtable.ts",
+        "purpose": "Airtable REST client; chunked performUpsert",
+        "lastChecked": "2025-09-30"
+      },
+      {
+        "path": "app/api/airtable/source/route.ts",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/airtable/source/route.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Fairtable%2Fsource%2Froute.ts",
+        "purpose": "Neon → JSON export; minimal Users surface",
+        "lastChecked": "2025-09-30"
+      },
+      {
+        "path": "scripts/airtable-sync.mjs",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/airtable-sync.mjs",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=scripts%2Fairtable-sync.mjs",
+        "purpose": "CLI; --dry-run; uses server route to run sync",
+        "lastChecked": "2025-09-30"
+      },
+      {
+        "path": ".github/workflows/airtable-sync.yml",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/airtable-sync.yml",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fairtable-sync.yml",
+        "purpose": "workflow_dispatch + daily cron",
+        "lastChecked": "2025-09-30"
+      },
+      {
+        "path": "app/api/airtable/sync/route.ts",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/airtable/sync/route.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Fairtable%2Fsync%2Froute.ts",
+        "purpose": "Optional secured trigger (X-Sync-Key)",
+        "lastChecked": "2025-09-30"
       }
     ]
   },
   "operationalNotes": {
     "reconcilerProcess": {
-      "summary": "Run once after edits. If Playbook block is stale or it says no changes, reset playbook.md then run once.",
+      "summary": "Run once after edits.\nIf Playbook block is stale or it says no changes, reset playbook.md then run once.",
       "normalRun": {
         "commitTitle": "playbook: sync decisions",
-        "steps": [
-          "Open links.runReconciler and run it",
-          "Open links.pulls and merge the PR it opens"
-        ]
+        "steps": ["Open links.runReconciler and run it", "Open links.pulls and merge the PR it opens"]
       },
       "resetRun": {
         "when": "Only if prior runs report no changes or the block is stale.",
         "steps": [
-          "Open links.editPlaybook and replace with '<!-- CL:START -->\\n<!-- CL:END -->' then commit with 'playbook: reset generated block'",
+          "Open links.editPlaybook and replace with '\\n' then commit with 'playbook: reset generated block'",
           "Open links.runReconciler and run it",
           "Open links.pulls and merge the PR it opens"
         ]
@@ -191,10 +233,17 @@
     },
     "r2Env": {
       "note": "Set env vars only in Vercel; never commit secrets.",
-      "vars": ["R2_ACCOUNT_ID", "R2_REGION", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_ENDPOINT?"]
+      "vars": ["R2_ACCOUNT_ID", "R2_REGION", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"]
+    },
+    "airtableEnv": {
+      "note": "Set env vars only in Vercel/GitHub; never commit secrets.",
+      "vars": ["AIRTABLE_API_KEY", "AIRTABLE_BASE_ID", "AIRTABLE_SYNC_KEY?", "BASE_URL?", "NEXT_PUBLIC_BASE_URL?", "SYNC_SOURCE_URL?"]
     }
   },
-  "status": { "playbookGeneratedAt": null, "lastReconciledAt": null },
+  "status": {
+    "playbookGeneratedAt": null,
+    "lastReconciledAt": null
+  },
   "handoff": {
     "promptPath": "handoff/prompt.md",
     "repo": { "owner": "ComplianceLoop", "name": "complianceloop-site", "branch": "main" },
