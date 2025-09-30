@@ -1,7 +1,6 @@
 // apps/portal/app/api/airtable/sync/route.ts
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
-// Import from the portal-local lib (stays inside apps/portal)
 import { performUpsert } from "../../../../lib/airtable";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +19,13 @@ function detectOrigin(): string {
   return `${proto}://${host}`;
 }
 
+function normalize(v: string | null | undefined) {
+  if (!v) return "";
+  // Trim whitespace and remove single/double quotes that sometimes get pasted in
+  const trimmed = v.trim();
+  return trimmed.replace(/^['"]+|['"]+$/g, "");
+}
+
 function airtableEnvOkay() {
   const hasBase = Boolean(process.env.AIRTABLE_BASE_ID);
   const hasKey = Boolean(process.env.AIRTABLE_API_KEY || process.env.AIRTABLE_TOKEN);
@@ -29,8 +35,10 @@ function airtableEnvOkay() {
 }
 
 export async function POST(req: Request) {
-  const providedKey = headers().get("x-sync-key") || "";
-  const expectedKey = process.env.AIRTABLE_SYNC_KEY || "";
+  // Header gate (with normalization)
+  const providedKey = normalize(headers().get("x-sync-key"));
+  const expectedKey = normalize(process.env.AIRTABLE_SYNC_KEY);
+
   if (!expectedKey || providedKey !== expectedKey) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
