@@ -1,8 +1,8 @@
 // apps/portal/app/api/airtable/sync/route.ts
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
-// Use a stable relative import so we don't depend on TS path aliases.
-import { performUpsert } from "../../../../../lib/airtable";
+// Import from the portal-local lib (stays inside apps/portal)
+import { performUpsert } from "../../../../lib/airtable";
 
 export const dynamic = "force-dynamic";
 
@@ -29,14 +29,12 @@ function airtableEnvOkay() {
 }
 
 export async function POST(req: Request) {
-  // Header gate
   const providedKey = headers().get("x-sync-key") || "";
   const expectedKey = process.env.AIRTABLE_SYNC_KEY || "";
   if (!expectedKey || providedKey !== expectedKey) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Locate source (external or same app)
   const baseUrl = process.env.SYNC_SOURCE_URL ? "" : detectOrigin();
   const sourceUrl = process.env.SYNC_SOURCE_URL || `${baseUrl}/api/airtable/source`;
 
@@ -75,7 +73,6 @@ export async function POST(req: Request) {
       records: source.records,
       dryRun,
     });
-
     return NextResponse.json({ ok: true, summary: result }, { status: 200 });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Upsert failed" }, { status: 500 });
