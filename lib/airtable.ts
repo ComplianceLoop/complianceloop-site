@@ -1,6 +1,6 @@
 // lib/airtable.ts
 // Minimal Airtable REST client with chunked performUpsert (no extra deps).
-// Env-only: AIRTABLE_API_KEY, AIRTABLE_BASE_ID
+// Env: AIRTABLE_API_KEY or AIRTABLE_TOKEN, and AIRTABLE_BASE_ID
 
 const AIRTABLE_API_URL = "https://api.airtable.com/v0";
 const DEFAULT_CHUNK_SIZE = 10;
@@ -27,10 +27,13 @@ export type UpsertResult = {
   baseId: string;
 };
 
-function env(name: string, fallback?: string): string {
-  const v = process.env[name] ?? fallback;
-  if (!v) throw new Error(`Missing required env: ${name}`);
-  return v;
+function firstEnv(names: string[], fallback?: string): string {
+  for (const n of names) {
+    const v = process.env[n];
+    if (v) return v;
+  }
+  if (fallback) return fallback;
+  throw new Error(`Missing required env: one of ${names.join(", ")}`);
 }
 
 function sleep(ms: number) {
@@ -67,8 +70,10 @@ async function requestWithRetry(
  * Limit: 10 records per request -> we chunk.
  */
 export async function performUpsert(input: UpsertInput): Promise<UpsertResult> {
-  const baseId = input.baseId ?? env("AIRTABLE_BASE_ID");
-  const apiKey = input.apiKey ?? env("AIRTABLE_API_KEY");
+  const baseId =
+    input.baseId ?? firstEnv(["AIRTABLE_BASE_ID"]);
+  const apiKey =
+    input.apiKey ?? firstEnv(["AIRTABLE_API_KEY", "AIRTABLE_TOKEN"]);
   const chunkSize = input.chunkSize ?? DEFAULT_CHUNK_SIZE;
   const dryRun = Boolean(input.dryRun);
   const typecast = input.typecast ?? true;
@@ -126,9 +131,7 @@ export async function performUpsert(input: UpsertInput): Promise<UpsertResult> {
 }
 
 export async function healthCheck(baseId?: string, apiKey?: string) {
-  const b = baseId ?? env("AIRTABLE_BASE_ID");
-  const k = apiKey ?? env("AIRTABLE_API_KEY");
-  // Ping schema list (does not exist in classic API), so we do a harmless no-op by listing 1 record of a bogus table.
-  // This will 404; we only use it to validate env presence without network if desired.
+  const b = baseId ?? firstEnv(["AIRTABLE_BASE_ID"], "");
+  const k = apiKey ?? firstEnv(["AIRTABLE_API_KEY", "AIRTABLE_TOKEN"], "");
   return { ok: Boolean(b && k) };
 }
