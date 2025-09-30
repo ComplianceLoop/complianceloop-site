@@ -1,7 +1,8 @@
 // apps/portal/app/api/airtable/sync/route.ts
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { performUpsert } from "@/lib/airtable";
+// Use a stable relative import so we don't depend on TS path aliases.
+import { performUpsert } from "../../../../../lib/airtable";
 
 export const dynamic = "force-dynamic";
 
