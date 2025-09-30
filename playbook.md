@@ -2,7 +2,7 @@
 # ComplianceLoop — Canonical Plan (Generated)
 
 Version: 2025-09-29.1
-Generated: 2025-09-29T23:37:37.321Z
+Generated: 2025-09-30T00:26:53.573Z
 
 ## Phases (13)
 - **Design Skin Kit**: Theme tokens, brand, and UI primitives to speed all later pages. — _landed_
