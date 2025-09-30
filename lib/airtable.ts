@@ -9,7 +9,7 @@ const MAX_RETRIES = 5;
 export type AirtableRecord = { id?: string; fields: Record<string, unknown> };
 export type UpsertInput = {
   table: string;
-  mergeField: string; // field to merge on (unique key in Airtable)
+  mergeField: string;
   records: AirtableRecord[];
   dryRun?: boolean;
   chunkSize?: number;
@@ -64,16 +64,9 @@ async function requestWithRetry(
   return res;
 }
 
-/**
- * performUpsert using Airtable REST API.
- * API: POST /v0/{baseId}/{table} with { performUpsert: {fieldsToMergeOn: [...]}, records: [...] }
- * Limit: 10 records per request -> we chunk.
- */
 export async function performUpsert(input: UpsertInput): Promise<UpsertResult> {
-  const baseId =
-    input.baseId ?? firstEnv(["AIRTABLE_BASE_ID"]);
-  const apiKey =
-    input.apiKey ?? firstEnv(["AIRTABLE_API_KEY", "AIRTABLE_TOKEN"]);
+  const baseId = input.baseId ?? firstEnv(["AIRTABLE_BASE_ID"]);
+  const apiKey = input.apiKey ?? firstEnv(["AIRTABLE_API_KEY", "AIRTABLE_TOKEN"]);
   const chunkSize = input.chunkSize ?? DEFAULT_CHUNK_SIZE;
   const dryRun = Boolean(input.dryRun);
   const typecast = input.typecast ?? true;
@@ -112,9 +105,7 @@ export async function performUpsert(input: UpsertInput): Promise<UpsertResult> {
         );
       }
 
-      const json = (await res.json().catch(() => ({}))) as {
-        records?: Array<unknown>;
-      };
+      const json = (await res.json().catch(() => ({}))) as { records?: unknown[] };
       upserted += Array.isArray(json.records) ? json.records.length : group.length;
     }
   }
