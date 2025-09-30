@@ -2,30 +2,31 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 
+function normalize(v: string | null | undefined) {
+  if (!v) return "";
+  const trimmed = v.trim();
+  return trimmed.replace(/^['"]+|['"]+$/g, "");
+}
+
 /**
- * Safe debug endpoint to validate X-Sync-Key wiring.
- * Does NOT reveal the secret value — only booleans/lengths.
- *
+ * Safe debug endpoint to validate X-Sync-Key wiring (no secret revealed).
  * GET /api/airtable/debug  (optionally send X-Sync-Key header)
- * Response:
- * {
- *   envSeen: boolean,        // did the server see AIRTABLE_SYNC_KEY env set?
- *   envLen: number,          // length of env value (0 if absent)
- *   headerSeen: boolean,     // did the request include X-Sync-Key?
- *   headerLen: number,       // length of header value (0 if absent)
- *   headerEqualsEnv: boolean // exact match between header and env?
- * }
  */
 export async function GET() {
   const h = headers();
-  const envVal = process.env.AIRTABLE_SYNC_KEY || "";
-  const hdrVal = h.get("x-sync-key") || "";
+  const envRaw = process.env.AIRTABLE_SYNC_KEY || "";
+  const hdrRaw = h.get("x-sync-key") || "";
+
+  const envVal = normalize(envRaw);
+  const hdrVal = normalize(hdrRaw);
 
   return NextResponse.json({
-    envSeen: Boolean(envVal),
-    envLen: envVal.length,
-    headerSeen: Boolean(hdrVal),
-    headerLen: hdrVal.length,
-    headerEqualsEnv: Boolean(envVal) && envVal === hdrVal,
+    envSeen: Boolean(envRaw),
+    envLen: envRaw.length,
+    envNormLen: envVal.length,
+    headerSeen: Boolean(hdrRaw),
+    headerLen: hdrRaw.length,
+    headerNormLen: hdrVal.length,
+    headerEqualsEnv: Boolean(envVal) && envVal === hdrVal
   });
 }
