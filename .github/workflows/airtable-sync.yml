@@ -1,0 +1,49 @@
+name: Airtable Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run in dry-run mode (no writes to Airtable)"
+        required: true
+        default: "true"
+        type: choice
+        options: ["true", "false"]
+  schedule:
+    # Daily at 08:00 UTC
+    - cron: "0 8 * * *"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # Required in all modes to locate the API routes
+      BASE_URL: ${{ secrets.BASE_URL }}
+      NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
+      # Optional: override source and allow direct one-way sync from an external JSON
+      SYNC_SOURCE_URL: ${{ secrets.SYNC_SOURCE_URL }}
+      # Required for real sync (POST route)
+      AIRTABLE_SYNC_KEY: ${{ secrets.AIRTABLE_SYNC_KEY }}
+      # Airtable envs are used by the API route (not by this workflow directly)
+      AIRTABLE_API_KEY: ${{ secrets.AIRTABLE_API_KEY }}
+      AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run Airtable Sync (dry-run or real)
+        run: |
+          DRY=${{ github.event.inputs.dry_run || 'true' }}
+          if [ "$DRY" = "true" ]; then
+            node scripts/airtable-sync.mjs --dry-run
+          else
+            node scripts/airtable-sync.mjs --no-dry-run
+          fi
