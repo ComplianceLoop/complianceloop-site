@@ -1,6 +1,6 @@
 {
-  "version": "2025-09-30.3",
-  "currentPhase": "Airtable bridge (hybrid)",
+  "version": "2025-10-01.1",
+  "currentPhase": "Job model + booking skeleton",
   "phases": [
     {
       "phase": "Design Skin Kit",
@@ -40,7 +40,13 @@
       "phase": "Job model + booking skeleton",
       "objective": "Booking wizard and soft hold creation.",
       "deliverables": ["/book wizard", "create Job draft API", "Soft-hold service"],
-      "acceptance": ["30m hold for multi property", "Single property flow ok"]
+      "acceptance": [
+        "Checkout supports known counts OR example-based estimate (no survey)",
+        "Cap preauth placed; final capture on reconciliation",
+        "Tech records actual counts; stored for future prefill"
+      ],
+      "status": "in_progress",
+      "startedAt": "2025-10-01"
     },
     {
       "phase": "Provider directory & eligibility",
@@ -109,6 +115,17 @@
         { "id": "optional-trigger", "title": "POST /api/airtable/sync", "status": "done", "notes": "Header X-Sync-Key; normalization added" },
         { "id": "verify", "title": "Verify: source 200; dry-run OK; real sync OK", "status": "done", "notes": "Source 200; GH Action dry-run & real succeeded; secured POST 200" }
       ]
+    },
+    "Job model + booking skeleton": {
+      "tasks": [
+        { "id": "policy-no-estimator", "title": "Unknown counts path shows examples (no survey)", "status": "pending" },
+        { "id": "db-assets", "title": "Store discovered counts per customer/site & service_code", "status": "pending" },
+        { "id": "api-quote", "title": "POST /api/jobs/quote → ranges from example buckets", "status": "pending" },
+        { "id": "ui-checkout", "title": "Checkout: known counts OR pick an example + cap slider + disclosure", "status": "pending" },
+        { "id": "stripe-auth", "title": "Cap preauth: PaymentIntent manual-capture (<7 days) or SetupIntent + day-of preauth", "status": "pending" },
+        { "id": "reconcile", "title": "Tech enters actual counts; final capture; store counts for next time", "status": "pending" },
+        { "id": "verify", "title": "Verify: example path works; cap preauth placed; follow-up booking prefilled", "status": "pending" }
+      ]
     }
   },
   "finances": {
@@ -156,7 +173,7 @@
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/lib/airtable.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Flib%2Fairtable.ts",
         "purpose": "Airtable REST client; chunked performUpsert",
-        "lastChecked": "2025-09-30"
+        "lastChecked": "2025-10-01"
       },
       {
         "path": "apps/portal/app/api/airtable/source/route.ts",
@@ -164,7 +181,7 @@
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/airtable/source/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fairtable%2Fsource%2Froute.ts",
         "purpose": "Neon → JSON export; minimal Users surface",
-        "lastChecked": "2025-09-30"
+        "lastChecked": "2025-10-01"
       },
       {
         "path": "apps/portal/app/api/airtable/sync/route.ts",
@@ -172,7 +189,7 @@
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/airtable/sync/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fairtable%2Fsync%2Froute.ts",
         "purpose": "Optional secured trigger (X-Sync-Key)",
-        "lastChecked": "2025-09-30"
+        "lastChecked": "2025-10-01"
       },
       {
         "path": "scripts/airtable-sync.mjs",
@@ -180,7 +197,7 @@
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/airtable-sync.mjs",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=scripts%2Fairtable-sync.mjs",
         "purpose": "CLI; --dry-run; uses server route to run sync",
-        "lastChecked": "2025-09-30"
+        "lastChecked": "2025-10-01"
       },
       {
         "path": ".github/workflows/airtable-sync.yml",
@@ -188,7 +205,7 @@
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/airtable-sync.yml",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fairtable-sync.yml",
         "purpose": "workflow_dispatch + daily cron",
-        "lastChecked": "2025-09-30"
+        "lastChecked": "2025-10-01"
       }
     ]
   },
@@ -212,6 +229,18 @@
       "note": "Set env vars only in Vercel/GitHub; never commit secrets.",
       "vars": ["AIRTABLE_API_KEY or AIRTABLE_TOKEN", "AIRTABLE_BASE_ID", "AIRTABLE_SYNC_KEY", "BASE_URL?", "NEXT_PUBLIC_BASE_URL?", "SYNC_SOURCE_URL?"],
       "header": "Use header X-Sync-Key exactly; value is normalized (trim/strip quotes)."
+    },
+    "bookingEstimationPolicy": {
+      "summary": "If counts unknown: show example ranges by building size/type, no survey; proceed with cap-based preauth; store actual counts for next booking prefill.",
+      "examples": [
+        { "type": "Small Office (<=10k sq ft)", "exitSigns": "8–15", "emergencyLights": "10–20", "extinguishers": "6–12" },
+        { "type": "Mid Office (10k–50k)", "exitSigns": "20–40", "emergencyLights": "25–50", "extinguishers": "12–24" },
+        { "type": "Retail (single unit)", "exitSigns": "4–8", "emergencyLights": "6–12", "extinguishers": "2–6" },
+        { "type": "Warehouse (<=50k sq ft)", "exitSigns": "6–12", "emergencyLights": "8–16", "extinguishers": "6–12" },
+        { "type": "School (K–8, single building)", "exitSigns": "15–30", "emergencyLights": "20–40", "extinguishers": "15–30" }
+      ],
+      "capPolicy": "Default cap = upper bound of estimate + 10%. Customer preauthorizes cap; final capture equals actuals. If projected actual > cap, tech/app requests approval before proceeding.",
+      "stripeNotes": "Use PaymentIntent manual-capture when service is within typical auth window; otherwise create SetupIntent at booking and place the preauth on the day of service."
     }
   },
   "status": {
