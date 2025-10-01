@@ -1,10 +1,9 @@
 // apps/portal/app/api/jobs/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
-// From app/api/jobs/route.ts to db helper: ../../db/bootstrap.sql
-import { ensureJobTables } from "../../db/bootstrap.sql";
-// From app/api/jobs/route.ts to lib/neon: ../../lib/neon
-import { getSql } from "../../lib/neon";
+// Correct paths from app/api/jobs/route.ts → ../../../*
+import { ensureJobTables } from "../../../db/bootstrap.sql";
+import { getSql } from "../../../lib/neon";
 
 type StripeIntentResult =
   | { mode: "mock"; id: string; client_secret: string | null; status: "mock" }
