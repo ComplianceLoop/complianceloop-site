@@ -1,11 +1,9 @@
 // apps/portal/app/api/jobs/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { ensureJobTables } from "@/db/bootstrap.sql";
-import { getSql } from "@/app/../lib/neon";
+import { ensureJobTables } from "../../../db/bootstrap.sql";
+import { getSql } from "../../../lib/neon";
 
-// We optionally place a Stripe preauth if STRIPE_SECRET_KEY is present.
-// Otherwise, we store a mock preauth and return 200 for flow testing.
 type StripeIntentResult =
   | { mode: "mock"; id: string; client_secret: string | null; status: "mock" }
   | { mode: "payment_intent"; id: string; client_secret: string | null; status: string };
@@ -37,11 +35,9 @@ async function createPreauth(capAmountCents: number): Promise<StripeIntentResult
     return { mode: "mock", id: "pi_mock_" + Math.random().toString(36).slice(2), client_secret: null, status: "mock" };
   }
 
-  // Dynamic import to keep bundle lean
   const Stripe = (await import("stripe")).default;
   const stripe = new Stripe(key, { apiVersion: "2024-06-20" });
 
-  // Manual capture PaymentIntent preauth (valid ~7 days depending on card/issuer)
   const pi = await stripe.paymentIntents.create({
     amount: capAmountCents,
     currency: "usd",
@@ -57,14 +53,13 @@ export async function POST(request: Request) {
   const parsed = JobCreateSchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid body", details: parsed.error.flatten() }, { status: 400 });
-  }
+    }
 
   const sql = getSql();
   await ensureJobTables();
 
   const preauth = await createPreauth(parsed.data.totals.cap_amount_cents);
 
-  // Insert job
   const rows = await sql<[{ id: string }]>`
     insert into jobs (
       customer_email, site_label,
@@ -87,7 +82,6 @@ export async function POST(request: Request) {
 
   const jobId = rows[0]?.id;
 
-  // Insert job_items
   for (const item of parsed.data.items) {
     await sql`
       insert into job_items (job_id, service_code, quantity_estimated, unit_price_cents, tier_snapshot)
@@ -95,12 +89,5 @@ export async function POST(request: Request) {
     `;
   }
 
-  return NextResponse.json(
-    {
-      ok: true,
-      jobId,
-      preauth
-    },
-    { status: 200 }
-  );
+  return NextResponse.json({ ok: true, jobId, preauth }, { status: 200 });
 }
