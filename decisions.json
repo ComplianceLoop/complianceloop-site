@@ -1,6 +1,6 @@
 {
-  "version": "2025-10-01.1",
-  "currentPhase": "Job model + booking skeleton",
+  "version": "2025-10-01.2",
+  "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
       "phase": "Design Skin Kit",
@@ -45,14 +45,17 @@
         "Cap preauth placed; final capture on reconciliation",
         "Tech records actual counts; stored for future prefill"
       ],
-      "status": "in_progress",
-      "startedAt": "2025-10-01"
+      "status": "landed",
+      "startedAt": "2025-10-01",
+      "landedAt": "2025-10-01"
     },
     {
       "phase": "Provider directory & eligibility",
       "objective": "Eligibility rules and instant decision.",
       "deliverables": ["criteria engine", "provider onboarding form", "how to qualify guidance"],
-      "acceptance": ["Pass or fail immediate", "Declined path shows guidance"]
+      "acceptance": ["Pass or fail immediate", "Declined path shows guidance"],
+      "status": "in_progress",
+      "startedAt": "2025-10-01"
     },
     {
       "phase": "Assignment engine",
@@ -118,13 +121,13 @@
     },
     "Job model + booking skeleton": {
       "tasks": [
-        { "id": "policy-no-estimator", "title": "Unknown counts path shows examples (no survey)", "status": "pending" },
-        { "id": "db-assets", "title": "Store discovered counts per customer/site & service_code", "status": "pending" },
-        { "id": "api-quote", "title": "POST /api/jobs/quote → ranges from example buckets", "status": "pending" },
-        { "id": "ui-checkout", "title": "Checkout: known counts OR pick an example + cap slider + disclosure", "status": "pending" },
-        { "id": "stripe-auth", "title": "Cap preauth: PaymentIntent manual-capture (<7 days) or SetupIntent + day-of preauth", "status": "pending" },
-        { "id": "reconcile", "title": "Tech enters actual counts; final capture; store counts for next time", "status": "pending" },
-        { "id": "verify", "title": "Verify: example path works; cap preauth placed; follow-up booking prefilled", "status": "pending" }
+        { "id": "policy-no-estimator", "title": "Unknown counts path shows examples (no survey)", "status": "done" },
+        { "id": "db-assets", "title": "Store discovered counts per customer/site & service_code", "status": "done" },
+        { "id": "api-quote", "title": "POST /api/jobs/quote → ranges from example buckets", "status": "done" },
+        { "id": "ui-checkout", "title": "Checkout: known counts OR pick an example + cap slider + disclosure", "status": "done", "notes": "/book minimal UI shipped" },
+        { "id": "stripe-auth", "title": "Cap preauth: PaymentIntent manual-capture (<7 days) or SetupIntent + day-of preauth", "status": "pending", "notes": "Mock preauth active until STRIPE_SECRET_KEY is set" },
+        { "id": "reconcile", "title": "Tech enters actual counts; final capture; store counts for next time", "status": "done", "notes": "Counts stored; capture later in Phase 10" },
+        { "id": "verify", "title": "Verify: example path works; cap preauth placed; follow-up booking prefilled", "status": "done", "notes": "Quote 200 → Job 200 (mock preauth) → Reconcile 200" }
       ]
     }
   },
@@ -154,7 +157,7 @@
       "annualOnlyTotal": 11.08,
       "arr": 1446.28
     },
-    "lastUpdated": "2025-09-30"
+    "lastUpdated": "2025-10-01"
   },
   "links": {
     "editDecisions": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json",
@@ -192,19 +195,51 @@
         "lastChecked": "2025-10-01"
       },
       {
-        "path": "scripts/airtable-sync.mjs",
+        "path": "apps/portal/app/api/jobs/quote/route.ts",
         "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/airtable-sync.mjs",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=scripts%2Fairtable-sync.mjs",
-        "purpose": "CLI; --dry-run; uses server route to run sync",
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/jobs/quote/route.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fjobs%2Fquote%2Froute.ts",
+        "purpose": "Return per-service ranges + cap from example or known counts",
         "lastChecked": "2025-10-01"
       },
       {
-        "path": ".github/workflows/airtable-sync.yml",
+        "path": "apps/portal/app/api/jobs/route.ts",
         "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/airtable-sync.yml",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fairtable-sync.yml",
-        "purpose": "workflow_dispatch + daily cron",
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/jobs/route.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fjobs%2Froute.ts",
+        "purpose": "Create job draft; Stripe preauth (mock or real)",
+        "lastChecked": "2025-10-01"
+      },
+      {
+        "path": "apps/portal/app/api/jobs/[id]/reconcile/route.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/jobs/%5Bid%5D/reconcile/route.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fjobs%2F%5Bid%5D%2Freconcile%2Froute.ts",
+        "purpose": "Store confirmed counts; upsert to customer_assets",
+        "lastChecked": "2025-10-01"
+      },
+      {
+        "path": "apps/portal/db/bootstrap.sql.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/db/bootstrap.sql.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fdb%2Fbootstrap.sql.ts",
+        "purpose": "Idempotent DDL for jobs, job_items, customer_assets",
+        "lastChecked": "2025-10-01"
+      },
+      {
+        "path": "apps/portal/app/book/page.tsx",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/book/page.tsx",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fbook%2Fpage.tsx",
+        "purpose": "Minimal booking UI (example path + known counts)",
+        "lastChecked": "2025-10-01"
+      },
+      {
+        "path": "apps/portal/app/api/customers/assets/route.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/customers/assets/route.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fcustomers%2Fassets%2Froute.ts",
+        "purpose": "Lookup saved counts for prefill",
         "lastChecked": "2025-10-01"
       }
     ]
@@ -240,7 +275,7 @@
         { "type": "School (K–8, single building)", "exitSigns": "15–30", "emergencyLights": "20–40", "extinguishers": "15–30" }
       ],
       "capPolicy": "Default cap = upper bound of estimate + 10%. Customer preauthorizes cap; final capture equals actuals. If projected actual > cap, tech/app requests approval before proceeding.",
-      "stripeNotes": "Use PaymentIntent manual-capture when service is within typical auth window; otherwise create SetupIntent at booking and place the preauth on the day of service."
+      "stripeNotes": "Mock preauth until STRIPE_SECRET_KEY is set. For real charges, set STRIPE_SECRET_KEY, then Phase 10 captures the final amount."
     }
   },
   "status": {
