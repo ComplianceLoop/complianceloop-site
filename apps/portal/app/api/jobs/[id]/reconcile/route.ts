@@ -1,7 +1,6 @@
 // apps/portal/app/api/jobs/[id]/reconcile/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
-// Correct path: from .../app/api/jobs/[id]/reconcile/route.ts → ../../../../../lib/neon
 import { getSql } from "../../../../../lib/neon";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +27,7 @@ export async function POST(
 
   const sql = getSql();
 
+  // Update job_items with confirmed counts
   for (const item of parsed.data.items) {
     await sql`
       update job_items
@@ -35,12 +35,15 @@ export async function POST(
       where job_id = ${jobId} and service_code = ${item.service_code};
     `;
 
-    const job = await sql<[{ customer_email: string; site_label: string | null }]>`
+    // Fetch job context (no generic on sql tag; cast after await)
+    const job = (await sql`
       select customer_email, site_label from jobs where id = ${jobId} limit 1;
-    `;
+    `) as Array<{ customer_email: string; site_label: string | null }>;
+
     const email = job[0]?.customer_email;
     const site = job[0]?.site_label || null;
 
+    // Upsert into customer_assets for prefill next time
     await sql`
       insert into customer_assets (customer_email, site_label, service_code, last_confirmed_qty)
       values (${email}, ${site}, ${item.service_code}, ${item.quantity_confirmed})
@@ -49,5 +52,6 @@ export async function POST(
     `;
   }
 
+  // Phase 10 will compute totals and capture Stripe; this route focuses on storing counts.
   return NextResponse.json({ ok: true, jobId, updated: parsed.data.items.length }, { status: 200 });
 }
