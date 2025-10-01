@@ -1,7 +1,13 @@
 // apps/portal/app/api/jobs/quote/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { DEFAULT_UNIT_PRICES, EXAMPLES, findExample, type ServiceCode } from "@/lib/quote-examples";
+// Use stable relatives within the portal app
+import {
+  DEFAULT_UNIT_PRICES,
+  EXAMPLES,
+  findExample,
+  type ServiceCode
+} from "../../../../lib/quote-examples";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +23,7 @@ const BodySchema = z.object({
   knownCounts: KnownCountsSchema.optional(),
   unitPrices: z
     .record(z.number().int().min(0))
-    .optional() // allow overriding default prices later
+    .optional()
 });
 
 type QuoteItem = {
@@ -84,7 +90,6 @@ export async function POST(request: Request) {
 
   const total_min_cents = items.reduce((s, i) => s + i.est_min_cents, 0);
   const total_max_cents = items.reduce((s, i) => s + i.est_max_cents, 0);
-  // Cap policy: upper bound + 10%
   const cap_amount_cents = Math.round(total_max_cents * 1.1);
 
   return NextResponse.json(
@@ -98,7 +103,7 @@ export async function POST(request: Request) {
         total_max_cents,
         cap_amount_cents
       },
-      examples: EXAMPLES.map((e) => ({ key: e.key, label: e.label })) // so UI can present labels
+      examples: EXAMPLES.map((e) => ({ key: e.key, label: e.label }))
     },
     { status: 200 }
   );
