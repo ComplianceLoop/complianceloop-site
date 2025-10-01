@@ -1,5 +1,5 @@
 {
-  "version": "2025-09-30.2",
+  "version": "2025-09-30.3",
   "currentPhase": "Airtable bridge (hybrid)",
   "phases": [
     {
@@ -32,8 +32,9 @@
       "objective": "Mirror critical records for ops; Neon remains source of record.",
       "deliverables": ["sync script", "cron", "idempotent mapping"],
       "acceptance": ["One-way sync green in CI", "Backfill job OK"],
-      "status": "in_progress",
-      "startedAt": "2025-09-30"
+      "status": "landed",
+      "startedAt": "2025-09-30",
+      "landedAt": "2025-09-30"
     },
     {
       "phase": "Job model + booking skeleton",
@@ -106,7 +107,7 @@
         { "id": "sync-script", "title": "scripts/airtable-sync.mjs", "status": "done", "notes": "GH Action uses it via BASE_URL" },
         { "id": "workflow", "title": ".github/workflows/airtable-sync.yml", "status": "done", "notes": "workflow_dispatch + daily cron" },
         { "id": "optional-trigger", "title": "POST /api/airtable/sync", "status": "done", "notes": "Header X-Sync-Key; normalization added" },
-        { "id": "verify", "title": "Verify: source 200; dry-run OK; real sync OK", "status": "pending" }
+        { "id": "verify", "title": "Verify: source 200; dry-run OK; real sync OK", "status": "done", "notes": "Source 200; GH Action dry-run & real succeeded; secured POST 200" }
       ]
     }
   },
