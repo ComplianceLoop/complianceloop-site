@@ -1,11 +1,10 @@
 // apps/portal/db/bootstrap.sql.ts
 // Lightweight DDL helpers to ensure tables exist (idempotent).
-import { getSql } from "@/app/../lib/neon";
+import { getSql } from "../lib/neon";
 
 export async function ensureJobTables() {
   const sql = getSql();
 
-  // jobs: one row per booking
   await sql(`
     create table if not exists jobs (
       id uuid primary key default gen_random_uuid(),
@@ -17,13 +16,12 @@ export async function ensureJobTables() {
       cap_amount_cents int not null,
       estimate_source text not null check (estimate_source in ('customer_known','example_bucket')),
       example_key text,
-      preauth_id text,            -- Stripe PaymentIntent id (or placeholder)
-      preauth_status text,        -- e.g., requires_action, authorized, mock
+      preauth_id text,
+      preauth_status text,
       status text not null default 'draft'
     );
   `);
 
-  // job_items: one per service on job
   await sql(`
     create table if not exists job_items (
       id uuid primary key default gen_random_uuid(),
@@ -36,7 +34,6 @@ export async function ensureJobTables() {
     );
   `);
 
-  // customer_assets: stores discovered counts for future prefill (per site/customer/service)
   await sql(`
     create table if not exists customer_assets (
       id uuid primary key default gen_random_uuid(),
