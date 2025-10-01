@@ -35,7 +35,7 @@ export async function POST(
       where job_id = ${jobId} and service_code = ${item.service_code};
     `;
 
-    // Upsert into customer_assets
+    // Upsert into customer_assets for prefill next time
     const job = await sql<[{ customer_email: string; site_label: string | null }]>`
       select customer_email, site_label from jobs where id = ${jobId} limit 1;
     `;
@@ -50,7 +50,6 @@ export async function POST(
     `;
   }
 
-  // TODO (Phase 10): compute final totals, capture Stripe Intent up to actuals, void remainder.
-
+  // Phase 10 will compute totals and capture Stripe; this route focuses on storing counts.
   return NextResponse.json({ ok: true, jobId, updated: parsed.data.items.length }, { status: 200 });
 }
