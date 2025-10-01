@@ -1,14 +1,14 @@
 <!-- CL:START -->
 # ComplianceLoop — Canonical Plan (Generated)
 
-Version: 2025-09-30.2
-Generated: 2025-10-01T00:20:48.908Z
+Version: 2025-09-30.3
+Generated: 2025-10-01T00:35:45.163Z
 
 ## Phases (13)
 - **Design Skin Kit**: Theme tokens, brand, and UI primitives to speed all later pages. — _landed_
 - **Auth + DB base**: Neon and Drizzle schema, passwordless email code, sessions. — _landed_
 - **Files & Certificates (R2)**: Private file storage with signed streaming. — _in_progress_
-- **Airtable bridge (hybrid)**: Mirror critical records for ops; Neon remains source of record. — _in_progress_
+- **Airtable bridge (hybrid)**: Mirror critical records for ops; Neon remains source of record. — _landed_
 - **Job model + booking skeleton**: Booking wizard and soft hold creation.
 - **Provider directory & eligibility**: Eligibility rules and instant decision.
 - **Assignment engine**: First accept wins with 15m soft hold and single eligible auto assign.
