@@ -27,31 +27,30 @@ export async function POST(
 
   const sql = getSql();
 
-  // Update job_items with confirmed counts
   for (const item of parsed.data.items) {
+    // Update confirmed qty on the job item
     await sql`
       update job_items
       set quantity_confirmed = ${item.quantity_confirmed}
       where job_id = ${jobId} and service_code = ${item.service_code};
     `;
 
-    // Fetch job context (no generic on sql tag; cast after await)
+    // Fetch job context for upsert
     const job = (await sql`
       select customer_email, site_label from jobs where id = ${jobId} limit 1;
     `) as Array<{ customer_email: string; site_label: string | null }>;
 
     const email = job[0]?.customer_email;
-    const site = job[0]?.site_label || null;
+    const site = job[0]?.site_label ?? ""; // align with NOT NULL DEFAULT '' in schema
 
     // Upsert into customer_assets for prefill next time
     await sql`
       insert into customer_assets (customer_email, site_label, service_code, last_confirmed_qty)
       values (${email}, ${site}, ${item.service_code}, ${item.quantity_confirmed})
-      on conflict (customer_email, coalesce(site_label, ''), service_code)
+      on conflict (customer_email, site_label, service_code)
       do update set last_confirmed_qty = excluded.last_confirmed_qty, updated_at = now();
     `;
   }
 
-  // Phase 10 will compute totals and capture Stripe; this route focuses on storing counts.
   return NextResponse.json({ ok: true, jobId, updated: parsed.data.items.length }, { status: 200 });
 }
