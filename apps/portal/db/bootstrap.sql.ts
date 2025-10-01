@@ -1,10 +1,14 @@
 // apps/portal/db/bootstrap.sql.ts
-// Lightweight DDL helpers to ensure tables exist (idempotent).
+// Idempotent DDL helpers (runs at request-time, safe to call multiple times)
 import { getSql } from "../lib/neon";
 
 export async function ensureJobTables() {
   const sql = getSql();
 
+  // 1) Ensure extension for gen_random_uuid()
+  await sql`create extension if not exists pgcrypto;`;
+
+  // 2) jobs
   await sql(`
     create table if not exists jobs (
       id uuid primary key default gen_random_uuid(),
@@ -22,6 +26,7 @@ export async function ensureJobTables() {
     );
   `);
 
+  // 3) job_items
   await sql(`
     create table if not exists job_items (
       id uuid primary key default gen_random_uuid(),
@@ -34,15 +39,22 @@ export async function ensureJobTables() {
     );
   `);
 
+  // 4) customer_assets
+  //    NOTE: We store site_label as NOT NULL with default '' so we can index it.
   await sql(`
     create table if not exists customer_assets (
       id uuid primary key default gen_random_uuid(),
       customer_email text not null,
-      site_label text,
+      site_label text not null default '',
       service_code text not null check (service_code in ('EXIT_SIGN','E_LIGHT','EXTINGUISHER')),
       last_confirmed_qty int not null,
-      updated_at timestamptz not null default now(),
-      unique (customer_email, coalesce(site_label, ''), service_code)
+      updated_at timestamptz not null default now()
     );
   `);
+
+  // Unique combination (no expressions inside the constraint)
+  await sql`
+    create unique index if not exists ux_customer_assets
+      on customer_assets (customer_email, site_label, service_code);
+  `;
 }
