@@ -36,8 +36,7 @@ async function createPreauth(capAmountCents: number): Promise<StripeIntentResult
   }
 
   const Stripe = (await import("stripe")).default;
-  // Omit apiVersion to use library default (avoids TS mismatch)
-  const stripe = new Stripe(key);
+  const stripe = new Stripe(key); // use SDK default apiVersion
 
   const pi = await stripe.paymentIntents.create({
     amount: capAmountCents,
@@ -61,7 +60,8 @@ export async function POST(request: Request) {
 
   const preauth = await createPreauth(parsed.data.totals.cap_amount_cents);
 
-  const rows = await sql<[{ id: string }]>`
+  // Remove the Neon generic and cast after await to avoid TS “got N args” error
+  const rows = (await sql`
     insert into jobs (
       customer_email, site_label,
       estimate_total_min_cents, estimate_total_max_cents, cap_amount_cents,
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       'scheduled'
     )
     returning id;
-  `;
+  `) as Array<{ id: string }>;
 
   const jobId = rows[0]?.id;
 
