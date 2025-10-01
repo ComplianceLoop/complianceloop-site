@@ -1,8 +1,8 @@
 <!-- CL:START -->
 # ComplianceLoop — Canonical Plan (Generated)
 
-Version: 2025-09-30.1
-Generated: 2025-09-30T15:12:41.502Z
+Version: 2025-09-30.2
+Generated: 2025-10-01T00:20:48.908Z
 
 ## Phases (13)
 - **Design Skin Kit**: Theme tokens, brand, and UI primitives to speed all later pages. — _landed_
