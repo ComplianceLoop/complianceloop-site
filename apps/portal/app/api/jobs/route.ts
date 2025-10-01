@@ -1,7 +1,6 @@
 // apps/portal/app/api/jobs/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
-// Correct paths from app/api/jobs/route.ts → ../../../*
 import { ensureJobTables } from "../../../db/bootstrap.sql";
 import { getSql } from "../../../lib/neon";
 
@@ -37,7 +36,8 @@ async function createPreauth(capAmountCents: number): Promise<StripeIntentResult
   }
 
   const Stripe = (await import("stripe")).default;
-  const stripe = new Stripe(key, { apiVersion: "2024-06-20" });
+  // Omit apiVersion to use library default (avoids TS mismatch)
+  const stripe = new Stripe(key);
 
   const pi = await stripe.paymentIntents.create({
     amount: capAmountCents,
