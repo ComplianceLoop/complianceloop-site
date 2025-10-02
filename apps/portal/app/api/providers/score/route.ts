@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSql } from "@/lib/neon";
+import { getSql } from "../../../../lib/neon";
 
 /**
  * Input schema
@@ -30,16 +30,7 @@ export async function POST(req: Request) {
     const { zip, services, limit } = parsed.data;
     const sql = getSql();
 
-    // Find providers that:
-    //   1) serve the ZIP (prefix match)
-    //   2) have *all* requested services
-    //
-    // Strategy:
-    //   - req(svc) is the set of required services (text[])
-    //   - prov is providers serving the zip (via provider_zips)
-    //   - Keep only providers for which there is NO required svc missing
-    //
-    // NOTE: Neon supports parameterized arrays with `sql.array(services)`.
+    // Find providers that serve the ZIP prefix and have ALL requested services.
     const rows = await sql<{
       id: string;
       company_name: string;
@@ -76,15 +67,10 @@ export async function POST(req: Request) {
     `;
 
     return NextResponse.json(
-      {
-        ok: true,
-        input: { zip, services, limit },
-        candidates: rows,
-      },
+      { ok: true, input: { zip, services, limit }, candidates: rows },
       { status: 200 }
     );
   } catch (err: any) {
-    // Always return JSON so fetch(...).json() never fails with empty body
     return NextResponse.json(
       { ok: false, error: "server_error", message: err?.message ?? "unknown" },
       { status: 500 }
@@ -92,7 +78,10 @@ export async function POST(req: Request) {
   }
 }
 
-// Explicit 405 for GET to avoid accidental browser navigation errors
+// Explicit 405 for GET to avoid accidental navigation hits
 export async function GET() {
-  return NextResponse.json({ ok: false, error: "method_not_allowed" }, { status: 405 });
+  return NextResponse.json(
+    { ok: false, error: "method_not_allowed" },
+    { status: 405 }
+  );
 }
