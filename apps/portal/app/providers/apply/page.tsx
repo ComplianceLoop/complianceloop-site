@@ -1,106 +1,170 @@
-// apps/portal/app/providers/apply/page.tsx
-"use client";
-import { useState } from "react";
+'use client';
 
-const ALL_SERVICES = [
-  { code: "EXIT_SIGN", label: "Exit signs" },
-  { code: "E_LIGHT", label: "Emergency lights" },
-  { code: "EXTINGUISHER", label: "Fire extinguishers" }
-];
+import { useState } from 'react';
+
+type SubmitState =
+  | { status: 'idle' }
+  | { status: 'submitting' }
+  | { status: 'error'; message: string }
+  | { status: 'success'; providerId: string };
 
 export default function ProviderApplyPage() {
-  const [companyName, setCompanyName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [services, setServices] = useState<string[]>([]);
-  const [postalCodes, setPostalCodes] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [res, setRes] = useState<any>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [company, setCompany] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [postal, setPostal] = useState('');
+  const [svcExit, setSvcExit] = useState(true);
+  const [svcLight, setSvcLight] = useState(true);
+  const [svcExt, setSvcExt] = useState(false);
+  const [state, setState] = useState<SubmitState>({ status: 'idle' });
 
-  const toggleService = (code: string) => {
-    setServices((s) => (s.includes(code) ? s.filter((x) => x !== code) : [...s, code]));
-  };
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setState({ status: 'submitting' });
 
-  async function submit() {
-    setBusy(true);
-    setErr(null);
-    setRes(null);
+    const postalCodes = postal
+      .split(/[,\s]+/g)
+      .map((z) => z.trim())
+      .filter(Boolean);
+
+    const services = [
+      svcExit ? 'EXIT_SIGN' : null,
+      svcLight ? 'E_LIGHT' : null,
+      svcExt ? 'EXTINGUISHER' : null,
+    ].filter(Boolean) as string[];
+
+    const payload = {
+      companyName: company.trim(),
+      contactEmail: email.trim(),
+      contactPhone: phone.trim() || undefined,
+      services,
+      postalCodes,
+      country: 'US',
+    };
+
     try {
-      const body = {
-        companyName,
-        contactEmail: email,
-        contactPhone: phone || undefined,
-        services,
-        postalCodes: postalCodes.split(/[\s,]+/).filter(Boolean).slice(0, 50),
-        country: "US"
-      };
-      const r = await fetch("/api/providers/apply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
+      const res = await fetch('/api/providers/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
-      const j = await r.json();
-      if (!r.ok) throw new Error(JSON.stringify(j));
-      setRes(j);
-    } catch (e: any) {
-      setErr(e.message || "submit_failed");
-    } finally {
-      setBusy(false);
+
+      const text = await res.text(); // robust: handle empty body
+      let data: any = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        // keep raw text for error visibility
+      }
+
+      if (!res.ok) {
+        const msg =
+          (data && (data.error || data.message)) ||
+          text ||
+          `${res.status} ${res.statusText}`;
+        setState({ status: 'error', message: String(msg) });
+        return;
+      }
+
+      const providerId = data?.providerId || '(missing id)';
+      setState({ status: 'success', providerId });
+    } catch (err: any) {
+      setState({
+        status: 'error',
+        message: err?.message || 'Network error',
+      });
     }
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">Provider Application</h1>
+    <div className="max-w-3xl mx-auto p-6">
+      <h1 className="text-2xl font-semibold mb-6">Provider Application</h1>
 
-      <div className="rounded-2xl border p-4 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium">Company</label>
-            <input className="w-full rounded-xl border p-2" value={companyName} onChange={e => setCompanyName(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium">Contact email</label>
-            <input className="w-full rounded-xl border p-2" type="email" value={email} onChange={e => setEmail(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium">Phone (optional)</label>
-            <input className="w-full rounded-xl border p-2" value={phone} onChange={e => setPhone(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium">Postal codes (comma or space separated)</label>
-            <input className="w-full rounded-xl border p-2" placeholder="06010 06011 06012" value={postalCodes} onChange={e => setPostalCodes(e.target.value)} />
-          </div>
+      <form onSubmit={onSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="flex flex-col gap-2">
+            <span className="text-sm">Company</span>
+            <input
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              className="rounded-md px-3 py-2 bg-neutral-900 border border-neutral-700"
+              placeholder="Acme Fire"
+              required
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-sm">Contact email</span>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              className="rounded-md px-3 py-2 bg-neutral-900 border border-neutral-700"
+              placeholder="ops+acme@complianceloop.co"
+              required
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-sm">Phone (optional)</span>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="rounded-md px-3 py-2 bg-neutral-900 border border-neutral-700"
+              placeholder="555-0100"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-sm">Postal codes (comma or space separated)</span>
+            <input
+              value={postal}
+              onChange={(e) => setPostal(e.target.value)}
+              className="rounded-md px-3 py-2 bg-neutral-900 border border-neutral-700"
+              placeholder="06010 06011 06012"
+              required
+            />
+          </label>
         </div>
 
-        <div className="space-y-2">
-          <div className="text-sm font-medium">Services</div>
-          <div className="flex flex-wrap gap-3">
-            {ALL_SERVICES.map(s => (
-              <label key={s.code} className="flex items-center gap-2">
-                <input type="checkbox" checked={services.includes(s.code)} onChange={() => toggleService(s.code)} />
-                <span>{s.label}</span>
-              </label>
-            ))}
+        <fieldset className="space-y-2">
+          <legend className="text-sm">Services</legend>
+          <div className="flex items-center gap-6">
+            <label className="inline-flex items-center gap-2">
+              <input type="checkbox" checked={svcExit} onChange={(e) => setSvcExit(e.target.checked)} />
+              <span>Exit signs</span>
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input type="checkbox" checked={svcLight} onChange={(e) => setSvcLight(e.target.checked)} />
+              <span>Emergency lights</span>
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input type="checkbox" checked={svcExt} onChange={(e) => setSvcExt(e.target.checked)} />
+              <span>Fire extinguishers</span>
+            </label>
           </div>
-        </div>
+        </fieldset>
 
-        <div className="flex gap-3">
-          <button className="px-4 py-2 rounded-xl border" onClick={submit} disabled={busy}>
-            {busy ? "Submitting…" : "Submit application"}
-          </button>
-        </div>
+        <button
+          disabled={state.status === 'submitting'}
+          className="rounded-md bg-white/10 px-4 py-2 hover:bg-white/20 disabled:opacity-50"
+          type="submit"
+        >
+          {state.status === 'submitting' ? 'Submitting…' : 'Submit application'}
+        </button>
 
-        {err && <p className="text-red-600 text-sm">{err}</p>}
-        {res && (
-          <div className="rounded-xl border p-3">
-            <div className="font-medium">Application received</div>
-            <div className="text-sm break-all">Provider ID: {res.providerId}</div>
-            <p className="text-sm mt-1">We will email you once approved.</p>
+        {state.status === 'error' && (
+          <p className="text-red-400 text-sm">
+            {state.message}
+          </p>
+        )}
+
+        {state.status === 'success' && (
+          <div className="rounded-md border border-green-700 p-3 text-sm">
+            ✅ Submitted! Provider ID: <code className="font-mono">{state.providerId}</code>
           </div>
         )}
-      </div>
+      </form>
     </div>
   );
 }
