@@ -10,14 +10,13 @@ export const dynamic = "force-dynamic";
 const ReqSchema = z.object({
   customerEmail: z.string().email(),
   siteLabel: z.string().optional().default(""),
-  estimateSource: z.string(), // "examples" | "known_counts" | etc.
+  estimateSource: z.string(),
   exampleKey: z.string().optional().nullable(),
   totals: z.object({
     total_min_cents: z.number().int().nonnegative(),
     total_max_cents: z.number().int().nonnegative(),
     cap_amount_cents: z.number().int().positive()
   }),
-  // Optional items for persistence (service_code, qty, unit price cents)
   items: z
     .array(
       z.object({
@@ -36,7 +35,6 @@ type StripeIntentResult =
 async function createPreauth(capAmountCents: number): Promise<StripeIntentResult> {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) {
-    // Fallback mock for environments without Stripe configured
     return {
       mode: "mock",
       id: `pi_mock_${Math.random().toString(36).slice(2)}`,
@@ -66,22 +64,23 @@ async function createPreauth(capAmountCents: number): Promise<StripeIntentResult
 export async function POST(req: Request) {
   const sql = getSql();
 
-  // Ensure DDL exists (idempotent)
+  // Ensure tables exist (idempotent)
   await sql`${bootstrap}`;
 
   let parsed: z.infer<typeof ReqSchema>;
   try {
-    const body = await req.json();
-    parsed = ReqSchema.parse(body);
+    parsed = ReqSchema.parse(await req.json());
   } catch (err: any) {
-    return NextResponse.json({ ok: false, error: "invalid_request", detail: String(err?.message || err) }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: "invalid_request", detail: String(err?.message || err) },
+      { status: 400 }
+    );
   }
 
-  // Create or mock preauth
   const preauth = await createPreauth(parsed.totals.cap_amount_cents);
 
-  // Insert job
-  const [row] = await sql<{ id: string }>`
+  // Use (text, params[]) form to avoid TS overload complaining about many interpolations
+  const insertJobSql = `
     INSERT INTO jobs (
       customer_email,
       site_label,
@@ -92,32 +91,39 @@ export async function POST(req: Request) {
       cap_amount_cents,
       preauth_mode,
       preauth_id
-    ) VALUES (
-      ${parsed.customerEmail},
-      ${parsed.siteLabel || ""},
-      ${parsed.estimateSource},
-      ${parsed.exampleKey || null},
-      ${parsed.totals.total_min_cents},
-      ${parsed.totals.total_max_cents},
-      ${parsed.totals.cap_amount_cents},
-      ${preauth.mode},
-      ${preauth.id}
-    )
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
     RETURNING id;
   `;
+  const insertParams = [
+    parsed.customerEmail,
+    parsed.siteLabel || "",
+    parsed.estimateSource,
+    parsed.exampleKey || null,
+    parsed.totals.total_min_cents,
+    parsed.totals.total_max_cents,
+    parsed.totals.cap_amount_cents,
+    preauth.mode,
+    preauth.id
+  ];
+  const [row] = await sql<{ id: string }>(insertJobSql, insertParams as any);
 
-  // Optional: persist item rows
+  // Upsert items individually using (text, params[]) form (simpler typing)
   if (parsed.items && parsed.items.length) {
-    const values = parsed.items.map((it) =>
-      sql`(${row.id}, ${it.service_code}, ${it.quantity_estimated}, ${it.unit_price_cents})`
-    );
-    await sql`
+    const upsertItemSql = `
       INSERT INTO job_items (job_id, service_code, quantity_estimated, unit_price_cents)
-      VALUES ${sql.join(values, sql`,`) }
+      VALUES ($1,$2,$3,$4)
       ON CONFLICT (job_id, service_code) DO UPDATE
         SET quantity_estimated = EXCLUDED.quantity_estimated,
             unit_price_cents   = EXCLUDED.unit_price_cents;
     `;
+    for (const it of parsed.items) {
+      await sql(upsertItemSql, [
+        row.id,
+        it.service_code,
+        it.quantity_estimated ?? 0,
+        it.unit_price_cents ?? 0
+      ] as any);
+    }
   }
 
   return NextResponse.json({ ok: true, jobId: row.id, preauth });
