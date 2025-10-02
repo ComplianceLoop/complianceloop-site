@@ -9,9 +9,9 @@ type Body = {
   companyName: string;
   contactEmail: string;
   contactPhone?: string;
-  services: string[]; // e.g., ["EXIT_SIGN","E_LIGHT","EXTINGUISHER"]
-  postalCodes: string[]; // e.g., ["06010","10001"]
-  country?: string; // default US
+  services: string[];     // ["EXIT_SIGN","E_LIGHT","EXTINGUISHER"]
+  postalCodes: string[];  // ["06010","10001"]
+  country?: string;       // default "US"
 };
 
 export async function POST(req: Request) {
@@ -34,30 +34,40 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, errors }, { status: 400 });
   }
 
-  const country = body.country?.toUpperCase() || "US";
+  const country = (body.country ?? "US").toUpperCase();
 
-  // Create provider
-  const [prov] = await sql<
-    { id: string }
-  >`
+  // INSERT provider using (text, params[]) form to satisfy Neon TS overloads
+  const insertProviderSQL = `
     INSERT INTO providers (company_name, contact_email, contact_phone, status)
-    VALUES (${body.companyName}, ${body.contactEmail}, ${body.contactPhone || null}, 'pending')
+    VALUES ($1, $2, $3, 'pending')
     RETURNING id;
   `;
+  const provRows = (await sql(insertProviderSQL, [
+    body.companyName,
+    body.contactEmail,
+    body.contactPhone ?? null
+  ] as any)) as Array<{ id: string }>;
+  const providerId = provRows[0].id;
 
-  // Services
-  const svcValues = body.services.map((s) => sql`(${prov.id}, ${s})`);
-  if (svcValues.length) {
-    await sql`INSERT INTO provider_services (provider_id, service_code) VALUES ${sql.join(svcValues, sql`,`) }
-      ON CONFLICT (provider_id, service_code) DO NOTHING;`;
+  // Services (template with join is fine; low interpolation count per row)
+  if (body.services?.length) {
+    const svcValues = body.services.map((s) => sql`(${providerId}, ${s})`);
+    await sql`
+      INSERT INTO provider_services (provider_id, service_code)
+      VALUES ${sql.join(svcValues, sql`,`)}
+      ON CONFLICT (provider_id, service_code) DO NOTHING;
+    `;
   }
 
-  // Service areas
-  const areaValues = body.postalCodes.map((zip) => sql`(${prov.id}, ${zip}, ${country})`);
-  if (areaValues.length) {
-    await sql`INSERT INTO service_areas (provider_id, postal_code, country) VALUES ${sql.join(areaValues, sql`,`) }
-      ON CONFLICT (provider_id, postal_code, country) DO NOTHING;`;
+  // Service areas (postal codes)
+  if (body.postalCodes?.length) {
+    const areaValues = body.postalCodes.map((zip) => sql`(${providerId}, ${zip}, ${country})`);
+    await sql`
+      INSERT INTO service_areas (provider_id, postal_code, country)
+      VALUES ${sql.join(areaValues, sql`,`)}
+      ON CONFLICT (provider_id, postal_code, country) DO NOTHING;
+    `;
   }
 
-  return NextResponse.json({ ok: true, providerId: prov.id }, { status: 201 });
+  return NextResponse.json({ ok: true, providerId }, { status: 201 });
 }
