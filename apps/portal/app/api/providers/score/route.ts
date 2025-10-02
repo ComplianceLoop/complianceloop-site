@@ -6,10 +6,10 @@ import bootstrap from "../../../../db/bootstrap.sql";
 export const dynamic = "force-dynamic";
 
 /**
- * Very lightweight scoring:
+ * Scoring:
  * - Provider must offer ALL requested services
- * - Postal code must match exactly in service_areas (or you can insert "00000" to mean statewide later)
- * - Score = number of matched services (i.e., requiredServices.length)
+ * - Postal code must match exactly in service_areas
+ * - Score = number of matched services (requiredServices.length)
  */
 type ReqBody = {
   postalCode: string;
@@ -36,34 +36,36 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "postalCode and requiredServices required" }, { status: 400 });
   }
 
-  // Find providers that have all required services AND cover the postal code
-  const rows = await sql<{
+  // Use (text, params[]) form to avoid TS overload issues
+  const q = `
+    WITH candidates AS (
+      SELECT p.id AS provider_id, p.company_name, p.contact_email, p.contact_phone, p.status
+      FROM providers p
+      JOIN service_areas a ON a.provider_id = p.id
+      WHERE a.postal_code = $1 AND p.status IN ('pending','active')
+    ),
+    svc AS (
+      SELECT ps.provider_id, COUNT(*) AS svc_count
+      FROM provider_services ps
+      WHERE ps.service_code = ANY($2)
+      GROUP BY ps.provider_id
+    )
+    SELECT c.provider_id, c.company_name, c.contact_email, c.contact_phone, c.status,
+           COALESCE(s.svc_count,0) AS svc_count
+    FROM candidates c
+    LEFT JOIN svc s ON s.provider_id = c.provider_id
+    WHERE COALESCE(s.svc_count,0) = $3
+    ORDER BY c.status DESC, c.company_name ASC
+    LIMIT $4;
+  `;
+  const rows = (await sql(q, [postal, required, required.length, limit] as any)) as Array<{
     provider_id: string;
     company_name: string;
     contact_email: string;
     contact_phone: string | null;
     status: string;
     svc_count: number;
-  }>`
-    WITH candidates AS (
-      SELECT p.id AS provider_id, p.company_name, p.contact_email, p.contact_phone, p.status
-      FROM providers p
-      JOIN service_areas a ON a.provider_id = p.id
-      WHERE a.postal_code = ${postal} AND p.status IN ('pending','active')
-    ),
-    svc AS (
-      SELECT ps.provider_id, COUNT(*) AS svc_count
-      FROM provider_services ps
-      WHERE ps.service_code = ANY(${required})
-      GROUP BY ps.provider_id
-    )
-    SELECT c.provider_id, c.company_name, c.contact_email, c.contact_phone, c.status, COALESCE(s.svc_count,0) AS svc_count
-    FROM candidates c
-    LEFT JOIN svc s ON s.provider_id = c.provider_id
-    WHERE COALESCE(s.svc_count,0) = ${required.length}
-    ORDER BY c.status DESC, c.company_name ASC
-    LIMIT ${limit};
-  `;
+  }>;
 
   return NextResponse.json({
     ok: true,
