@@ -1,7 +1,6 @@
 // apps/portal/app/api/providers/apply/route.ts
 import { NextResponse } from "next/server";
 import { getSql } from "../../../../lib/neon";
-// Import the raw SQL (string)
 import bootstrap from "../../../../db/bootstrap.sql";
 
 export const dynamic = "force-dynamic";
@@ -10,9 +9,9 @@ type Body = {
   companyName: string;
   contactEmail: string;
   contactPhone?: string;
-  services: string[];     // ["EXIT_SIGN","E_LIGHT","EXTINGUISHER"]
-  postalCodes: string[];  // ["06010","10001"]
-  country?: string;       // default "US"
+  services: string[];
+  postalCodes: string[];
+  country?: string;
 };
 
 function badRequest(msg: string, details?: unknown) {
@@ -46,18 +45,21 @@ export async function POST(req: Request) {
 
   const sql = getSql();
 
-  // ✅ Run bootstrap as raw SQL text (NOT a parameter)
+  // ✅ Run bootstrap as raw SQL text, split by semicolon to avoid "$1" issues
   try {
-    // If your bootstrap.sql contains multiple statements separated by semicolons,
-    // sql.unsafe() will execute them as-is.
-    await sql.unsafe(bootstrap as unknown as string);
+    const statements = String(bootstrap)
+      .split(";")
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+    for (const stmt of statements) {
+      await sql(stmt as any);
+    }
   } catch (err) {
     console.error("bootstrap error", err);
     return serverError("Database bootstrap failed");
   }
 
   try {
-    // Insert provider using params[] to satisfy Neon typing
     const insertProviderSQL = `
       INSERT INTO providers (company_name, contact_email, contact_phone, status)
       VALUES ($1, $2, $3, 'pending')
@@ -75,7 +77,6 @@ export async function POST(req: Request) {
     }
     const providerId = provRows[0].id;
 
-    // Services
     for (const s of services) {
       try {
         await sql(
@@ -90,7 +91,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // Service areas
     for (const zip of postalCodes) {
       try {
         await sql(
