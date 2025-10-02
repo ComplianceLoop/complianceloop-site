@@ -49,24 +49,24 @@ export async function POST(req: Request) {
   ] as any)) as Array<{ id: string }>;
   const providerId = provRows[0].id;
 
-  // Services (template with join is fine; low interpolation count per row)
-  if (body.services?.length) {
-    const svcValues = body.services.map((s) => sql`(${providerId}, ${s})`);
-    await sql`
-      INSERT INTO provider_services (provider_id, service_code)
-      VALUES ${sql.join(svcValues, sql`,`)}
-      ON CONFLICT (provider_id, service_code) DO NOTHING;
-    `;
+  // Insert services one-by-one (ON CONFLICT DO NOTHING)
+  for (const s of body.services) {
+    await sql(
+      `INSERT INTO provider_services (provider_id, service_code)
+       VALUES ($1, $2)
+       ON CONFLICT (provider_id, service_code) DO NOTHING;`,
+      [providerId, s] as any
+    );
   }
 
-  // Service areas (postal codes)
-  if (body.postalCodes?.length) {
-    const areaValues = body.postalCodes.map((zip) => sql`(${providerId}, ${zip}, ${country})`);
-    await sql`
-      INSERT INTO service_areas (provider_id, postal_code, country)
-      VALUES ${sql.join(areaValues, sql`,`)}
-      ON CONFLICT (provider_id, postal_code, country) DO NOTHING;
-    `;
+  // Insert service areas one-by-one (ON CONFLICT DO NOTHING)
+  for (const zip of body.postalCodes) {
+    await sql(
+      `INSERT INTO service_areas (provider_id, postal_code, country)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (provider_id, postal_code, country) DO NOTHING;`,
+      [providerId, zip, country] as any
+    );
   }
 
   return NextResponse.json({ ok: true, providerId }, { status: 201 });
