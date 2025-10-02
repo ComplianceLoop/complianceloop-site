@@ -79,7 +79,7 @@ export async function POST(req: Request) {
 
   const preauth = await createPreauth(parsed.totals.cap_amount_cents);
 
-  // Use (text, params[]) form to avoid TS overload complaining about many interpolations
+  // Use (text, params[]) form; cast result post-await (avoid TS overload)
   const insertJobSql = `
     INSERT INTO jobs (
       customer_email,
@@ -105,9 +105,10 @@ export async function POST(req: Request) {
     preauth.mode,
     preauth.id
   ];
-  const [row] = await sql<{ id: string }>(insertJobSql, insertParams as any);
+  const rows = (await sql(insertJobSql, insertParams as any)) as Array<{ id: string }>;
+  const row = rows[0];
 
-  // Upsert items individually using (text, params[]) form (simpler typing)
+  // Upsert items with (text, params[]) form
   if (parsed.items && parsed.items.length) {
     const upsertItemSql = `
       INSERT INTO job_items (job_id, service_code, quantity_estimated, unit_price_cents)
