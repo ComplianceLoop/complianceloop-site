@@ -4,9 +4,6 @@ import { getSql } from "../../../../lib/neon";
 
 /**
  * Input schema
- *  - zip: 5-digit (we accept a prefix and do LIKE 'zip%')
- *  - services: array of service codes we require
- *  - limit: optional max rows (default 10)
  */
 const BodySchema = z.object({
   zip: z.string().min(3).max(10),
@@ -31,17 +28,19 @@ export async function POST(req: Request) {
     const sql = getSql();
 
     // Find providers that serve the ZIP prefix and have ALL requested services.
+    // We pass `services` as a single Postgres text[] parameter and use = ANY()
+    // plus a distinct count that must equal services.length.
     const rows = await sql<{
       id: string;
       company_name: string;
       email: string | null;
       phone: string | null;
     }>`
-      WITH req AS (
-        SELECT UNNEST(${sql.array(services)}::text[]) AS svc
-      ),
-      prov AS (
-        SELECT p.id, p.company_name, p.contact_email AS email, p.contact_phone AS phone
+      WITH prov AS (
+        SELECT p.id,
+               p.company_name,
+               p.contact_email AS email,
+               p.contact_phone AS phone
         FROM providers p
         JOIN provider_zips z
           ON z.provider_id = p.id
@@ -52,16 +51,12 @@ export async function POST(req: Request) {
              p.email,
              p.phone
       FROM prov p
-      WHERE NOT EXISTS (
-        SELECT 1
-        FROM req r
-        WHERE NOT EXISTS (
-          SELECT 1
-          FROM provider_services s
-          WHERE s.provider_id = p.id
-            AND s.service_code = r.svc
-        )
-      )
+      WHERE (
+        SELECT COUNT(DISTINCT s.service_code)
+        FROM provider_services s
+        WHERE s.provider_id = p.id
+          AND s.service_code = ANY(${services as any}::text[])
+      ) = ${services.length}
       ORDER BY p.company_name ASC
       LIMIT ${limit}
     `;
