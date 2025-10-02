@@ -1,6 +1,7 @@
 // apps/portal/app/api/providers/apply/route.ts
 import { NextResponse } from "next/server";
 import { getSql } from "../../../../lib/neon";
+// Import the raw SQL (string)
 import bootstrap from "../../../../db/bootstrap.sql";
 
 export const dynamic = "force-dynamic";
@@ -45,16 +46,18 @@ export async function POST(req: Request) {
 
   const sql = getSql();
 
-  // Ensure tables exist; if this errors, return a clear message.
+  // ✅ Run bootstrap as raw SQL text (NOT a parameter)
   try {
-    await sql`${bootstrap}`;
+    // If your bootstrap.sql contains multiple statements separated by semicolons,
+    // sql.unsafe() will execute them as-is.
+    await sql.unsafe(bootstrap as unknown as string);
   } catch (err) {
     console.error("bootstrap error", err);
     return serverError("Database bootstrap failed");
   }
 
   try {
-    // INSERT provider (params[] form to satisfy Neon TS)
+    // Insert provider using params[] to satisfy Neon typing
     const insertProviderSQL = `
       INSERT INTO providers (company_name, contact_email, contact_phone, status)
       VALUES ($1, $2, $3, 'pending')
@@ -87,7 +90,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // Areas
+    // Service areas
     for (const zip of postalCodes) {
       try {
         await sql(
@@ -103,10 +106,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, providerId }, { status: 201 });
-  } catch (err: any) {
-    // Catch-all with useful diagnostics
+  } catch (err) {
     console.error("apply route unhandled error", err);
-    // Don’t leak internals; send concise message to client
     return serverError("Unexpected error while creating provider");
   }
 }
