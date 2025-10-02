@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-01.2",
+  "version": "2025-10-01.3",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -125,9 +125,9 @@
         { "id": "db-assets", "title": "Store discovered counts per customer/site & service_code", "status": "done" },
         { "id": "api-quote", "title": "POST /api/jobs/quote → ranges from example buckets", "status": "done" },
         { "id": "ui-checkout", "title": "Checkout: known counts OR pick an example + cap slider + disclosure", "status": "done", "notes": "/book minimal UI shipped" },
-        { "id": "stripe-auth", "title": "Cap preauth: PaymentIntent manual-capture (<7 days) or SetupIntent + day-of preauth", "status": "pending", "notes": "Mock preauth active until STRIPE_SECRET_KEY is set" },
-        { "id": "reconcile", "title": "Tech enters actual counts; final capture; store counts for next time", "status": "done", "notes": "Counts stored; capture later in Phase 10" },
-        { "id": "verify", "title": "Verify: example path works; cap preauth placed; follow-up booking prefilled", "status": "done", "notes": "Quote 200 → Job 200 (mock preauth) → Reconcile 200" }
+        { "id": "stripe-auth", "title": "Cap preauth via PaymentIntent (manual-capture)", "status": "done", "notes": "STRIPE_SECRET_KEY set; test PaymentIntent created and visible in dashboard" },
+        { "id": "reconcile", "title": "Tech enters actual counts; final capture; store counts for next time", "status": "done", "notes": "Counts stored; capture will be finalized in Payments phase" },
+        { "id": "verify", "title": "Verify: example path works; cap preauth placed; counts saved", "status": "done", "notes": "Quote 200 → Job 200 (payment_intent) → Reconcile 200" }
       ]
     }
   },
@@ -149,7 +149,7 @@
         { "label": "Porkbun", "plan": "Domain", "billingInterval": "annual", "amount": 11.08, "status": "active", "notes": "" },
         { "label": "Cal.com", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "not_set_up", "notes": "" },
         { "label": "Make", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "" },
-        { "label": "Stripe", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "not_set_up", "notes": "" },
+        { "label": "Stripe", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "Test mode used for preauth verification" },
         { "label": "Airtable", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "" },
         { "label": "Google Workspace", "plan": "", "billingInterval": "monthly", "amount": 39.6, "status": "active", "notes": "" }
       ],
@@ -207,7 +207,7 @@
         "exists": true,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/jobs/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fjobs%2Froute.ts",
-        "purpose": "Create job draft; Stripe preauth (mock or real)",
+        "purpose": "Create job draft; Stripe preauth (manual-capture)",
         "lastChecked": "2025-10-01"
       },
       {
@@ -246,7 +246,7 @@
   },
   "operationalNotes": {
     "reconcilerProcess": {
-      "summary": "Run once after edits.\nIf Playbook block is stale or it says no changes, reset playbook.md then run once.",
+      "summary": "Run once after edits.\nIf playbook block is stale or it says no changes, reset playbook.md then run once.",
       "normalRun": {
         "commitTitle": "playbook: sync decisions",
         "steps": ["Open links.runReconciler and run it", "Open links.pulls and merge the PR it opens"]
@@ -275,7 +275,7 @@
         { "type": "School (K–8, single building)", "exitSigns": "15–30", "emergencyLights": "20–40", "extinguishers": "15–30" }
       ],
       "capPolicy": "Default cap = upper bound of estimate + 10%. Customer preauthorizes cap; final capture equals actuals. If projected actual > cap, tech/app requests approval before proceeding.",
-      "stripeNotes": "Mock preauth until STRIPE_SECRET_KEY is set. For real charges, set STRIPE_SECRET_KEY, then Phase 10 captures the final amount."
+      "stripeNotes": "Test preauth verified: /api/jobs returns payment_intent and Stripe dashboard shows the matching PI. Capture/void to be implemented in Payments phase."
     }
   },
   "status": {
