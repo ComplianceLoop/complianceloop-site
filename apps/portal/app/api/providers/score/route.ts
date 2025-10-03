@@ -1,7 +1,6 @@
-// apps/portal/app/api/providers/score/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSql } from "../../../../lib/neon"; // ✅ correct relative path
+import { getSql } from "../../../../lib/neon";
 
 const ScoreInput = z.object({
   zip: z.string().min(3).max(10),
@@ -16,7 +15,6 @@ type CandidateRow = {
   phone: string | null;
 };
 
-// POST /api/providers/score
 export async function POST(req: Request) {
   try {
     const json = await req.json().catch(() => ({}));
@@ -31,7 +29,8 @@ export async function POST(req: Request) {
     const { zip, services, limit } = parsed.data;
     const sql = getSql();
 
-    // Positional-parameter SQL to avoid template overload issues
+    // Use IN (SELECT unnest($2::text[])) instead of ANY($2::text[])
+    // to avoid driver/param quirks with array binding.
     const query = `
       WITH prov AS (
         SELECT p.id,
@@ -52,7 +51,7 @@ export async function POST(req: Request) {
         SELECT COUNT(DISTINCT s.service_code)
         FROM provider_services s
         WHERE s.provider_id = p.id
-          AND s.service_code = ANY($2::text[])
+          AND s.service_code IN (SELECT unnest($2::text[]))
       ) = $3
       ORDER BY p.company_name ASC
       LIMIT $4;
@@ -71,8 +70,12 @@ export async function POST(req: Request) {
         phone: r.phone,
       })),
     });
-  } catch (err) {
+  } catch (err: any) {
+    // Temporary: surface detail to logs & response to speed up diagnosis
     console.error("providers/score error:", err);
-    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "server_error", detail: err?.message ?? String(err) },
+      { status: 500 }
+    );
   }
 }
