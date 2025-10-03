@@ -1,6 +1,7 @@
+// apps/portal/app/api/providers/score/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSql } from "../../../lib/neon"; // use relative import to avoid path alias issues
+import { getSql } from "../../../../lib/neon"; // ✅ correct relative path
 
 const ScoreInput = z.object({
   zip: z.string().min(3).max(10),
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
     const { zip, services, limit } = parsed.data;
     const sql = getSql();
 
-    // Use positional parameters ($1..$n) to avoid template-type overload issues
+    // Positional-parameter SQL to avoid template overload issues
     const query = `
       WITH prov AS (
         SELECT p.id,
@@ -63,7 +64,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       input: parsed.data,
-      candidates: rows.map(r => ({
+      candidates: rows.map((r) => ({
         id: r.id,
         companyName: r.company_name,
         email: r.email,
@@ -72,9 +73,6 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     console.error("providers/score error:", err);
-    return NextResponse.json(
-      { ok: false, error: "server_error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
   }
 }
