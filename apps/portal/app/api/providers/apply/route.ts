@@ -1,113 +1,76 @@
 // apps/portal/app/api/providers/apply/route.ts
 import { NextResponse } from "next/server";
-import { getSql } from "../../../../lib/neon";
-import bootstrap from "../../../../db/bootstrap.sql";
+import { getSql } from "../../../lib/neon";
 
-export const dynamic = "force-dynamic";
+const VALID_CODES = new Set(["EXIT_SIGN", "E_LIGHT", "EXTINGUISHER"]);
 
-type Body = {
-  companyName: string;
-  contactEmail: string;
-  contactPhone?: string;
-  services: string[];
-  postalCodes: string[];
-  country?: string;
-};
-
-function badRequest(msg: string, details?: unknown) {
-  return NextResponse.json({ ok: false, error: "bad_request", message: msg, details }, { status: 400 });
-}
-function serverError(msg: string, details?: unknown) {
-  return NextResponse.json({ ok: false, error: "server_error", message: msg, details }, { status: 500 });
+function parseZips(raw?: string): string[] {
+  if (!raw) return [];
+  return raw
+    // allow comma or space separated
+    .split(/[\s,]+/)
+    .map((z) => z.trim())
+    .filter(Boolean)
+    // normalize to 5-digit strings
+    .map((z) => z.padStart(5, "0"))
+    .filter((z) => /^[0-9]{5}$/.test(z));
 }
 
 export async function POST(req: Request) {
-  let body: Body;
-  try {
-    body = await req.json();
-  } catch {
-    return badRequest("Invalid JSON body");
-  }
-
-  const errors: string[] = [];
-  if (!body.companyName || body.companyName.trim().length < 2) errors.push("companyName");
-  if (!body.contactEmail || !body.contactEmail.includes("@")) errors.push("contactEmail");
-  if (!Array.isArray(body.services) || body.services.length === 0) errors.push("services");
-  if (!Array.isArray(body.postalCodes) || body.postalCodes.length === 0) errors.push("postalCodes");
-  if (errors.length) return badRequest("Missing or invalid fields", { fields: errors });
-
-  const companyName = body.companyName.trim();
-  const contactEmail = body.contactEmail.trim();
-  const contactPhone = (body.contactPhone || "").trim() || null;
-  const services = body.services;
-  const postalCodes = body.postalCodes.map((z) => String(z).trim()).filter(Boolean);
-  const country = (body.country ?? "US").toUpperCase();
-
   const sql = getSql();
 
-  // ✅ Run bootstrap as raw SQL text, split by semicolon to avoid "$1" issues
   try {
-    const statements = String(bootstrap)
-      .split(";")
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
-    for (const stmt of statements) {
-      await sql(stmt as any);
-    }
-  } catch (err) {
-    console.error("bootstrap error", err);
-    return serverError("Database bootstrap failed");
-  }
+    const body = await req.json();
 
-  try {
-    const insertProviderSQL = `
+    const companyName: string = (body.companyName ?? body.company ?? "").trim();
+    const contactEmail: string = (body.contactEmail ?? body.email ?? "").trim();
+    const contactPhone: string | null = (body.contactPhone ?? body.phone ?? null)?.toString().trim() || null;
+    const services: string[] = Array.isArray(body.services)
+      ? body.services.filter((s: string) => VALID_CODES.has(s))
+      : [];
+    const zips = parseZips(body.postalCodes ?? body.zipCodes ?? body.postal_codes);
+
+    if (!companyName || !contactEmail || services.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_input" },
+        { status: 400 }
+      );
+    }
+
+    // Insert or update provider (use contact_email as a stable key)
+    const [{ id: providerId }] = await sql<{ id: string }>`
       INSERT INTO providers (company_name, contact_email, contact_phone, status)
-      VALUES ($1, $2, $3, 'pending')
-      RETURNING id;
+      VALUES (${companyName}, ${contactEmail}, ${contactPhone}, 'pending')
+      ON CONFLICT (contact_email) DO UPDATE
+        SET company_name = EXCLUDED.company_name,
+            contact_phone = EXCLUDED.contact_phone
+      RETURNING id
     `;
-    const provRows = (await sql(insertProviderSQL, [
-      companyName,
-      contactEmail,
-      contactPhone
-    ] as any)) as Array<{ id: string }>;
 
-    if (!provRows?.length) {
-      console.error("insert provider returned no rows");
-      return serverError("Failed to create provider");
-    }
-    const providerId = provRows[0].id;
-
-    for (const s of services) {
-      try {
-        await sql(
-          `INSERT INTO provider_services (provider_id, service_code)
-           VALUES ($1, $2)
-           ON CONFLICT (provider_id, service_code) DO NOTHING;`,
-          [providerId, s] as any
-        );
-      } catch (err) {
-        console.error("provider_services insert error", { providerId, s, err });
-        return serverError("Failed to save provider services");
-      }
+    // Upsert selected service codes
+    for (const code of services) {
+      await sql`
+        INSERT INTO provider_services (provider_id, service_code)
+        VALUES (${providerId}, ${code})
+        ON CONFLICT (provider_id, service_code) DO NOTHING
+      `;
     }
 
-    for (const zip of postalCodes) {
-      try {
-        await sql(
-          `INSERT INTO service_areas (provider_id, postal_code, country)
-           VALUES ($1, $2, $3)
-           ON CONFLICT (provider_id, postal_code, country) DO NOTHING;`,
-          [providerId, zip, country] as any
-        );
-      } catch (err) {
-        console.error("service_areas insert error", { providerId, zip, country, err });
-        return serverError("Failed to save service areas");
-      }
+    // Insert ZIP coverage, one row per ZIP (ignore duplicates)
+    for (const zip of zips) {
+      await sql`
+        INSERT INTO provider_zips (provider_id, zip)
+        VALUES (${providerId}, ${zip})
+        ON CONFLICT (provider_id, zip) DO NOTHING
+      `;
     }
 
-    return NextResponse.json({ ok: true, providerId }, { status: 201 });
-  } catch (err) {
-    console.error("apply route unhandled error", err);
-    return serverError("Unexpected error while creating provider");
+    return NextResponse.json({ ok: true, providerId });
+  } catch (err: any) {
+    console.error("providers/apply error", err);
+    return NextResponse.json(
+      { ok: false, error: "server_error" },
+      { status: 500 }
+    );
   }
 }
