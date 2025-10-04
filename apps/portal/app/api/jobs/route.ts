@@ -71,10 +71,10 @@ export async function POST(request: Request) {
     return serverError("Stripe preauth failed", (err as Error)?.message ?? String(err));
   }
 
-  // Insert job row using Neon tagged template (avoids multi-args type errors)
+  // Insert job row using text + array params (Neon signature-friendly)
   let jobId: string;
   try {
-    const rows = await sql<{ id: string }>`
+    const insertJobSql = `
       INSERT INTO jobs (
         customer_email,
         site_label,
@@ -85,40 +85,49 @@ export async function POST(request: Request) {
         example_key,
         preauth_id
       )
-      VALUES (
-        ${body.customerEmail},
-        ${body.siteLabel ?? null},
-        ${body.totals.total_min_cents ?? null},
-        ${body.totals.total_max_cents ?? null},
-        ${body.totals.cap_amount_cents},
-        ${body.estimateSource},
-        ${body.exampleKey ?? null},
-        ${pi.id}
-      )
-      RETURNING id;
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      RETURNING id
     `;
+    const jobParams = [
+      body.customerEmail,
+      body.siteLabel ?? null,
+      body.totals.total_min_cents ?? null,
+      body.totals.total_max_cents ?? null,
+      body.totals.cap_amount_cents,
+      body.estimateSource,
+      body.exampleKey ?? null,
+      pi.id,
+    ];
+
+    const rows = await sql<{ id: string }>(insertJobSql, jobParams);
     jobId = rows[0].id;
   } catch (err) {
     console.error("jobs insert error", err);
     return serverError("Failed to create job row", (err as Error)?.message ?? String(err));
   }
 
-  // Optionally upsert job items (one statement per call for Neon)
+  // Optionally upsert job items (one statement per call for Neon; text + array params)
   try {
     if (Array.isArray(body.items) && body.items.length) {
+      const insertItemSql = `
+        INSERT INTO job_items (
+          job_id, service_code, qty_min, qty_max, unit_price_cents
+        )
+        VALUES ($1,$2,$3,$4,$5)
+        ON CONFLICT (job_id, service_code) DO UPDATE SET
+          qty_min = EXCLUDED.qty_min,
+          qty_max = EXCLUDED.qty_max,
+          unit_price_cents = EXCLUDED.unit_price_cents
+      `;
       for (const it of body.items) {
-        await sql`
-          INSERT INTO job_items (
-            job_id, service_code, qty_min, qty_max, unit_price_cents
-          )
-          VALUES (
-            ${jobId}, ${it.code}, ${it.qty_min}, ${it.qty_max}, ${it.unit_price_cents}
-          )
-          ON CONFLICT (job_id, service_code) DO UPDATE SET
-            qty_min = EXCLUDED.qty_min,
-            qty_max = EXCLUDED.qty_max,
-            unit_price_cents = EXCLUDED.unit_price_cents;
-        `;
+        const itemParams = [
+          jobId,
+          it.code,
+          it.qty_min,
+          it.qty_max,
+          it.unit_price_cents,
+        ];
+        await sql(insertItemSql, itemParams);
       }
     }
   } catch (err) {
