@@ -2,8 +2,8 @@
 import { NextResponse } from "next/server";
 
 /**
- * Self-contained DB helper that avoids any local import path issues.
- * Uses @neondatabase/serverless directly and allows executing raw SQL.
+ * Self-contained DB helper that avoids local import path issues.
+ * Uses @neondatabase/serverless directly and executes raw SQL.
  */
 async function getExec() {
   const { neon, neonConfig } = await import("@neondatabase/serverless");
@@ -15,7 +15,7 @@ async function getExec() {
     process.env.DATABASE_URL ||
     process.env.NEON_DATABASE_URL ||
     process.env.POSTGRES_URL ||
-    process.env.POSTGRES_PRISMA_URL; // try a few common names
+    process.env.POSTGRES_PRISMA_URL;
 
   if (!conn) {
     throw new Error(
@@ -25,11 +25,11 @@ async function getExec() {
 
   const sql = neon(conn);
 
-  // neon() returns a tagged template; .unsafe lets us run arbitrary text
+  // Execute a single SQL statement (no params)
   const exec = async (text: string) => {
     const q = text.trim().replace(/;$/, "");
     if (!q) return;
-    await (sql as any).unsafe(q);
+    await (sql as any)(q); // <-- call client directly (no .unsafe)
   };
 
   return { exec };
@@ -59,7 +59,7 @@ const MIGRATIONS: string[] = [
      PRIMARY KEY (provider_id, service_code)
    )`,
 
-  // Provider ZIP coverage (the missing relation from logs)
+  // Provider ZIP coverage
   `CREATE TABLE IF NOT EXISTS provider_zips (
      provider_id UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
      zip         TEXT NOT NULL CHECK (zip ~ '^[0-9]{5}$'),
@@ -95,7 +95,7 @@ export async function GET() {
   }
 }
 
-// HEAD for a quick health check (optional)
+// Optional: quick health check
 export async function HEAD() {
   const res = await GET();
   return new NextResponse(null, { status: (res as any)?.status ?? 200 });
