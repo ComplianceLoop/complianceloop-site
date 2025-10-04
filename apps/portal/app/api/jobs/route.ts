@@ -1,7 +1,7 @@
 // apps/portal/app/api/jobs/route.ts
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { getSql } from "../../../lib/neon"; // correct relative path from /app/api/jobs/route.ts
+import { exec } from "../../../lib/neon";
 
 type Totals = {
   total_min_cents?: number | null;
@@ -33,30 +33,22 @@ function serverError(message: string, detail?: unknown) {
 }
 
 export async function POST(request: Request) {
-  const sql = getSql();
-
-  // Parse+validate input
+  // 1) Parse & validate
   let body: CreateJobBody;
   try {
     body = (await request.json()) as CreateJobBody;
   } catch {
     return badRequest();
   }
-
-  if (
-    !body?.customerEmail ||
-    !body?.totals ||
-    typeof body.totals.cap_amount_cents !== "number"
-  ) {
+  if (!body?.customerEmail || !body?.totals || typeof body.totals.cap_amount_cents !== "number") {
     return badRequest();
   }
 
-  // Create Stripe PaymentIntent for the cap amount (preauth-like)
+  // 2) Create Stripe PaymentIntent (cap-style preauth)
   let pi: Stripe.Response<Stripe.PaymentIntent>;
   try {
     const secret = process.env.STRIPE_SECRET_KEY;
     if (!secret) throw new Error("Missing STRIPE_SECRET_KEY");
-
     const stripe = new Stripe(secret, { apiVersion: "2024-06-20" } as any);
     pi = await stripe.paymentIntents.create({
       amount: body.totals.cap_amount_cents,
@@ -71,7 +63,7 @@ export async function POST(request: Request) {
     return serverError("Stripe preauth failed", (err as Error)?.message ?? String(err));
   }
 
-  // Insert job row using text + array params (Neon signature-friendly)
+  // 3) Insert job row using exec(text, params[])
   let jobId: string;
   try {
     const insertJobSql = `
@@ -98,15 +90,14 @@ export async function POST(request: Request) {
       body.exampleKey ?? null,
       pi.id,
     ];
-
-    const rows = await sql<{ id: string }>(insertJobSql, jobParams);
+    const rows = await exec<{ id: string }>(insertJobSql, jobParams);
     jobId = rows[0].id;
   } catch (err) {
     console.error("jobs insert error", err);
     return serverError("Failed to create job row", (err as Error)?.message ?? String(err));
   }
 
-  // Optionally upsert job items (one statement per call for Neon; text + array params)
+  // 4) Upsert items (each call uses exec with params[])
   try {
     if (Array.isArray(body.items) && body.items.length) {
       const insertItemSql = `
@@ -120,19 +111,11 @@ export async function POST(request: Request) {
           unit_price_cents = EXCLUDED.unit_price_cents
       `;
       for (const it of body.items) {
-        const itemParams = [
-          jobId,
-          it.code,
-          it.qty_min,
-          it.qty_max,
-          it.unit_price_cents,
-        ];
-        await sql(insertItemSql, itemParams);
+        await exec(insertItemSql, [jobId, it.code, it.qty_min, it.qty_max, it.unit_price_cents]);
       }
     }
   } catch (err) {
     console.error("job_items upsert error", err);
-    // Not fatal for the job itself — return success with a warning
     return NextResponse.json(
       {
         ok: true,
@@ -149,7 +132,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Success response
+  // 5) Done
   return NextResponse.json(
     {
       ok: true,
