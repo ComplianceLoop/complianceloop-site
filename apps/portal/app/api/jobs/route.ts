@@ -43,7 +43,11 @@ export async function POST(request: Request) {
     return badRequest();
   }
 
-  if (!body?.customerEmail || !body?.totals || typeof body.totals.cap_amount_cents !== "number") {
+  if (
+    !body?.customerEmail ||
+    !body?.totals ||
+    typeof body.totals.cap_amount_cents !== "number"
+  ) {
     return badRequest();
   }
 
@@ -67,7 +71,7 @@ export async function POST(request: Request) {
     return serverError("Stripe preauth failed", (err as Error)?.message ?? String(err));
   }
 
-  // Insert job row using Neon tagged template (avoids the multi-args type error)
+  // Insert job row using Neon tagged template (avoids multi-args type errors)
   let jobId: string;
   try {
     const rows = await sql<{ id: string }>`
