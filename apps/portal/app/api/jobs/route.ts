@@ -1,14 +1,11 @@
 // apps/portal/app/api/jobs/route.ts
 import { NextResponse } from "next/server";
-import StripeType from "stripe";
-import { getSql } from "../../../lib/neon"; // relative to apps/portal/app/api/jobs/route.ts
-
-// NOTE: Do NOT import raw .sql files here. Webpack will try to parse them as JS and fail.
-// All bootstrapping should live in /apps/portal/db/bootstrap.sql and be executed server-side on cold start.
+import Stripe from "stripe";
+import { getSql } from "../../../lib/neon"; // correct relative path from /app/api/jobs/route.ts
 
 type Totals = {
-  total_min_cents: number;
-  total_max_cents: number;
+  total_min_cents?: number | null;
+  total_max_cents?: number | null;
   cap_amount_cents: number;
 };
 
@@ -21,13 +18,16 @@ type Item = {
 
 type CreateJobBody = {
   customerEmail: string;
-  siteLabel?: string;
+  siteLabel?: string | null;
   estimateSource: string;
   exampleKey?: string | null;
   items?: Item[];
   totals: Totals;
 };
 
+function badRequest(message = "bad_request") {
+  return NextResponse.json({ ok: false, error: message }, { status: 400 });
+}
 function serverError(message: string, detail?: unknown) {
   return NextResponse.json({ ok: false, error: "server_error", message, detail }, { status: 500 });
 }
@@ -35,59 +35,72 @@ function serverError(message: string, detail?: unknown) {
 export async function POST(request: Request) {
   const sql = getSql();
 
+  // Parse+validate input
   let body: CreateJobBody;
   try {
     body = (await request.json()) as CreateJobBody;
   } catch {
-    return NextResponse.json({ ok: false, error: "bad_request" }, { status: 400 });
+    return badRequest();
   }
 
-  // Basic validation (lightweight on purpose)
   if (!body?.customerEmail || !body?.totals || typeof body.totals.cap_amount_cents !== "number") {
-    return NextResponse.json({ ok: false, error: "bad_request" }, { status: 400 });
+    return badRequest();
   }
 
-  // 1) Create a Stripe PaymentIntent for the cap (pre-auth style hold)
-  //    In test/sandbox this will remain `requires_payment_method` until you attach a test card.
+  // Create Stripe PaymentIntent for the cap amount (preauth-like)
+  let pi: Stripe.Response<Stripe.PaymentIntent>;
   try {
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
-    if (!stripeKey) throw new Error("Missing STRIPE_SECRET_KEY env var");
+    const secret = process.env.STRIPE_SECRET_KEY;
+    if (!secret) throw new Error("Missing STRIPE_SECRET_KEY");
 
-    const Stripe = StripeType as unknown as typeof StripeType;
-    const stripe = new Stripe(stripeKey, { apiVersion: "2024-06-20" as any });
-
-    const pi = await stripe.paymentIntents.create({
+    const stripe = new Stripe(secret, { apiVersion: "2024-06-20" } as any);
+    pi = await stripe.paymentIntents.create({
       amount: body.totals.cap_amount_cents,
       currency: "usd",
-      // You can attach metadata you want to see in the dashboard:
       metadata: {
         source: "complianceloop_portal",
         estimate_source: body.estimateSource ?? "",
       },
     });
+  } catch (err) {
+    console.error("stripe preauth error", err);
+    return serverError("Stripe preauth failed", (err as Error)?.message ?? String(err));
+  }
 
-    // 2) Insert the job row
-    const [jobRow] = await sql<{ id: string }>`
+  // Insert job row using Neon tagged template (avoids the multi-args type error)
+  let jobId: string;
+  try {
+    const rows = await sql<{ id: string }>`
       INSERT INTO jobs (
         customer_email,
         site_label,
+        total_min_cents,
+        total_max_cents,
         cap_amount_cents,
         estimate_source,
-        stripe_pi_id
+        example_key,
+        preauth_id
       )
       VALUES (
         ${body.customerEmail},
         ${body.siteLabel ?? null},
+        ${body.totals.total_min_cents ?? null},
+        ${body.totals.total_max_cents ?? null},
         ${body.totals.cap_amount_cents},
         ${body.estimateSource},
+        ${body.exampleKey ?? null},
         ${pi.id}
       )
       RETURNING id;
     `;
+    jobId = rows[0].id;
+  } catch (err) {
+    console.error("jobs insert error", err);
+    return serverError("Failed to create job row", (err as Error)?.message ?? String(err));
+  }
 
-    const jobId = jobRow.id;
-
-    // 3) Upsert items, if provided (safe to skip)
+  // Optionally upsert job items (one statement per call for Neon)
+  try {
     if (Array.isArray(body.items) && body.items.length) {
       for (const it of body.items) {
         await sql`
@@ -104,8 +117,9 @@ export async function POST(request: Request) {
         `;
       }
     }
-
-    // 4) Respond
+  } catch (err) {
+    console.error("job_items upsert error", err);
+    // Not fatal for the job itself — return success with a warning
     return NextResponse.json(
       {
         ok: true,
@@ -116,11 +130,24 @@ export async function POST(request: Request) {
           client_secret: pi.client_secret ?? null,
           status: pi.status,
         },
+        warning: "items_upsert_failed",
       },
       { status: 200 }
     );
-  } catch (err) {
-    console.error("jobs/create error", err);
-    return serverError("Failed to create job", (err as Error)?.message ?? String(err));
   }
+
+  // Success response
+  return NextResponse.json(
+    {
+      ok: true,
+      jobId,
+      preauth: {
+        mode: "payment_intent",
+        id: pi.id,
+        client_secret: pi.client_secret ?? null,
+        status: pi.status,
+      },
+    },
+    { status: 200 }
+  );
 }
