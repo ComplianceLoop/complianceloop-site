@@ -1,72 +1,72 @@
 // apps/portal/app/api/providers/bootstrap/route.ts
 import { NextResponse } from "next/server";
-import { getSql } from "../../../../lib/neon";
+import { getSql } from "@/lib/neon";
 
 /**
- * This route initializes the minimal tables needed by the provider flows.
- * IMPORTANT: We DO NOT import any .sql files here. Each statement is executed
- * separately to avoid multi-statement + loader issues in serverless builds.
+ * Idempotent bootstrap for provider onboarding.
+ * - NO raw .sql imports (avoids build-time loaders)
+ * - Executes a small set of CREATE IF NOT EXISTS statements
+ * - Safe to run repeatedly (preview/prod)
  */
 
-function ok(data: unknown = { ok: true }) {
-  return NextResponse.json(data, { status: 200 });
-}
-function fail(message: string, detail?: unknown) {
-  return NextResponse.json({ ok: false, error: "server_error", message, detail }, { status: 500 });
-}
+const MIGRATIONS: string[] = [
+  // Helpful extension for UUID default (safe on Neon/Postgres)
+  `CREATE EXTENSION IF NOT EXISTS pgcrypto`,
 
-export async function POST() {
-  const sql = getSql();
+  // Providers (minimal shape for onboarding)
+  `CREATE TABLE IF NOT EXISTS providers (
+     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+     company_name TEXT NOT NULL,
+     contact_email TEXT NOT NULL,
+     contact_phone TEXT,
+     status TEXT NOT NULL DEFAULT 'pending'
+   )`,
 
+  // Which services a provider supports
+  `CREATE TABLE IF NOT EXISTS provider_services (
+     provider_id UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+     service_code TEXT NOT NULL,
+     PRIMARY KEY (provider_id, service_code)
+   )`,
+
+  // ZIP coverage per provider (THIS is the missing table)
+  `CREATE TABLE IF NOT EXISTS provider_zips (
+     provider_id UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+     zip TEXT NOT NULL CHECK (zip ~ '^[0-9]{5}$'),
+     PRIMARY KEY (provider_id, zip)
+   )`,
+
+  // Helpful indexes
+  `CREATE INDEX IF NOT EXISTS idx_provider_services_code ON provider_services (service_code)`,
+  `CREATE INDEX IF NOT EXISTS idx_provider_zips_zip ON provider_zips (zip)`,
+  `CREATE INDEX IF NOT EXISTS idx_provider_zips_provider_id ON provider_zips (provider_id)`
+];
+
+export async function GET() {
   try {
-    // Extension helper; safe to attempt each deploy
-    await sql`
-      CREATE EXTENSION IF NOT EXISTS pgcrypto;
-    `;
+    const { exec } = await getSql();
 
-    // Base providers table (minimal columns used by the app)
-    await sql`
-      CREATE TABLE IF NOT EXISTS providers (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        company_name TEXT NOT NULL,
-        contact_email TEXT NOT NULL,
-        contact_phone TEXT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-      );
-    `;
+    // Execute statements one-by-one; all are idempotent.
+    let applied = 0;
+    for (const stmt of MIGRATIONS) {
+      const s = stmt.trim().replace(/;$/, "");
+      if (!s) continue;
+      await exec(s, []);
+      applied += 1;
+    }
 
-    // Provider service capabilities (composite PK)
-    await sql`
-      CREATE TABLE IF NOT EXISTS provider_services (
-        provider_id UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
-        service_code TEXT NOT NULL,
-        PRIMARY KEY (provider_id, service_code)
-      );
-    `;
-
-    // Provider ZIP coverage (composite PK + validation)
-    await sql`
-      CREATE TABLE IF NOT EXISTS provider_zips (
-        provider_id UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
-        zip TEXT NOT NULL CHECK (zip ~ '^[0-9]{5}$'),
-        PRIMARY KEY (provider_id, zip)
-      );
-    `;
-
-    // Helpful indexes for lookups
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_provider_zips_zip
-      ON provider_zips (zip);
-    `;
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_provider_zips_provider
-      ON provider_zips (provider_id);
-    `;
-
-    return ok({ ok: true, created: ["providers", "provider_services", "provider_zips"] });
-  } catch (err) {
-    console.error("providers/bootstrap error", err);
-    return fail("Bootstrap failed", (err as Error)?.message ?? String(err));
+    return NextResponse.json({ ok: true, applied });
+  } catch (err: any) {
+    console.error("bootstrap error", err);
+    return NextResponse.json(
+      { ok: false, error: "bootstrap_failed", detail: err?.message ?? String(err) },
+      { status: 500 }
+    );
   }
+}
+
+// Optional HEAD for quick health-checks (same result code as GET)
+export async function HEAD() {
+  const res = await GET();
+  return new NextResponse(null, { status: (res as any)?.status ?? 200 });
 }
