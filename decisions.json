@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-04.1",
+  "version": "2025-10-05.1",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -62,7 +62,7 @@
       "notes": [
         "Provider application form posts to /api/providers/apply.",
         "provider_zips table added (idempotent bootstrap) and populated from application ZIPs.",
-        "Next to implement: POST /api/providers/score (zip + services) with ordering by status DESC, company_name ASC."
+        "Implemented: POST /api/providers/score (zip + services). Ordering: status (active > approved > pending), then company_name ASC; limit 100."
       ]
     },
     {
@@ -130,7 +130,7 @@
       "tasks": [
         { "id": "bootstrap", "title": "DB bootstrap creates providers, provider_services, provider_zips", "status": "implemented" },
         { "id": "apply", "title": "POST /api/providers/apply (upsert services + ZIP rows)", "status": "implemented" },
-        { "id": "score", "title": "POST /api/providers/score (zip + services, sorted)", "status": "pending" }
+        { "id": "score", "title": "POST /api/providers/score (zip + services, sorted)", "status": "implemented" }
       ]
     }
   },
@@ -169,7 +169,9 @@
     "pulls": "https://github.com/ComplianceLoop/complianceloop-site/pulls",
     "vercelEnv": "https://vercel.com/compliance-loop/complianceloop-portal/settings/environment-variables",
     "vercelDeployments": "https://vercel.com/compliance-loop/complianceloop-portal/deployments",
-    "handoffPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.md"
+    "handoffPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.md",
+    "scoreRoute": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/score/route.ts",
+    "eligibilityLib": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/lib/eligibility.ts"
   },
   "fileActions": {
     "policy": "Use EDIT links if file exists; otherwise use CREATE links.",
@@ -229,6 +231,22 @@
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fdb%2Fbootstrap.sql",
         "purpose": "DDL mirror of provider tables/indexes (idempotent)",
         "lastChecked": "2025-10-04"
+      },
+      {
+        "path": "apps/portal/app/api/providers/score/route.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/score/route.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fscore%2Froute.ts",
+        "purpose": "Eligibility scoring endpoint",
+        "lastChecked": "2025-10-05"
+      },
+      {
+        "path": "apps/portal/lib/eligibility.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/lib/eligibility.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Flib%2Feligibility.ts",
+        "purpose": "Eligibility helpers (validation, status ranking)",
+        "lastChecked": "2025-10-05"
       }
     ]
   },
@@ -277,7 +295,7 @@
         { "name": "Bootstrap", "method": "GET", "path": "/api/providers/bootstrap" },
         { "name": "Provider Apply (UI)", "method": "POST-via-form", "path": "/providers/apply" },
         { "name": "Provider Apply (API)", "method": "POST", "path": "/api/providers/apply" },
-        { "name": "Provider Score (next)", "method": "POST", "path": "/api/providers/score" }
+        { "name": "Provider Score (implemented)", "method": "POST", "path": "/api/providers/score" }
       ],
       "decisions": [
         "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any .unsafe/sql.join/sql.array usage.",
