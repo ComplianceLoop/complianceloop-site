@@ -1,8 +1,8 @@
 <!-- CL:START -->
 # ComplianceLoop — Canonical Plan (Generated)
 
-Version: 2025-10-04.0
-Generated: 2025-10-05T01:34:54.406Z
+Version: 2025-10-04.1
+Generated: 2025-10-05T02:15:22.593Z
 
 ## Phases (13)
 - **Design Skin Kit**: Theme tokens, brand, and UI primitives to speed all later pages. — _landed_
@@ -17,7 +17,7 @@ Generated: 2025-10-05T01:34:54.406Z
 - **Payments & invoices**: Invoice links and settlement (minimal MVP).
 - **Notifications (email/SMS)**: Resend email events; SMS optional later.
 - **Admin console**: Search jobs/providers; manual override tools.
-- **Polish & launch**: SEO, a11y, rate limits, QA.
+- **Polish & launch**: SEO, accessibility, rate limits, QA.
 
 ## Finances (summary)
 - One-time total: $395.00
