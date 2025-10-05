@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-04.0",
+  "version": "2025-10-04.1",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -23,7 +23,7 @@
       "phase": "Files & Certificates (R2)",
       "objective": "Private file storage with signed streaming.",
       "deliverables": ["/api/files/upload", "/api/files/:key", "R2 bucket + IAM"],
-      "acceptance": ["Upload from provider portal → 200 r2Key", "Authorized GET streams; unauthorized 403"],
+      "acceptance": ["Upload returns 200 and r2Key", "Authorized GET streams 200; unauthorized 403"],
       "status": "landed",
       "landedAt": "2025-09-29",
       "notes": [
@@ -48,16 +48,22 @@
       "status": "landed",
       "landedAt": "2025-10-03",
       "notes": [
-        "Provider intake groundwork exists (tables + endpoints) and will feed eligibility."
+        "Stripe preauth flow verified (mock + live).",
+        "Jobs endpoints in place and green."
       ]
     },
     {
       "phase": "Provider directory & eligibility",
       "objective": "Eligibility rules + instant decision.",
-      "deliverables": ["criteria engine", "provider onboarding form", "How-to-qualify guidance"],
-      "acceptance": ["Pass/fail immediate", "Declined path shows guidance"],
+      "deliverables": ["criteria engine", "provider onboarding form", "how-to-qualify guidance", "provider scoring endpoint"],
+      "acceptance": ["Pass/fail immediate", "Declined path shows guidance", "Scoring endpoint returns eligible providers"],
       "status": "in_progress",
-      "startedAt": "2025-10-04"
+      "startedAt": "2025-10-04",
+      "notes": [
+        "Provider application form posts to /api/providers/apply.",
+        "provider_zips table added (idempotent bootstrap) and populated from application ZIPs.",
+        "Next to implement: POST /api/providers/score (zip + services) with ordering by status DESC, company_name ASC."
+      ]
     },
     {
       "phase": "Assignment engine",
@@ -97,7 +103,7 @@
     },
     {
       "phase": "Polish & launch",
-      "objective": "SEO, a11y, rate limits, QA.",
+      "objective": "SEO, accessibility, rate limits, QA.",
       "deliverables": ["schema.org Business markup", "robots, sitemaps", "basic rate limiting"],
       "acceptance": ["Lighthouse >=90", "No PII leaks", "Runbook updated"]
     }
@@ -122,9 +128,9 @@
     },
     "Provider directory & eligibility": {
       "tasks": [
-        { "id": "criteria-engine", "title": "Eligibility criteria engine", "status": "pending" },
-        { "id": "onboarding-form", "title": "Provider onboarding form", "status": "pending" },
-        { "id": "guidance", "title": "How-to-qualify guidance", "status": "pending" }
+        { "id": "bootstrap", "title": "DB bootstrap creates providers, provider_services, provider_zips", "status": "implemented" },
+        { "id": "apply", "title": "POST /api/providers/apply (upsert services + ZIP rows)", "status": "implemented" },
+        { "id": "score", "title": "POST /api/providers/score (zip + services, sorted)", "status": "pending" }
       ]
     }
   },
@@ -199,6 +205,30 @@
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fairtable-sync.yml",
         "purpose": "CI workflow for Airtable sync",
         "lastChecked": "2025-10-04"
+      },
+      {
+        "path": "apps/portal/app/api/providers/bootstrap/route.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/bootstrap/route.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fbootstrap%2Froute.ts",
+        "purpose": "Idempotent DDL: providers, provider_services, provider_zips + indexes",
+        "lastChecked": "2025-10-04"
+      },
+      {
+        "path": "apps/portal/app/api/providers/apply/route.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/apply/route.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fapply%2Froute.ts",
+        "purpose": "Create provider; upsert services; insert ZIP coverage rows",
+        "lastChecked": "2025-10-04"
+      },
+      {
+        "path": "apps/portal/db/bootstrap.sql",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/db/bootstrap.sql",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fdb%2Fbootstrap.sql",
+        "purpose": "DDL mirror of provider tables/indexes (idempotent)",
+        "lastChecked": "2025-10-04"
       }
     ]
   },
@@ -234,23 +264,24 @@
       "note": "Set in Vercel (routes) and GitHub Actions (workflow). Never commit secrets."
     },
     "providerIntake": {
-      "summary": "Provider intake & coverage groundwork contributed by recent work.",
+      "summary": "Provider intake + coverage captured and verified.",
       "schema": {
         "tables": [
           { "name": "providers", "pk": ["id"], "columns": { "id": "uuid primary key", "company_name": "text not null", "contact_email": "text not null", "contact_phone": "text", "status": "text not null default 'pending'" } },
           { "name": "provider_services", "pk": ["provider_id", "service_code"], "columns": { "provider_id": "uuid not null references providers(id) on delete cascade", "service_code": "text not null" }, "indexes": [ { "name": "idx_provider_services_service_code", "columns": ["service_code"] } ] },
           { "name": "provider_zips", "pk": ["provider_id", "zip"], "columns": { "provider_id": "uuid not null references providers(id) on delete cascade", "zip": "text not null check (zip ~ '^[0-9]{5}$')" }, "indexes": [ { "name": "idx_provider_zips_zip", "columns": ["zip"] }, { "name": "idx_provider_zips_provider_id", "columns": ["provider_id"] } ] }
-        ]
+        ],
+        "serviceCodes": ["EXIT_SIGN", "E_LIGHT", "EXTINGUISHERS"]
       },
       "endpoints": [
         { "name": "Bootstrap", "method": "GET", "path": "/api/providers/bootstrap" },
         { "name": "Provider Apply (UI)", "method": "POST-via-form", "path": "/providers/apply" },
         { "name": "Provider Apply (API)", "method": "POST", "path": "/api/providers/apply" },
-        { "name": "Provider Score (planned)", "method": "POST", "path": "/api/providers/score" }
+        { "name": "Provider Score (next)", "method": "POST", "path": "/api/providers/score" }
       ],
-      "notes": [
-        "Neon inline import recommended: @neondatabase/serverless; construct sql per route.",
-        "Prefer idempotent SQL for bootstrap (CREATE IF NOT EXISTS; ON CONFLICT DO NOTHING)."
+      "decisions": [
+        "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any .unsafe/sql.join/sql.array usage.",
+        "Idempotent DDL: CREATE TABLE IF NOT EXISTS, ON CONFLICT DO NOTHING for multi-row inserts."
       ]
     }
   },
