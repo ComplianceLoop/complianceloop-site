@@ -1,290 +1,161 @@
 {
-  "version": "2025-10-01.3",
-  "currentPhase": "Provider directory & eligibility",
-  "phases": [
-    {
-      "phase": "Design Skin Kit",
-      "objective": "Theme tokens, brand, and UI primitives to speed all later pages.",
-      "deliverables": ["theme.ts tokens", "globals.css", "Button/Input/Card", "/design-playground"],
-      "acceptance": ["Preview renders", "Tokens adjustable with hot reload"],
-      "status": "landed",
-      "landedAt": "2025-09-27"
+  "version": 6,
+  "updatedAt": "2025-10-03T00:00:00Z",
+  "scope": "apps/portal",
+  "summary": {
+    "status": "phase-in-progress",
+    "notes": [
+      "DB bootstrap route live and idempotent: /api/providers/bootstrap",
+      "Provider application route live: /api/providers/apply",
+      "Provider UI page live: /providers/apply",
+      "Next: implement provider scoring route: POST /api/providers/score"
+    ]
+  },
+  "rules": {
+    "houseFormat": {
+      "fullFileReplacementsOnly": true,
+      "includeClickableEditorLinks": true,
+      "verificationStepsRequired": true,
+      "avoidPathAliasesForInfra": true
     },
-    {
-      "phase": "Auth + DB base",
-      "objective": "Neon and Drizzle schema, passwordless email code, sessions.",
-      "deliverables": ["/api/auth/send-code", "/api/auth/verify-code", "users and sessions tables"],
-      "acceptance": ["Vercel env DATABASE_URL set", "Auth code roundtrip works", "Dashboard gate honors session"],
-      "status": "landed",
-      "landedAt": "2025-09-26",
-      "verification": ["DATABASE_URL set", "send-code 200", "verify-code 200 (session issued)"]
+    "sql": {
+      "idempotent": true,
+      "patterns": [
+        "CREATE TABLE IF NOT EXISTS",
+        "CREATE INDEX IF NOT EXISTS",
+        "INSERT ... ON CONFLICT DO NOTHING"
+      ]
     },
-    {
-      "phase": "Files & Certificates (R2)",
-      "objective": "Private file storage with signed streaming.",
-      "deliverables": ["/api/files/upload", "/api/files/:key", "R2 bucket and IAM"],
-      "acceptance": ["Upload returns 200 and r2Key", "Authorized GET streams 200; unauthorized 403"],
-      "status": "in_progress",
-      "startedAt": "2025-09-27"
-    },
-    {
-      "phase": "Airtable bridge (hybrid)",
-      "objective": "Mirror critical records for ops; Neon remains source of record.",
-      "deliverables": ["sync script", "cron", "idempotent mapping"],
-      "acceptance": ["One-way sync green in CI", "Backfill job OK"],
-      "status": "landed",
-      "startedAt": "2025-09-30",
-      "landedAt": "2025-09-30"
-    },
-    {
-      "phase": "Job model + booking skeleton",
-      "objective": "Booking wizard and soft hold creation.",
-      "deliverables": ["/book wizard", "create Job draft API", "Soft-hold service"],
-      "acceptance": [
-        "Checkout supports known counts OR example-based estimate (no survey)",
-        "Cap preauth placed; final capture on reconciliation",
-        "Tech records actual counts; stored for future prefill"
+    "neon": {
+      "package": "@neondatabase/serverless",
+      "importPattern": "import { neon } from '@neondatabase/serverless'; const sql = neon(process.env.DATABASE_URL!);",
+      "disallowed": [
+        "sql.unsafe",
+        "sql.join",
+        "sql.array"
       ],
-      "status": "landed",
-      "startedAt": "2025-10-01",
-      "landedAt": "2025-10-01"
-    },
-    {
-      "phase": "Provider directory & eligibility",
-      "objective": "Eligibility rules and instant decision.",
-      "deliverables": ["criteria engine", "provider onboarding form", "how to qualify guidance"],
-      "acceptance": ["Pass or fail immediate", "Declined path shows guidance"],
-      "status": "in_progress",
-      "startedAt": "2025-10-01"
-    },
-    {
-      "phase": "Assignment engine",
-      "objective": "First accept wins with 15m soft hold and single eligible auto assign.",
-      "deliverables": ["offer broadcast", "accept endpoint", "cascade logic"],
-      "acceptance": ["Race handled; winner locks; cascade on timeout or decline"]
-    },
-    {
-      "phase": "Customer dashboard",
-      "objective": "List past and upcoming jobs plus files and invoices.",
-      "deliverables": ["dashboard pages", "job detail route"],
-      "acceptance": ["Auth required", "Documents stream correctly"]
-    },
-    {
-      "phase": "Provider dashboard",
-      "objective": "Job queue, day of checklist, conflict report, tech email routing.",
-      "deliverables": ["checklist form", "conflict endpoint", "email routing field"],
-      "acceptance": ["Late submission possible", "Conflict auto cascade"]
-    },
-    {
-      "phase": "Payments & invoices",
-      "objective": "Invoice links and settlement minimal MVP.",
-      "deliverables": ["invoice record", "link on job page"],
-      "acceptance": ["Invoices viewable; payments later via toggle"]
-    },
-    {
-      "phase": "Notifications (email/SMS)",
-      "objective": "Resend email events; SMS optional later.",
-      "deliverables": ["templates", "event triggers"],
-      "acceptance": ["Email on accept, conflict, ready to download"]
-    },
-    {
-      "phase": "Admin console",
-      "objective": "Search jobs and providers; manual override tools.",
-      "deliverables": ["admin routes", "impersonate guarded"],
-      "acceptance": ["Admin only gate", "Audit trail"]
-    },
-    {
-      "phase": "Polish & launch",
-      "objective": "SEO, accessibility, rate limits, QA.",
-      "deliverables": ["schema.org business markup", "robots", "sitemaps", "basic rate limiting"],
-      "acceptance": ["Lighthouse at least 90", "No PII leaks", "Runbook updated"]
-    }
-  ],
-  "phaseProgress": {
-    "Files & Certificates (R2)": {
-      "tasks": [
-        { "id": "r2-signer", "title": "lib/r2-signer.ts", "status": "pending" },
-        { "id": "upload-route", "title": "POST /api/files/upload", "status": "pending" },
-        { "id": "get-route", "title": "GET /api/files/[key]", "status": "pending" },
-        { "id": "verify", "title": "Verify: upload 200; auth GET 200; unauth 403", "status": "pending" }
-      ]
-    },
-    "Airtable bridge (hybrid)": {
-      "tasks": [
-        { "id": "client-lib", "title": "Airtable client", "status": "done", "notes": "apps/portal/lib/airtable.ts (accepts AIRTABLE_API_KEY or AIRTABLE_TOKEN)" },
-        { "id": "source-route", "title": "GET /api/airtable/source", "status": "done", "notes": "apps/portal/app/api/airtable/source/route.ts" },
-        { "id": "sync-script", "title": "scripts/airtable-sync.mjs", "status": "done", "notes": "GH Action uses it via BASE_URL" },
-        { "id": "workflow", "title": ".github/workflows/airtable-sync.yml", "status": "done", "notes": "workflow_dispatch + daily cron" },
-        { "id": "optional-trigger", "title": "POST /api/airtable/sync", "status": "done", "notes": "Header X-Sync-Key; normalization added" },
-        { "id": "verify", "title": "Verify: source 200; dry-run OK; real sync OK", "status": "done", "notes": "Source 200; GH Action dry-run & real succeeded; secured POST 200" }
-      ]
-    },
-    "Job model + booking skeleton": {
-      "tasks": [
-        { "id": "policy-no-estimator", "title": "Unknown counts path shows examples (no survey)", "status": "done" },
-        { "id": "db-assets", "title": "Store discovered counts per customer/site & service_code", "status": "done" },
-        { "id": "api-quote", "title": "POST /api/jobs/quote → ranges from example buckets", "status": "done" },
-        { "id": "ui-checkout", "title": "Checkout: known counts OR pick an example + cap slider + disclosure", "status": "done", "notes": "/book minimal UI shipped" },
-        { "id": "stripe-auth", "title": "Cap preauth via PaymentIntent (manual-capture)", "status": "done", "notes": "STRIPE_SECRET_KEY set; test PaymentIntent created and visible in dashboard" },
-        { "id": "reconcile", "title": "Tech enters actual counts; final capture; store counts for next time", "status": "done", "notes": "Counts stored; capture will be finalized in Payments phase" },
-        { "id": "verify", "title": "Verify: example path works; cap preauth placed; counts saved", "status": "done", "notes": "Quote 200 → Job 200 (payment_intent) → Reconcile 200" }
-      ]
+      "notes": "Inline import per route; no '@/lib/neon' alias."
     }
   },
-  "finances": {
-    "currency": "USD",
-    "oneTime": {
-      "items": [
-        { "date": "2025-09-26", "label": "New laptop", "amount": 175, "notes": "", "source": "user" },
-        { "date": "2025-08-23", "label": "Connecticut LLC filing fee", "amount": 120, "notes": "", "source": "user" },
-        { "date": "2025-09-26", "label": "Chat GPT credits", "amount": 100, "notes": "", "source": "user" }
-      ],
-      "total": 395
-    },
-    "subscriptions": {
-      "items": [
-        { "label": "ChatGPT Business", "plan": "Business", "billingInterval": "monthly", "amount": 60, "status": "active", "notes": "" },
-        { "label": "Vercel Pro Plan", "plan": "Pro", "billingInterval": "monthly", "amount": 20, "status": "active", "notes": "" },
-        { "label": "GitHub Base Plan", "plan": "Free", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "" },
-        { "label": "Porkbun", "plan": "Domain", "billingInterval": "annual", "amount": 11.08, "status": "active", "notes": "" },
-        { "label": "Cal.com", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "not_set_up", "notes": "" },
-        { "label": "Make", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "" },
-        { "label": "Stripe", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "Test mode used for preauth verification" },
-        { "label": "Airtable", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "" },
-        { "label": "Google Workspace", "plan": "", "billingInterval": "monthly", "amount": 39.6, "status": "active", "notes": "" }
-      ],
-      "monthlyTotal": 119.6,
-      "annualOnlyTotal": 11.08,
-      "arr": 1446.28
-    },
-    "lastUpdated": "2025-10-01"
-  },
-  "links": {
-    "editDecisions": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json",
-    "editPlaybook": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md",
-    "runReconciler": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml",
-    "pulls": "https://github.com/ComplianceLoop/complianceloop-site/pulls",
-    "vercelEnv": "https://vercel.com/compliance-loop/complianceloop-portal/settings/environment-variables",
-    "vercelDeployments": "https://vercel.com/compliance-loop/complianceloop-portal/deployments"
-  },
-  "fileActions": {
-    "policy": "Use EDIT links if file exists; otherwise use CREATE links.",
-    "items": [
+  "schema": {
+    "tables": [
       {
-        "path": "apps/portal/lib/airtable.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/lib/airtable.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Flib%2Fairtable.ts",
-        "purpose": "Airtable REST client; chunked performUpsert",
-        "lastChecked": "2025-10-01"
+        "name": "providers",
+        "pk": ["id"],
+        "columns": {
+          "id": "uuid primary key",
+          "company_name": "text not null",
+          "contact_email": "text not null",
+          "contact_phone": "text",
+          "status": "text not null default 'pending'"
+        }
       },
       {
-        "path": "apps/portal/app/api/airtable/source/route.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/airtable/source/route.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fairtable%2Fsource%2Froute.ts",
-        "purpose": "Neon → JSON export; minimal Users surface",
-        "lastChecked": "2025-10-01"
+        "name": "provider_services",
+        "pk": ["provider_id", "service_code"],
+        "columns": {
+          "provider_id": "uuid not null references providers(id) on delete cascade",
+          "service_code": "text not null"
+        },
+        "indexes": [
+          { "name": "idx_provider_services_service_code", "columns": ["service_code"] }
+        ]
       },
       {
-        "path": "apps/portal/app/api/airtable/sync/route.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/airtable/sync/route.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fairtable%2Fsync%2Froute.ts",
-        "purpose": "Optional secured trigger (X-Sync-Key)",
-        "lastChecked": "2025-10-01"
-      },
-      {
-        "path": "apps/portal/app/api/jobs/quote/route.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/jobs/quote/route.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fjobs%2Fquote%2Froute.ts",
-        "purpose": "Return per-service ranges + cap from example or known counts",
-        "lastChecked": "2025-10-01"
-      },
-      {
-        "path": "apps/portal/app/api/jobs/route.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/jobs/route.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fjobs%2Froute.ts",
-        "purpose": "Create job draft; Stripe preauth (manual-capture)",
-        "lastChecked": "2025-10-01"
-      },
-      {
-        "path": "apps/portal/app/api/jobs/[id]/reconcile/route.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/jobs/%5Bid%5D/reconcile/route.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fjobs%2F%5Bid%5D%2Freconcile%2Froute.ts",
-        "purpose": "Store confirmed counts; upsert to customer_assets",
-        "lastChecked": "2025-10-01"
-      },
-      {
-        "path": "apps/portal/db/bootstrap.sql.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/db/bootstrap.sql.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fdb%2Fbootstrap.sql.ts",
-        "purpose": "Idempotent DDL for jobs, job_items, customer_assets",
-        "lastChecked": "2025-10-01"
-      },
-      {
-        "path": "apps/portal/app/book/page.tsx",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/book/page.tsx",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fbook%2Fpage.tsx",
-        "purpose": "Minimal booking UI (example path + known counts)",
-        "lastChecked": "2025-10-01"
-      },
-      {
-        "path": "apps/portal/app/api/customers/assets/route.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/customers/assets/route.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fcustomers%2Fassets%2Froute.ts",
-        "purpose": "Lookup saved counts for prefill",
-        "lastChecked": "2025-10-01"
+        "name": "provider_zips",
+        "pk": ["provider_id", "zip"],
+        "columns": {
+          "provider_id": "uuid not null references providers(id) on delete cascade",
+          "zip": "text not null check (zip ~ '^[0-9]{5}$')"
+        },
+        "indexes": [
+          { "name": "idx_provider_zips_zip", "columns": ["zip"] },
+          { "name": "idx_provider_zips_provider_id", "columns": ["provider_id"] }
+        ]
       }
     ]
   },
-  "operationalNotes": {
-    "reconcilerProcess": {
-      "summary": "Run once after edits.\nIf playbook block is stale or it says no changes, reset playbook.md then run once.",
-      "normalRun": {
-        "commitTitle": "playbook: sync decisions",
-        "steps": ["Open links.runReconciler and run it", "Open links.pulls and merge the PR it opens"]
+  "endpoints": [
+    {
+      "name": "Bootstrap",
+      "method": "GET",
+      "path": "/api/providers/bootstrap",
+      "resultShape": { "ok": true, "applied": 0 }
+    },
+    {
+      "name": "Provider Apply (UI)",
+      "method": "POST-via-form",
+      "path": "/providers/apply",
+      "resultShape": { "ok": true, "providerId": "uuid" }
+    },
+    {
+      "name": "Provider Apply (API)",
+      "method": "POST",
+      "path": "/api/providers/apply",
+      "bodyShape": {
+        "companyName": "string",
+        "contactEmail": "string",
+        "contactPhone": "string|optional",
+        "postalCodes": "string: '06010 06011 06012'",
+        "services": ["EXIT_SIGN", "E_LIGHT", "EXTINGUISHERS"]
       },
-      "resetRun": {
-        "when": "Only if prior runs report no changes or the block is stale.",
-        "steps": [
-          "Open links.editPlaybook and replace with '\\n' then commit with 'playbook: reset generated block'",
-          "Open links.runReconciler and run it",
-          "Open links.pulls and merge the PR it opens"
-        ]
-      }
+      "resultShape": { "ok": true, "providerId": "uuid" }
     },
-    "airtableEnv": {
-      "note": "Set env vars only in Vercel/GitHub; never commit secrets.",
-      "vars": ["AIRTABLE_API_KEY or AIRTABLE_TOKEN", "AIRTABLE_BASE_ID", "AIRTABLE_SYNC_KEY", "BASE_URL?", "NEXT_PUBLIC_BASE_URL?", "SYNC_SOURCE_URL?"],
-      "header": "Use header X-Sync-Key exactly; value is normalized (trim/strip quotes)."
-    },
-    "bookingEstimationPolicy": {
-      "summary": "If counts unknown: show example ranges by building size/type, no survey; proceed with cap-based preauth; store actual counts for next booking prefill.",
-      "examples": [
-        { "type": "Small Office (<=10k sq ft)", "exitSigns": "8–15", "emergencyLights": "10–20", "extinguishers": "6–12" },
-        { "type": "Mid Office (10k–50k)", "exitSigns": "20–40", "emergencyLights": "25–50", "extinguishers": "12–24" },
-        { "type": "Retail (single unit)", "exitSigns": "4–8", "emergencyLights": "6–12", "extinguishers": "2–6" },
-        { "type": "Warehouse (<=50k sq ft)", "exitSigns": "6–12", "emergencyLights": "8–16", "extinguishers": "6–12" },
-        { "type": "School (K–8, single building)", "exitSigns": "15–30", "emergencyLights": "20–40", "extinguishers": "15–30" }
-      ],
-      "capPolicy": "Default cap = upper bound of estimate + 10%. Customer preauthorizes cap; final capture equals actuals. If projected actual > cap, tech/app requests approval before proceeding.",
-      "stripeNotes": "Test preauth verified: /api/jobs returns payment_intent and Stripe dashboard shows the matching PI. Capture/void to be implemented in Payments phase."
+    {
+      "name": "Provider Score (NEXT)",
+      "method": "POST",
+      "path": "/api/providers/score",
+      "bodyShape": {
+        "zip": "06468",
+        "services": ["EXIT_SIGN", "E_LIGHT"],
+        "limit": 10
+      },
+      "resultShape": { "ok": true, "providers": [] }
     }
+  ],
+  "decisions": [
+    {
+      "id": "2025-10-03-neon-inline",
+      "date": "2025-10-03",
+      "title": "Use neon() inline per route",
+      "why": "Edge/serverless compatible and avoids alias resolution failures.",
+      "impact": "No '@/lib/neon' alias; import and construct sql in each route."
+    },
+    {
+      "id": "2025-10-03-sql-style",
+      "date": "2025-10-03",
+      "title": "Prefer simple parameterized SQL; drop helpers",
+      "why": "Client does not expose sql.join/array/unsafe; they caused build/runtime errors.",
+      "impact": "Use single-call strings with placeholders as needed; keep idempotent DDL."
+    },
+    {
+      "id": "2025-10-03-provider-coverage",
+      "date": "2025-10-03",
+      "title": "Model coverage via provider_zips + provider_services",
+      "why": "Scoring needs zip + service intersection and stable indexes.",
+      "impact": "Bootstrap creates tables + indexes; Apply upserts services and zips."
+    },
+    {
+      "id": "2025-10-03-house-format",
+      "date": "2025-10-03",
+      "title": "House format: full files + links + verification",
+      "why": "Reduce back-and-forth and mistakes during handoff.",
+      "impact": "All future work supplies editor links and complete files."
+    }
+  ],
+  "verification": {
+    "bootstrap": "https://complianceloop-portal.vercel.app/api/providers/bootstrap",
+    "applyUi": "https://complianceloop-portal.vercel.app/providers/apply",
+    "applyApi": "https://complianceloop-portal.vercel.app/api/providers/apply"
   },
-  "status": {
-    "playbookGeneratedAt": null,
-    "lastReconciledAt": null
-  },
-  "handoff": {
-    "promptPath": "handoff/prompt.md",
-    "repo": { "owner": "ComplianceLoop", "name": "complianceloop-site", "branch": "main" },
-    "vercel": { "team": "ComplianceLoop", "project": "complianceloop-portal" }
+  "next": {
+    "task": "Implement provider scoring endpoint",
+    "path": "apps/portal/app/api/providers/score/route.ts",
+    "requirements": [
+      "POST with { zip, services[], limit }",
+      "Return only providers covering given zip AND all requested services",
+      "ORDER BY status DESC, company_name ASC",
+      "Result shape: { ok: true, providers: [...] }"
+    ]
   }
 }
