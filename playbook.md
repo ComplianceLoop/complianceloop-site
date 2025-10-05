@@ -1,33 +1,46 @@
-<!-- CL:START -->
-# ComplianceLoop — Canonical Plan (Generated)
+# ComplianceLoop Portal – Playbook
 
-Version: 2025-10-01.3
-Generated: 2025-10-02T00:04:56.329Z
+Monorepo: `complianceloop-site`  
+App: `apps/portal` (Next.js App Router on Vercel, Neon Postgres)
 
-## Phases (13)
-- **Design Skin Kit**: Theme tokens, brand, and UI primitives to speed all later pages. — _landed_
-- **Auth + DB base**: Neon and Drizzle schema, passwordless email code, sessions. — _landed_
-- **Files & Certificates (R2)**: Private file storage with signed streaming. — _in_progress_
-- **Airtable bridge (hybrid)**: Mirror critical records for ops; Neon remains source of record. — _landed_
-- **Job model + booking skeleton**: Booking wizard and soft hold creation. — _landed_
-- **Provider directory & eligibility**: Eligibility rules and instant decision. — _in_progress_
-- **Assignment engine**: First accept wins with 15m soft hold and single eligible auto assign.
-- **Customer dashboard**: List past and upcoming jobs plus files and invoices.
-- **Provider dashboard**: Job queue, day of checklist, conflict report, tech email routing.
-- **Payments & invoices**: Invoice links and settlement minimal MVP.
-- **Notifications (email/SMS)**: Resend email events; SMS optional later.
-- **Admin console**: Search jobs and providers; manual override tools.
-- **Polish & launch**: SEO, accessibility, rate limits, QA.
+---
 
-## Finances (summary)
-- One-time total: $395.00
-- Monthly total: $119.60
-- ARR: $1446.28
+## House format (must follow)
 
-## Quick links
-- Edit decisions.json: https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json
-- Edit playbook.md: https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md
-- Run Reconciler: https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml
-- Pull Requests: https://github.com/ComplianceLoop/complianceloop-site/pulls
+1. **Full file replacements only.** Do not send patches/diffs.  
+2. **Always include clickable GitHub editor links** for each file you want changed.  
+3. **Provide verification steps** (browser URL and/or curl and the expected JSON).  
+4. **Avoid path aliases for infra**—import critical libs (neon) directly in each route.  
+5. **Idempotent SQL** for bootstrap: `CREATE TABLE/INDEX IF NOT EXISTS`, `ON CONFLICT DO NOTHING`.
 
-<!-- CL:END -->
+---
+
+## Environment
+
+- `DATABASE_URL` — Neon Postgres connection string set in Vercel Project → Settings → Environment Variables.
+
+---
+
+## Current endpoints
+
+### 1) Bootstrap (idempotent)
+- **File:** `apps/portal/app/api/providers/bootstrap/route.ts`  
+- **GET:** `https://complianceloop-portal.vercel.app/api/providers/bootstrap`  
+- **Creates/ensures:**  
+  - `providers (id uuid pk, company_name, contact_email, contact_phone, status default 'pending')`  
+  - `provider_services (provider_id uuid fk, service_code text, PK (provider_id, service_code))` + index on `service_code`  
+  - `provider_zips (provider_id uuid fk, zip text check 5 digits, PK (provider_id, zip))` + indexes on `zip` and `provider_id`  
+- **Response:** `{ "ok": true, "applied": <number> }`
+
+### 2) Provider application
+- **UI:** `https://complianceloop-portal.vercel.app/providers/apply`  
+- **API:** `POST /api/providers/apply`  
+- **Body:**
+  ```json
+  {
+    "companyName": "Acme Fire",
+    "contactEmail": "ops@acme.com",
+    "contactPhone": "555-0100",
+    "postalCodes": "06010 06011 06012",
+    "services": ["EXIT_SIGN","E_LIGHT","EXTINGUISHERS"]
+  }
