@@ -1,0 +1,5 @@
+# .github/release.yml
+# Reserved for future: minimal config so agents can find release metadata.
+changelog:
+  exclude:
+    labels: [skip-changelog]
