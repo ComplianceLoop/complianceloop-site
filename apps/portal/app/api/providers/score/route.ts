@@ -41,9 +41,10 @@ function getSql() {
 }
 
 /**
- * Implementation notes for Neon typing:
- * - Avoid `= ANY($1)` patterns and use UNNEST CTEs for arrays (services, statuses).
- * - Use `sql<ProviderRow>` (not `ProviderRow[]`) — the tag returns an array of that row type.
+ * Implementation notes:
+ * - To avoid TypeScript overload issues in tagged template mode, use the
+ *   parameterized-call form: sql(<text>, [params...]) with $1, $2, $3 placeholders.
+ * - Arrays are handled via UNNEST CTEs for clean typing and performance.
  */
 async function queryEligible(
   zip: string,
@@ -52,12 +53,12 @@ async function queryEligible(
 ): Promise<ProviderRow[]> {
   const sql = getSql();
 
-  const rows = await sql<ProviderRow>`
+  const text = `
     with svc as (
-      select unnest(${services}) as service_code
+      select unnest($1::text[]) as service_code
     ),
     st as (
-      select unnest(${allowedStatuses}) as status
+      select unnest($2::text[]) as status
     ),
     matches as (
       select
@@ -74,7 +75,7 @@ async function queryEligible(
       join st on st.status = p.status
       join provider_zips z
         on z.provider_id = p.id
-       and z.zip = ${zip}
+       and z.zip = $3
       join provider_services ps
         on ps.provider_id = p.id
       join svc
@@ -86,8 +87,10 @@ async function queryEligible(
     from matches
     order by status_rank desc, company_name asc
     limit 100
-  `;
+  ` as const;
 
+  // Parameterized form: first argument is SQL text, second is params array.
+  const rows = await sql<ProviderRow[]>(text, [services, allowedStatuses, zip]);
   return rows;
 }
 
@@ -153,7 +156,7 @@ export async function POST(req: NextRequest) {
 
 /**
  * NOTES:
- * - Arrays handled via UNNEST CTEs for Neon typing friendliness.
- * - Parameterized SQL only; no concatenation.
+ * - Arrays handled via UNNEST CTEs and parameterized sql(text, params) form to avoid Neon/TS overload issues.
+ * - Parameterized SQL only; no concatenation beyond static query string.
  * - Apply CDN/edge rate limiting in production (e.g., 60 req/min per IP).
  */
