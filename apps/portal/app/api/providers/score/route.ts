@@ -12,11 +12,10 @@
 //  • Limit 100.
 //
 // Security:
-//  • Keep public for now; friendly to rate-limiting via CDN/edge (documented here).
+//  • Public for now; friendly to rate-limiting via CDN/edge (documented here).
 //  • Do not leak secrets. Validate input strictly; return 400 on invalid input.
 //
-// Runtime:
-//  • Node runtime for Neon serverless client.
+// Runtime: Node.js for Neon serverless client.
 export const runtime = "nodejs";
 
 import { neon } from "@neondatabase/serverless";
@@ -51,7 +50,8 @@ async function queryEligible(
 ): Promise<ProviderRow[]> {
   const sql = getSql();
 
-  // Ensure text[] typing and status array typing in SQL.
+  // NOTE: Avoid explicit ::text[] casts after template interpolations.
+  // Neon supports passing arrays directly to ANY($1) safely.
   const rows = await sql<ProviderRow[]>`
     with matches as (
       select
@@ -69,11 +69,11 @@ async function queryEligible(
         on z.provider_id = p.id
       join provider_services ps
         on ps.provider_id = p.id
-       and ps.service_code = any(${services}::text[])
+       and ps.service_code = any(${services})
       where z.zip = ${zip}
-        and p.status = any(${allowedStatuses}::text[])
+        and p.status = any(${allowedStatuses})
       group by p.id, p.company_name, p.status
-      having count(distinct ps.service_code) = array_length(${services}::text[], 1)
+      having count(distinct ps.service_code) = ${services.length}
     )
     select id, company_name, status, status_rank
     from matches
@@ -89,24 +89,24 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return new Response(
-      JSON.stringify({ error: "Invalid JSON body" }),
-      { status: 400, headers: { "content-type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+      status: 400,
+      headers: { "content-type": "application/json" }
+    });
   }
 
   const validation = validateEligibilityInput(body);
   if (!validation.ok) {
-    return new Response(
-      JSON.stringify({ error: validation.error }),
-      { status: 400, headers: { "content-type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: validation.error }), {
+      status: 400,
+      headers: { "content-type": "application/json" }
+    });
   }
 
   const { zip, services } = validation.value;
 
   try {
-    // First pass: only 'active' and 'approved'
+    // Primary: only 'active' and 'approved'
     const primary = await queryEligible(zip, services, ["active", "approved"]);
 
     const rows =
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
         providerId: r.id,
         companyName: r.company_name,
         status: r.status,
-        _rank: rankStatus(r.status),
+        _rank: rankStatus(r.status)
       }))
       .sort((a, b) => {
         if (b._rank !== a._rank) return b._rank - a._rank;
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
       .map<EligibleItem>(({ providerId, companyName, status }) => ({
         providerId,
         companyName,
-        status,
+        status
       }));
 
     return new Response(
@@ -139,10 +139,10 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     // Avoid leaking internals.
     console.error("[providers/score] error", err);
-    return new Response(
-      JSON.stringify({ error: "Internal error" }),
-      { status: 500, headers: { "content-type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Internal error" }), {
+      status: 500,
+      headers: { "content-type": "application/json" }
+    });
   }
 }
 
