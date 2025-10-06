@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-05.2",
+  "version": "2025-10-05.3",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -294,8 +294,8 @@
       "schema": {
         "tables": [
           { "name": "providers", "pk": ["id"], "columns": { "id": "uuid primary key", "company_name": "text not null", "contact_email": "text not null", "contact_phone": "text", "status": "text not null default 'pending'" } },
-          { "name": "provider_services", "pk": ["provider_id", "service_code"], "columns": { "provider_id": "uuid not null references providers(id) on delete cascade", "service_code": "text not null" }, "indexes": [ { "name": "idx_provider_services_service_code", "columns": ["service_code"] } ] },
-          { "name": "provider_zips", "pk": ["provider_id", "zip"], "columns": { "provider_id": "uuid not null references providers(id) on delete cascade", "zip": "text not null check (zip ~ '^[0-9]{5}$')" }, "indexes": [ { "name": "idx_provider_zips_zip", "columns": ["zip"] }, { "name": "idx_provider_zips_provider_id", "columns": ["provider_id"] } ] }
+          { "name": "provider_services", "pk": ["provider_id", "service_code"], "columns": { "provider_id": "uuid not null references providers(id) on delete cascade", "service_code": "text not null" }, "indexes": [{ "name": "idx_provider_services_service_code", "columns": ["service_code"] }] },
+          { "name": "provider_zips", "pk": ["provider_id", "zip"], "columns": { "provider_id": "uuid not null references providers(id) on delete cascade", "zip": "text not null check (zip ~ '^[0-9]{5}$')" }, "indexes": [{ "name": "idx_provider_zips_zip", "columns": ["zip"] }, { "name": "idx_provider_zips_provider_id", "columns": ["provider_id"] }] }
         ],
         "serviceCodes": ["EXIT_SIGN", "E_LIGHT", "EXTINGUISHERS"]
       },
