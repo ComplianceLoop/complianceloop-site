@@ -11,10 +11,7 @@
 //  • Sort: status DESC (active > approved > pending), company_name ASC.
 //  • Limit 100.
 //
-// Security:
-//  • Public for now; friendly to rate-limiting via CDN/edge (documented here).
-//  • Do not leak secrets. Validate input strictly; return 400 on invalid input.
-//
+// Security: public for now; rate-limit at the CDN. Validate input; 400 on invalid.
 // Runtime: Node.js for Neon serverless client.
 export const runtime = "nodejs";
 
@@ -43,6 +40,9 @@ function getSql() {
   return neon(url);
 }
 
+// Implementation note for Neon typing:
+// Avoid Postgres `ANY($1)` with array placeholders to prevent TS inference noise.
+// Use UNNEST CTEs for arrays instead (services + statuses).
 async function queryEligible(
   zip: string,
   services: string[],
@@ -50,10 +50,14 @@ async function queryEligible(
 ): Promise<ProviderRow[]> {
   const sql = getSql();
 
-  // NOTE: Avoid explicit ::text[] casts after template interpolations.
-  // Neon supports passing arrays directly to ANY($1) safely.
   const rows = await sql<ProviderRow[]>`
-    with matches as (
+    with svc as (
+      select unnest(${services}) as service_code
+    ),
+    st as (
+      select unnest(${allowedStatuses}) as status
+    ),
+    matches as (
       select
         p.id,
         p.company_name,
@@ -65,15 +69,16 @@ async function queryEligible(
           else 0
         end as status_rank
       from providers p
+      join st on st.status = p.status
       join provider_zips z
         on z.provider_id = p.id
+       and z.zip = ${zip}
       join provider_services ps
         on ps.provider_id = p.id
-       and ps.service_code = any(${services})
-      where z.zip = ${zip}
-        and p.status = any(${allowedStatuses})
+      join svc
+        on svc.service_code = ps.service_code
       group by p.id, p.company_name, p.status
-      having count(distinct ps.service_code) = ${services.length}
+      having count(distinct ps.service_code) = (select count(*) from svc)
     )
     select id, company_name, status, status_rank
     from matches
@@ -106,9 +111,8 @@ export async function POST(req: NextRequest) {
   const { zip, services } = validation.value;
 
   try {
-    // Primary: only 'active' and 'approved'
+    // Prefer active/approved; only include pending if nothing matches.
     const primary = await queryEligible(zip, services, ["active", "approved"]);
-
     const rows =
       primary.length > 0
         ? primary
@@ -137,7 +141,6 @@ export async function POST(req: NextRequest) {
       { status: 200, headers: { "content-type": "application/json" } }
     );
   } catch (err) {
-    // Avoid leaking internals.
     console.error("[providers/score] error", err);
     return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
@@ -148,7 +151,7 @@ export async function POST(req: NextRequest) {
 
 /**
  * NOTES:
- * - This route is intentionally public (no session hard requirement) to simplify initial provider lookup.
- * - Apply CDN/edge rate limiting (e.g., Vercel Protect or middleware) in production. Suggested soft limit: 60 req/min per IP.
- * - All SQL is parameterized via @neondatabase/serverless neon tag; no string concatenation.
+ * - Arrays handled via UNNEST CTEs for Neon typing friendliness.
+ * - Parameterized SQL only; no concatenation.
+ * - Apply CDN/edge rate limiting in production (e.g., 60 req/min per IP).
  */
