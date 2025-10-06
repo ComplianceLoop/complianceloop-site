@@ -12,6 +12,7 @@
 //  • Limit 100.
 //
 // Security: public for now; rate-limit at the CDN. Validate input; 400 on invalid.
+// CORS: enabled below so browser tools (Hoppscotch/Postman Web) can call this route.
 // Runtime: Node.js for Neon serverless client.
 export const runtime = "nodejs";
 
@@ -31,6 +32,19 @@ type EligibleItem = {
   companyName: string;
   status: string;
 };
+
+// --- CORS helpers (simple, permissive) ---
+const corsHeaders = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "POST, OPTIONS",
+  "access-control-allow-headers": "content-type",
+  "content-type": "application/json"
+} as const;
+
+export function OPTIONS() {
+  return new Response(null, { status: 204, headers: corsHeaders });
+}
+// -----------------------------------------
 
 function getSql() {
   const url = process.env.DATABASE_URL;
@@ -89,7 +103,6 @@ async function queryEligible(
     limit 100
   ` as const;
 
-  // Narrow cast to sidestep Neon’s call-overload typing.
   const rows = (await (sql as unknown as (q: string, params?: unknown[]) => Promise<unknown>)(text, [
     services,
     allowedStatuses,
@@ -106,7 +119,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
       status: 400,
-      headers: { "content-type": "application/json" }
+      headers: corsHeaders
     });
   }
 
@@ -114,7 +127,7 @@ export async function POST(req: NextRequest) {
   if (!validation.ok) {
     return new Response(JSON.stringify({ error: validation.error }), {
       status: 400,
-      headers: { "content-type": "application/json" }
+      headers: corsHeaders
     });
   }
 
@@ -146,22 +159,15 @@ export async function POST(req: NextRequest) {
         status
       }));
 
-    return new Response(
-      JSON.stringify({ eligible: sorted, count: sorted.length }),
-      { status: 200, headers: { "content-type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ eligible: sorted, count: sorted.length }), {
+      status: 200,
+      headers: corsHeaders
+    });
   } catch (err) {
     console.error("[providers/score] error", err);
     return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
-      headers: { "content-type": "application/json" }
+      headers: corsHeaders
     });
   }
 }
-
-/**
- * NOTES:
- * - Arrays handled via UNNEST CTEs and parameterized call form to avoid typing complaints.
- * - Parameterized SQL only; no concatenation beyond static query string.
- * - Apply CDN/edge rate limiting in production (e.g., 60 req/min per IP).
- */
