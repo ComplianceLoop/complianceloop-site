@@ -1,0 +1,28 @@
+{
+  "repo": "ComplianceLoop/complianceloop-site",
+  "branch": "main",
+  "generated": "manual",
+  "raw": {
+    "decisions": "https://raw.githubusercontent.com/ComplianceLoop/complianceloop-site/main/decisions.json",
+    "playbook": "https://raw.githubusercontent.com/ComplianceLoop/complianceloop-site/main/playbook.md",
+    "providerScoreRoute": "https://raw.githubusercontent.com/ComplianceLoop/complianceloop-site/main/apps/portal/app/api/providers/score/route.ts",
+    "eligibilityLib": "https://raw.githubusercontent.com/ComplianceLoop/complianceloop-site/main/apps/portal/lib/eligibility.ts",
+    "dbBootstrap": "https://raw.githubusercontent.com/ComplianceLoop/complianceloop-site/main/apps/portal/db/bootstrap.sql"
+  },
+  "contentsApi": {
+    "root": "https://api.github.com/repos/ComplianceLoop/complianceloop-site/contents?ref=main",
+    "apiRoot": "https://api.github.com/repos/ComplianceLoop/complianceloop-site/contents/apps/portal/app/api?ref=main",
+    "providerScoreFolder": "https://api.github.com/repos/ComplianceLoop/complianceloop-site/contents/apps/portal/app/api/providers/score?ref=main"
+  },
+  "ops": {
+    "reconciler": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml",
+    "pulls": "https://github.com/ComplianceLoop/complianceloop-site/pulls",
+    "vercelEnv": "https://vercel.com/compliance-loop/complianceloop-portal/settings/environment-variables",
+    "vercelDeploys": "https://vercel.com/compliance-loop/complianceloop-portal/deployments"
+  },
+  "notes": [
+    "Agents: prefer raw.* for single files; use contentsApi.* to list folders.",
+    "All URLs are public and require no authentication.",
+    "If any URL changes, submit a full-file replacement PR updating this JSON."
+  ]
+}
