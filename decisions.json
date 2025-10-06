@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-05.1",
+  "version": "2025-10-05.2",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -62,7 +62,9 @@
       "notes": [
         "Provider application form posts to /api/providers/apply.",
         "provider_zips table added (idempotent bootstrap) and populated from application ZIPs.",
-        "Implemented: POST /api/providers/score (zip + services). Ordering: status (active > approved > pending), then company_name ASC; limit 100."
+        "Implemented: POST /api/providers/score (zip + services). Ordering: status (active > approved > pending) then company_name ASC; limit 100.",
+        "Neon typing guidance: prefer UNNEST CTEs and parameterized sql(text, params) over ANY($1) in tagged templates to avoid TypeScript overload issues.",
+        "Public endpoint exposes CORS (OPTIONS + Access-Control-Allow-* headers) so browser tools (Hoppscotch/Postman Web) work."
       ]
     },
     {
@@ -131,9 +133,15 @@
         { "id": "bootstrap", "title": "DB bootstrap creates providers, provider_services, provider_zips", "status": "implemented" },
         { "id": "apply", "title": "POST /api/providers/apply (upsert services + ZIP rows)", "status": "implemented" },
         { "id": "score", "title": "POST /api/providers/score (zip + services, sorted)", "status": "implemented" }
+      ],
+      "acceptanceNotes": [
+        "Verified 400 for invalid body.",
+        "Verified 200 with count=0 for unmatched ZIP.",
+        "Verified deterministic order: active > approved > pending; company_name ASC within same status.",
+        "CORS enabled to allow browser-based API clients."
       ]
     }
-  },
+  ],
   "finances": {
     "currency": "USD",
     "oneTime": {
@@ -237,7 +245,7 @@
         "exists": true,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/score/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fscore%2Froute.ts",
-        "purpose": "Eligibility scoring endpoint",
+        "purpose": "Eligibility scoring endpoint (+ CORS + Neon UNNEST strategy)",
         "lastChecked": "2025-10-05"
       },
       {
@@ -299,7 +307,9 @@
       ],
       "decisions": [
         "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any .unsafe/sql.join/sql.array usage.",
-        "Idempotent DDL: CREATE TABLE IF NOT EXISTS, ON CONFLICT DO NOTHING for multi-row inserts."
+        "Idempotent DDL: CREATE TABLE IF NOT EXISTS, ON CONFLICT DO NOTHING for multi-row inserts.",
+        "Neon typing: prefer UNNEST CTEs and parameterized sql(text, params) over ANY($1) in tagged templates to avoid TypeScript overload issues.",
+        "Expose CORS on public read endpoints (OPTIONS + Access-Control-Allow-* headers) so browser clients can exercise APIs during development."
       ]
     }
   },
