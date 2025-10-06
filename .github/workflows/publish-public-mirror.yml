@@ -1,0 +1,102 @@
+# .github/workflows/publish-public-mirror.yml
+name: Publish public read-only mirror
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  MIRROR_REPO: ComplianceLoop/complianceloop-site-mirror   # change if you prefer a different name
+  MIRROR_BRANCH: main
+  GIT_AUTHOR_NAME: "CL Mirror Bot"
+  GIT_AUTHOR_EMAIL: "bot@complianceloop.dev"
+  GIT_COMMITTER_NAME: "CL Mirror Bot"
+  GIT_COMMITTER_EMAIL: "bot@complianceloop.dev"
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (shallow, no history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # we need blobs to export; we'll publish a snapshot
+
+      - name: Remove files you do NOT want public (safety net)
+        run: |
+          set -euo pipefail
+          # Add patterns as needed; these are conservative defaults
+          rm -f .env .env.* || true
+          rm -rf .vercel || true
+          rm -rf node_modules || true
+          rm -rf **/*.pem **/*.key **/*.p12 **/*.crt || true
+
+      - name: Create files manifest (for agents)
+        uses: actions/setup-node@v4
+      - run: node -v
+      - run: |
+          mkdir -p manifest
+          node << 'EOF'
+          import { execSync } from 'node:child_process';
+          import { writeFileSync } from 'node:fs';
+
+          const ls = execSync("git ls-tree -r --long HEAD", {encoding: "utf8"});
+          const lines = ls.trim().split("\n").filter(Boolean);
+          const files = lines.map(l => {
+            // format: <mode> <type> <object> <size>\t<path>
+            // e.g.: 100644 blob 3b18e9...  1234\tapps/portal/lib/eligibility.ts
+            const [pre, path] = l.split("\t");
+            const parts = pre.trim().split(/\s+/);
+            const mode = parts[0];
+            const type = parts[1];
+            const sha = parts[2];
+            const size = Number(parts[3] || 0);
+            return { path, size, sha, mode, type };
+          });
+          const manifest = {
+            repo: process.env.GITHUB_REPOSITORY,
+            branch: process.env.GITHUB_REF_NAME || "main",
+            generatedAt: new Date().toISOString(),
+            files
+          };
+          writeFileSync("manifest/files.json", JSON.stringify(manifest, null, 2));
+          EOF
+
+      - name: Prepare mirror repo
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/mirror
+          rsync -a --delete --exclude ".git" ./ /tmp/mirror/
+
+      - name: Push snapshot to public mirror
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_MIRROR_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "Missing PUBLIC_MIRROR_PAT secret with access to ${MIRROR_REPO}"
+            exit 1
+          fi
+
+          git config --global user.name  "${GIT_AUTHOR_NAME}"
+          git config --global user.email "${GIT_AUTHOR_EMAIL}"
+
+          # Ensure mirror repo exists (idempotent)
+          gh repo view "$MIRROR_REPO" >/dev/null 2>&1 || gh repo create "$MIRROR_REPO" --public --disable-issues --disable-wiki --confirm
+
+          cd /tmp/mirror
+          git init
+          git checkout -b "${MIRROR_BRANCH}"
+          git add -A
+          git commit -m "Mirror snapshot from $GITHUB_REPOSITORY@$GITHUB_SHA"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${MIRROR_REPO}.git"
+          git push -f origin "${MIRROR_BRANCH}"
+
+      - name: Output public endpoints
+        run: |
+          echo "RAW manifest: https://raw.githubusercontent.com/${{ env.MIRROR_REPO }}/${{ env.MIRROR_BRANCH }}/manifest/files.json"
+          echo "Mirror repo:  https://github.com/${{ env.MIRROR_REPO }}"
