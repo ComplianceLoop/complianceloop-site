@@ -40,9 +40,11 @@ function getSql() {
   return neon(url);
 }
 
-// Implementation note for Neon typing:
-// Avoid Postgres `ANY($1)` with array placeholders to prevent TS inference noise.
-// Use UNNEST CTEs for arrays instead (services + statuses).
+/**
+ * Implementation notes for Neon typing:
+ * - Avoid `= ANY($1)` patterns and use UNNEST CTEs for arrays (services, statuses).
+ * - Use `sql<ProviderRow>` (not `ProviderRow[]`) — the tag returns an array of that row type.
+ */
 async function queryEligible(
   zip: string,
   services: string[],
@@ -50,7 +52,7 @@ async function queryEligible(
 ): Promise<ProviderRow[]> {
   const sql = getSql();
 
-  const rows = await sql<ProviderRow[]>`
+  const rows = await sql<ProviderRow>`
     with svc as (
       select unnest(${services}) as service_code
     ),
@@ -129,7 +131,7 @@ export async function POST(req: NextRequest) {
       .sort((a, b) => {
         if (b._rank !== a._rank) return b._rank - a._rank;
         return a.companyName.localeCompare(b.companyName);
-      })
+      }))
       .map<EligibleItem>(({ providerId, companyName, status }) => ({
         providerId,
         companyName,
