@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-05.7",
+  "version": "2025-10-05.8",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -62,7 +62,7 @@
       "notes": [
         "Provider application form posts to /api/providers/apply.",
         "provider_zips table added (idempotent bootstrap) and populated from application ZIPs.",
-        "Implemented: POST /api/providers/score (zip + services). Ordering: status (active > approved > pending), company_name ASC; limit 100. CORS enabled; Neon query uses parameterized UNNEST CTEs."
+        "POST /api/providers/score implemented (zip + services) with ordering by status DESC (active > approved > pending), then company_name ASC; limit 100."
       ]
     },
     {
@@ -281,9 +281,7 @@
       ],
       "decisions": [
         "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any .unsafe/sql.join/sql.array usage.",
-        "Idempotent DDL: CREATE TABLE IF NOT EXISTS, ON CONFLICT DO NOTHING for multi-row inserts.",
-        "Neon typing: prefer UNNEST CTEs and parameterized sql(text, params) over ANY($1) in tagged templates to avoid TypeScript overload issues.",
-        "Expose CORS on public read endpoints (OPTIONS + Access-Control-Allow-* headers) so browser clients can exercise APIs during development."
+        "Idempotent DDL: CREATE TABLE IF NOT EXISTS, ON CONFLICT DO NOTHING for multi-row inserts."
       ]
     }
   },
