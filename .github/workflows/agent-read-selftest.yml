@@ -1,0 +1,41 @@
+# .github/workflows/agent-read-selftest.yml
+name: Agent Read Self-Test
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  validate-links:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show links.agent.json
+        run: |
+          test -f links.agent.json || (echo "links.agent.json missing"; exit 1)
+          cat links.agent.json
+
+      - name: Validate raw and API endpoints
+        run: |
+          set -euo pipefail
+          jq -e '.raw.decisions and .raw.providerScoreRoute and .contentsApi.root' links.agent.json >/dev/null
+
+          echo "Checking raw decisions.json..."
+          curl -sfL "$(jq -r '.raw.decisions' links.agent.json)" >/dev/null
+
+          echo "Checking raw provider score route..."
+          curl -sfL "$(jq -r '.raw.providerScoreRoute' links.agent.json)" >/dev/null
+
+          echo "Checking contents API root..."
+          curl -sfL "$(jq -r '.contentsApi.root' links.agent.json)" >/dev/null
+
+          echo "All required endpoints reachable."
+
+      - name: Output handy curl examples
+        run: |
+          echo "curl -s $(jq -r '.raw.decisions' links.agent.json) | jq '.version, .currentPhase'"
+          echo "curl -s $(jq -r '.raw.providerScoreRoute' links.agent.json) | sed -n '1,20p'"
+          echo "curl -s $(jq -r '.contentsApi.providerScoreFolder' links.agent.json) | jq '.'"
