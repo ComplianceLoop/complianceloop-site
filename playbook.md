@@ -1,8 +1,8 @@
 <!-- CL:START -->
 # ComplianceLoop — Canonical Plan (Generated)
 
-Version: 2025-10-05.1
-Generated: 2025-10-05T23:58:28.058Z
+Version: 2025-10-05.11
+Generated: 2025-10-06T22:55:14.444Z
 
 ## Phases (13)
 - **Design Skin Kit**: Theme tokens, brand, and UI primitives to speed all later pages. — _landed_
@@ -10,13 +10,13 @@ Generated: 2025-10-05T23:58:28.058Z
 - **Files & Certificates (R2)**: Private file storage with signed streaming. — _landed_
 - **Airtable bridge (hybrid)**: Mirror critical records for ops; Neon remains source of record. — _landed_
 - **Job model + booking skeleton**: Booking wizard + soft hold creation. — _landed_
-- **Provider directory & eligibility**: Eligibility rules + instant decision. — _in_progress_
-- **Assignment engine**: First-accept wins + 15m soft-hold + single-eligible auto-assign.
-- **Customer dashboard**: List past/upcoming jobs + files/invoices.
-- **Provider dashboard**: Job queue + day-of checklist + conflict report + tech email routing.
+- **Provider directory & eligibility**: Eligibility rules and instant decision. — _in_progress_
+- **Assignment engine**: First-accept wins, 15m soft-hold, single-eligible auto-assign.
+- **Customer dashboard**: List past and upcoming jobs plus files and invoices.
+- **Provider dashboard**: Job queue, day-of checklist, conflict report, tech email routing.
 - **Payments & invoices**: Invoice links and settlement (minimal MVP).
 - **Notifications (email/SMS)**: Resend email events; SMS optional later.
-- **Admin console**: Search jobs/providers; manual override tools.
+- **Admin console**: Search jobs and providers; manual override tools.
 - **Polish & launch**: SEO, accessibility, rate limits, QA.
 
 ## Finances (summary)
