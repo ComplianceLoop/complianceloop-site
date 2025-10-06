@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-05.8",
+  "version": "2025-10-04.1",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -62,7 +62,7 @@
       "notes": [
         "Provider application form posts to /api/providers/apply.",
         "provider_zips table added (idempotent bootstrap) and populated from application ZIPs.",
-        "POST /api/providers/score implemented (zip + services) with ordering by status DESC (active > approved > pending), then company_name ASC; limit 100."
+        "Next to implement: POST /api/providers/score (zip + services) with ordering by status DESC, company_name ASC."
       ]
     },
     {
@@ -277,7 +277,7 @@
         { "name": "Bootstrap", "method": "GET", "path": "/api/providers/bootstrap" },
         { "name": "Provider Apply (UI)", "method": "POST-via-form", "path": "/providers/apply" },
         { "name": "Provider Apply (API)", "method": "POST", "path": "/api/providers/apply" },
-        { "name": "Provider Score (implemented)", "method": "POST", "path": "/api/providers/score" }
+        { "name": "Provider Score (next)", "method": "POST", "path": "/api/providers/score" }
       ],
       "decisions": [
         "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any .unsafe/sql.join/sql.array usage.",
