@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-05.4",
+  "version": "2025-10-05.5",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -48,15 +48,15 @@
       "status": "landed",
       "landedAt": "2025-10-03",
       "notes": [
-        "Stripe preauth flow verified (mock + live).",
+        "Stripe preauth flow verified (mock and live).",
         "Jobs endpoints in place and green."
       ]
     },
     {
       "phase": "Provider directory & eligibility",
-      "objective": "Eligibility rules + instant decision.",
+      "objective": "Eligibility rules and instant decision.",
       "deliverables": ["criteria engine", "provider onboarding form", "how-to-qualify guidance", "provider scoring endpoint"],
-      "acceptance": ["Pass/fail immediate", "Declined path shows guidance", "Scoring endpoint returns eligible providers"],
+      "acceptance": ["Pass or fail immediate", "Declined path shows guidance", "Scoring endpoint returns eligible providers"],
       "status": "in_progress",
       "startedAt": "2025-10-04",
       "notes": [
@@ -64,24 +64,24 @@
         "provider_zips table added (idempotent bootstrap) and populated from application ZIPs.",
         "Implemented: POST /api/providers/score (zip + services). Ordering: status (active > approved > pending) then company_name ASC; limit 100.",
         "Neon typing guidance: prefer UNNEST CTEs and parameterized sql(text, params) over ANY($1) in tagged templates to avoid TypeScript overload issues.",
-        "Public endpoint exposes CORS (OPTIONS + Access-Control-Allow-* headers) so browser tools (Hoppscotch/Postman Web) work."
+        "Public endpoint exposes CORS (OPTIONS + Access-Control-Allow-* headers) so browser tools work."
       ]
     },
     {
       "phase": "Assignment engine",
-      "objective": "First-accept wins + 15m soft-hold + single-eligible auto-assign.",
+      "objective": "First-accept wins, 15m soft-hold, single-eligible auto-assign.",
       "deliverables": ["offer broadcast", "accept endpoint", "cascade logic"],
-      "acceptance": ["Race handled; winner locks; cascade on timeout/decline"]
+      "acceptance": ["Race handled; winner locks; cascade on timeout or decline"]
     },
     {
       "phase": "Customer dashboard",
-      "objective": "List past/upcoming jobs + files/invoices.",
+      "objective": "List past and upcoming jobs plus files and invoices.",
       "deliverables": ["dashboard pages", "job detail route"],
       "acceptance": ["Auth required", "Documents stream correctly"]
     },
     {
       "phase": "Provider dashboard",
-      "objective": "Job queue + day-of checklist + conflict report + tech email routing.",
+      "objective": "Job queue, day-of checklist, conflict report, tech email routing.",
       "deliverables": ["checklist form", "conflict endpoint", "email routing field"],
       "acceptance": ["Late submission possible", "Conflict auto-cascade"]
     },
@@ -99,7 +99,7 @@
     },
     {
       "phase": "Admin console",
-      "objective": "Search jobs/providers; manual override tools.",
+      "objective": "Search jobs and providers; manual override tools.",
       "deliverables": ["admin routes", "impersonate (guarded)"],
       "acceptance": ["Admin-only gate", "Audit trail"]
     },
@@ -107,7 +107,7 @@
       "phase": "Polish & launch",
       "objective": "SEO, accessibility, rate limits, QA.",
       "deliverables": ["schema.org Business markup", "robots, sitemaps", "basic rate limiting"],
-      "acceptance": ["Lighthouse >=90", "No PII leaks", "Runbook updated"]
+      "acceptance": ["Lighthouse >= 90", "No PII leaks", "Runbook updated"]
     }
   ],
   "phaseProgress": {
@@ -118,7 +118,7 @@
         { "id": "script", "title": "scripts/airtable-sync.mjs", "status": "implemented" },
         { "id": "workflow", "title": "GH Actions: airtable-sync.yml", "status": "implemented" },
         { "id": "trigger", "title": "POST /api/airtable/sync (optional)", "status": "implemented" },
-        { "id": "verify", "title": "Run workflow dry-run + normal; confirm green", "status": "implemented" }
+        { "id": "verify", "title": "Run workflow dry-run and normal; confirm green", "status": "implemented" }
       ]
     },
     "Job model + booking skeleton": {
@@ -136,7 +136,7 @@
       ],
       "acceptanceNotes": [
         "Verified 400 for invalid body.",
-        "Verified 200 with count=0 for unmatched ZIP.",
+        "Verified 200 with count 0 for unmatched ZIP.",
         "Verified deterministic order: active > approved > pending; company_name ASC within same status.",
         "CORS enabled to allow browser-based API clients."
       ]
@@ -168,7 +168,7 @@
       "annualOnlyTotal": 11.08,
       "arr": 1446.28
     },
-    "lastUpdated": "2025-10-04"
+    "lastUpdated": "2025-10-05"
   },
   "links": {
     "editDecisions": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json",
@@ -221,7 +221,7 @@
         "exists": true,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/bootstrap/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fbootstrap%2Froute.ts",
-        "purpose": "Idempotent DDL: providers, provider_services, provider_zips + indexes",
+        "purpose": "Idempotent DDL: providers, provider_services, provider_zips and indexes",
         "lastChecked": "2025-10-04"
       },
       {
@@ -237,7 +237,7 @@
         "exists": true,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/db/bootstrap.sql",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fdb%2Fbootstrap.sql",
-        "purpose": "DDL mirror of provider tables/indexes (idempotent)",
+        "purpose": "DDL mirror of provider tables and indexes (idempotent)",
         "lastChecked": "2025-10-04"
       },
       {
@@ -245,7 +245,7 @@
         "exists": true,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/score/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fscore%2Froute.ts",
-        "purpose": "Eligibility scoring endpoint (+ CORS + Neon UNNEST strategy)",
+        "purpose": "Eligibility scoring endpoint with CORS and Neon UNNEST strategy",
         "lastChecked": "2025-10-05"
       },
       {
@@ -261,13 +261,13 @@
   "operationalNotes": {
     "agentInstructionStyle": [
       "FULL-FILE REPLACEMENTS ONLY for all files (no partial snippets).",
-      "Put the Edit/Create link immediately above each file.",
+      "Put the Edit or Create link immediately above each file.",
       "Provide numbered click-by-click steps and a concise commit title after files.",
-      "Include a Verify section with exact URLs/cURL and expected statuses.",
+      "Include a Verify section with exact URLs or curl and the expected statuses.",
       "Never edit inside <!-- CL:START --> ... <!-- CL:END --> in playbook.md; use the reset protocol if stale.",
       "ASCII-only JSON for decisions.json.",
       "No secrets in repo; refer to secret names only.",
-      "Avoid '@/lib/*' imports that traverse upward directories; prefer stable roots or local relative imports under apps/portal when needed.",
+      "Avoid '@/app/../..' style imports; prefer '@/lib/*', '@/db/*', or stable relatives.",
       "Redeploy on Vercel with Use existing Build Cache unchecked when debugging."
     ],
     "reconcilerProcess": {
@@ -293,7 +293,7 @@
       "note": "Set in Vercel (routes) and GitHub Actions (workflow). Never commit secrets."
     },
     "providerIntake": {
-      "summary": "Provider intake + coverage captured and verified.",
+      "summary": "Provider intake and coverage captured and verified.",
       "schema": {
         "tables": [
           {
@@ -340,8 +340,8 @@
         { "name": "Provider Score (implemented)", "method": "POST", "path": "/api/providers/score" }
       ],
       "decisions": [
-        "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any .unsafe/sql.join/sql.array usage.",
-        "Idempotent DDL: CREATE TABLE IF NOT EXISTS, ON CONFLICT DO NOTHING for multi-row inserts.",
+        "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any .unsafe or string-concat SQL.",
+        "Idempotent DDL: CREATE TABLE IF NOT EXISTS and ON CONFLICT DO NOTHING for multi-row inserts.",
         "Neon typing: prefer UNNEST CTEs and parameterized sql(text, params) over ANY($1) in tagged templates to avoid TypeScript overload issues.",
         "Expose CORS on public read endpoints (OPTIONS + Access-Control-Allow-* headers) so browser clients can exercise APIs during development."
       ]
