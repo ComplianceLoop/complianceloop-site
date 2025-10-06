@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-04.1",
+  "version": "2025-10-05.9",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -25,12 +25,7 @@
       "deliverables": ["/api/files/upload", "/api/files/:key", "R2 bucket + IAM"],
       "acceptance": ["Upload returns 200 and r2Key", "Authorized GET streams 200; unauthorized 403"],
       "status": "landed",
-      "landedAt": "2025-09-29",
-      "notes": [
-        "Signer uses R2_ACCOUNT_ID (or R2_ENDPOINT override).",
-        "POST /api/files/upload returns { r2Key, putUrl }.",
-        "GET /api/files/[key] streams when authed; 403 when unauth."
-      ]
+      "landedAt": "2025-09-29"
     },
     {
       "phase": "Airtable bridge (hybrid)",
@@ -46,40 +41,31 @@
       "deliverables": ["/book wizard", "create Job(draft) API", "Soft-hold service"],
       "acceptance": ["30m hold for multi-property", "Single-property flow ok"],
       "status": "landed",
-      "landedAt": "2025-10-03",
-      "notes": [
-        "Stripe preauth flow verified (mock + live).",
-        "Jobs endpoints in place and green."
-      ]
+      "landedAt": "2025-10-03"
     },
     {
       "phase": "Provider directory & eligibility",
-      "objective": "Eligibility rules + instant decision.",
+      "objective": "Eligibility rules and instant decision.",
       "deliverables": ["criteria engine", "provider onboarding form", "how-to-qualify guidance", "provider scoring endpoint"],
-      "acceptance": ["Pass/fail immediate", "Declined path shows guidance", "Scoring endpoint returns eligible providers"],
+      "acceptance": ["Pass or fail immediate", "Declined path shows guidance", "Scoring endpoint returns eligible providers"],
       "status": "in_progress",
-      "startedAt": "2025-10-04",
-      "notes": [
-        "Provider application form posts to /api/providers/apply.",
-        "provider_zips table added (idempotent bootstrap) and populated from application ZIPs.",
-        "Next to implement: POST /api/providers/score (zip + services) with ordering by status DESC, company_name ASC."
-      ]
+      "startedAt": "2025-10-04"
     },
     {
       "phase": "Assignment engine",
-      "objective": "First-accept wins + 15m soft-hold + single-eligible auto-assign.",
+      "objective": "First-accept wins, 15m soft-hold, single-eligible auto-assign.",
       "deliverables": ["offer broadcast", "accept endpoint", "cascade logic"],
-      "acceptance": ["Race handled; winner locks; cascade on timeout/decline"]
+      "acceptance": ["Race handled; winner locks; cascade on timeout or decline"]
     },
     {
       "phase": "Customer dashboard",
-      "objective": "List past/upcoming jobs + files/invoices.",
+      "objective": "List past and upcoming jobs plus files and invoices.",
       "deliverables": ["dashboard pages", "job detail route"],
       "acceptance": ["Auth required", "Documents stream correctly"]
     },
     {
       "phase": "Provider dashboard",
-      "objective": "Job queue + day-of checklist + conflict report + tech email routing.",
+      "objective": "Job queue, day-of checklist, conflict report, tech email routing.",
       "deliverables": ["checklist form", "conflict endpoint", "email routing field"],
       "acceptance": ["Late submission possible", "Conflict auto-cascade"]
     },
@@ -97,7 +83,7 @@
     },
     {
       "phase": "Admin console",
-      "objective": "Search jobs/providers; manual override tools.",
+      "objective": "Search jobs and providers; manual override tools.",
       "deliverables": ["admin routes", "impersonate (guarded)"],
       "acceptance": ["Admin-only gate", "Audit trail"]
     },
@@ -105,7 +91,7 @@
       "phase": "Polish & launch",
       "objective": "SEO, accessibility, rate limits, QA.",
       "deliverables": ["schema.org Business markup", "robots, sitemaps", "basic rate limiting"],
-      "acceptance": ["Lighthouse >=90", "No PII leaks", "Runbook updated"]
+      "acceptance": ["Lighthouse >= 90", "No PII leaks", "Runbook updated"]
     }
   ],
   "phaseProgress": {
@@ -116,7 +102,7 @@
         { "id": "script", "title": "scripts/airtable-sync.mjs", "status": "implemented" },
         { "id": "workflow", "title": "GH Actions: airtable-sync.yml", "status": "implemented" },
         { "id": "trigger", "title": "POST /api/airtable/sync (optional)", "status": "implemented" },
-        { "id": "verify", "title": "Run workflow dry-run + normal; confirm green", "status": "implemented" }
+        { "id": "verify", "title": "Run workflow dry-run and normal; confirm green", "status": "implemented" }
       ]
     },
     "Job model + booking skeleton": {
@@ -211,7 +197,7 @@
         "exists": true,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/bootstrap/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fbootstrap%2Froute.ts",
-        "purpose": "Idempotent DDL: providers, provider_services, provider_zips + indexes",
+        "purpose": "Idempotent DDL: providers, provider_services, provider_zips and indexes",
         "lastChecked": "2025-10-04"
       },
       {
@@ -227,7 +213,7 @@
         "exists": true,
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/db/bootstrap.sql",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fdb%2Fbootstrap.sql",
-        "purpose": "DDL mirror of provider tables/indexes (idempotent)",
+        "purpose": "DDL mirror of provider tables and indexes (idempotent)",
         "lastChecked": "2025-10-04"
       }
     ]
@@ -235,20 +221,23 @@
   "operationalNotes": {
     "agentInstructionStyle": [
       "FULL-FILE REPLACEMENTS ONLY for all files (no partial snippets).",
-      "Put the Edit/Create link immediately above each file.",
+      "Put the Edit or Create link immediately above each file.",
       "Provide numbered click-by-click steps and a concise commit title after files.",
-      "Include a Verify section with exact URLs/cURL and expected statuses.",
+      "Include a Verify section with exact URLs or curl and the expected statuses.",
       "Never edit inside <!-- CL:START --> <!-- CL:END --> in playbook.md; use the reset protocol if stale.",
       "ASCII-only JSON for decisions.json.",
       "No secrets in repo; refer to secret names only.",
-      "Avoid '@/app/../…' imports; prefer '@/lib/*', '@/db/*', or stable relatives.",
+      "Avoid '@/app/../..' style imports; prefer '@/lib/*', '@/db/*', or stable relatives.",
       "Redeploy on Vercel with Use existing Build Cache unchecked when debugging."
     ],
     "reconcilerProcess": {
       "summary": "Run once after edits; use reset protocol if needed.",
       "normalRun": {
         "commitTitle": "playbook: sync decisions",
-        "steps": ["Open links.runReconciler and run it", "Open links.pulls and merge the PR it opens"]
+        "steps": [
+          "Open links.runReconciler and run it",
+          "Open links.pulls and merge the PR it opens"
+        ]
       },
       "resetRun": {
         "when": "Only if prior runs report no changes or the block is stale.",
@@ -264,7 +253,7 @@
       "note": "Set in Vercel (routes) and GitHub Actions (workflow). Never commit secrets."
     },
     "providerIntake": {
-      "summary": "Provider intake + coverage captured and verified.",
+      "summary": "Provider intake and coverage captured and verified.",
       "schema": {
         "tables": [
           { "name": "providers", "pk": ["id"], "columns": { "id": "uuid primary key", "company_name": "text not null", "contact_email": "text not null", "contact_phone": "text", "status": "text not null default 'pending'" } },
@@ -277,11 +266,11 @@
         { "name": "Bootstrap", "method": "GET", "path": "/api/providers/bootstrap" },
         { "name": "Provider Apply (UI)", "method": "POST-via-form", "path": "/providers/apply" },
         { "name": "Provider Apply (API)", "method": "POST", "path": "/api/providers/apply" },
-        { "name": "Provider Score (next)", "method": "POST", "path": "/api/providers/score" }
+        { "name": "Provider Score (implemented)", "method": "POST", "path": "/api/providers/score" }
       ],
       "decisions": [
-        "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any .unsafe/sql.join/sql.array usage.",
-        "Idempotent DDL: CREATE TABLE IF NOT EXISTS, ON CONFLICT DO NOTHING for multi-row inserts."
+        "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any unsafe SQL.",
+        "Idempotent DDL: CREATE TABLE IF NOT EXISTS and ON CONFLICT DO NOTHING for multi-row inserts."
       ]
     }
   },
