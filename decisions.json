@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-05.10",
+  "version": "2025-10-05.11",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -49,11 +49,7 @@
       "deliverables": ["criteria engine", "provider onboarding form", "how-to-qualify guidance", "provider scoring endpoint"],
       "acceptance": ["Pass or fail immediate", "Declined path shows guidance", "Scoring endpoint returns eligible providers"],
       "status": "in_progress",
-      "startedAt": "2025-10-04",
-      "notes": [
-        "Provider application form posts to /api/providers/apply.",
-        "provider_zips table added (idempotent bootstrap) and populated from application ZIPs."
-      ]
+      "startedAt": "2025-10-04"
     },
     {
       "phase": "Assignment engine",
@@ -123,7 +119,7 @@
         { "id": "score", "title": "POST /api/providers/score (zip + services, sorted)", "status": "implemented" }
       ]
     }
-  ],
+  },
   "finances": {
     "currency": "USD",
     "oneTime": {
