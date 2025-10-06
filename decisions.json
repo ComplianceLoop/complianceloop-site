@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-05.5",
+  "version": "2025-10-05.6",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -47,41 +47,38 @@
       "acceptance": ["30m hold for multi-property", "Single-property flow ok"],
       "status": "landed",
       "landedAt": "2025-10-03",
-      "notes": [
-        "Stripe preauth flow verified (mock and live).",
-        "Jobs endpoints in place and green."
-      ]
+      "notes": ["Stripe preauth flow verified (mock + live).", "Jobs endpoints in place and green."]
     },
     {
       "phase": "Provider directory & eligibility",
-      "objective": "Eligibility rules and instant decision.",
+      "objective": "Eligibility rules + instant decision.",
       "deliverables": ["criteria engine", "provider onboarding form", "how-to-qualify guidance", "provider scoring endpoint"],
-      "acceptance": ["Pass or fail immediate", "Declined path shows guidance", "Scoring endpoint returns eligible providers"],
+      "acceptance": ["Pass/fail immediate", "Declined path shows guidance", "Scoring endpoint returns eligible providers"],
       "status": "in_progress",
       "startedAt": "2025-10-04",
       "notes": [
         "Provider application form posts to /api/providers/apply.",
         "provider_zips table added (idempotent bootstrap) and populated from application ZIPs.",
-        "Implemented: POST /api/providers/score (zip + services). Ordering: status (active > approved > pending) then company_name ASC; limit 100.",
-        "Neon typing guidance: prefer UNNEST CTEs and parameterized sql(text, params) over ANY($1) in tagged templates to avoid TypeScript overload issues.",
-        "Public endpoint exposes CORS (OPTIONS + Access-Control-Allow-* headers) so browser tools work."
+        "POST /api/providers/score implemented (zip + services). Ordering: status (active > approved > pending), then company_name ASC; limit 100.",
+        "Neon typing guidance: prefer UNNEST CTEs and parameterized sql(text, params) instead of ANY($1) in tagged templates.",
+        "Public endpoint exposes CORS (OPTIONS + Access-Control-Allow-* headers) so browser-based API clients work."
       ]
     },
     {
       "phase": "Assignment engine",
-      "objective": "First-accept wins, 15m soft-hold, single-eligible auto-assign.",
+      "objective": "First-accept wins + 15m soft-hold + single-eligible auto-assign.",
       "deliverables": ["offer broadcast", "accept endpoint", "cascade logic"],
-      "acceptance": ["Race handled; winner locks; cascade on timeout or decline"]
+      "acceptance": ["Race handled; winner locks; cascade on timeout/decline"]
     },
     {
       "phase": "Customer dashboard",
-      "objective": "List past and upcoming jobs plus files and invoices.",
+      "objective": "List past/upcoming jobs + files/invoices.",
       "deliverables": ["dashboard pages", "job detail route"],
       "acceptance": ["Auth required", "Documents stream correctly"]
     },
     {
       "phase": "Provider dashboard",
-      "objective": "Job queue, day-of checklist, conflict report, tech email routing.",
+      "objective": "Job queue + day-of checklist + conflict report + tech email routing.",
       "deliverables": ["checklist form", "conflict endpoint", "email routing field"],
       "acceptance": ["Late submission possible", "Conflict auto-cascade"]
     },
@@ -99,7 +96,7 @@
     },
     {
       "phase": "Admin console",
-      "objective": "Search jobs and providers; manual override tools.",
+      "objective": "Search jobs/providers; manual override tools.",
       "deliverables": ["admin routes", "impersonate (guarded)"],
       "acceptance": ["Admin-only gate", "Audit trail"]
     },
@@ -107,7 +104,7 @@
       "phase": "Polish & launch",
       "objective": "SEO, accessibility, rate limits, QA.",
       "deliverables": ["schema.org Business markup", "robots, sitemaps", "basic rate limiting"],
-      "acceptance": ["Lighthouse >= 90", "No PII leaks", "Runbook updated"]
+      "acceptance": ["Lighthouse >=90", "No PII leaks", "Runbook updated"]
     }
   ],
   "phaseProgress": {
@@ -118,7 +115,7 @@
         { "id": "script", "title": "scripts/airtable-sync.mjs", "status": "implemented" },
         { "id": "workflow", "title": "GH Actions: airtable-sync.yml", "status": "implemented" },
         { "id": "trigger", "title": "POST /api/airtable/sync (optional)", "status": "implemented" },
-        { "id": "verify", "title": "Run workflow dry-run and normal; confirm green", "status": "implemented" }
+        { "id": "verify", "title": "Run workflow dry-run + normal; confirm green", "status": "implemented" }
       ]
     },
     "Job model + booking skeleton": {
@@ -136,7 +133,7 @@
       ],
       "acceptanceNotes": [
         "Verified 400 for invalid body.",
-        "Verified 200 with count 0 for unmatched ZIP.",
+        "Verified 200 with count=0 for unmatched ZIP.",
         "Verified deterministic order: active > approved > pending; company_name ASC within same status.",
         "CORS enabled to allow browser-based API clients."
       ]
@@ -177,107 +174,86 @@
     "pulls": "https://github.com/ComplianceLoop/complianceloop-site/pulls",
     "vercelEnv": "https://vercel.com/compliance-loop/complianceloop-portal/settings/environment-variables",
     "vercelDeployments": "https://vercel.com/compliance-loop/complianceloop-portal/deployments",
-    "handoffPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.md",
-    "scoreRoute": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/score/route.ts",
-    "eligibilityLib": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/lib/eligibility.ts"
+    "handoffPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.md"
   },
   "fileActions": {
     "policy": "Use EDIT links if file exists; otherwise use CREATE links.",
     "items": [
-      {
-        "path": "lib/airtable.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/airtable.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fairtable.ts",
-        "purpose": "Airtable REST client (performUpsert)",
-        "lastChecked": "2025-10-04"
-      },
-      {
-        "path": "app/api/airtable/source/route.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/airtable/source/route.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Fairtable%2Fsource%2Froute.ts",
-        "purpose": "JSON export for Airtable sync",
-        "lastChecked": "2025-10-04"
-      },
-      {
-        "path": "scripts/airtable-sync.mjs",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/airtable-sync.mjs",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=scripts%2Fairtable-sync.mjs",
-        "purpose": "One-way sync CLI",
-        "lastChecked": "2025-10-04"
-      },
-      {
-        "path": ".github/workflows/airtable-sync.yml",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/airtable-sync.yml",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fairtable-sync.yml",
-        "purpose": "CI workflow for Airtable sync",
-        "lastChecked": "2025-10-04"
-      },
-      {
-        "path": "apps/portal/app/api/providers/bootstrap/route.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/bootstrap/route.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fbootstrap%2Froute.ts",
-        "purpose": "Idempotent DDL: providers, provider_services, provider_zips and indexes",
-        "lastChecked": "2025-10-04"
-      },
-      {
-        "path": "apps/portal/app/api/providers/apply/route.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/apply/route.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fapply%2Froute.ts",
-        "purpose": "Create provider; upsert services; insert ZIP coverage rows",
-        "lastChecked": "2025-10-04"
-      },
-      {
-        "path": "apps/portal/db/bootstrap.sql",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/db/bootstrap.sql",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fdb%2Fbootstrap.sql",
-        "purpose": "DDL mirror of provider tables and indexes (idempotent)",
-        "lastChecked": "2025-10-04"
-      },
-      {
-        "path": "apps/portal/app/api/providers/score/route.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/score/route.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fscore%2Froute.ts",
-        "purpose": "Eligibility scoring endpoint with CORS and Neon UNNEST strategy",
-        "lastChecked": "2025-10-05"
-      },
-      {
-        "path": "apps/portal/lib/eligibility.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/lib/eligibility.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Flib%2Feligibility.ts",
-        "purpose": "Eligibility helpers (validation, status ranking)",
-        "lastChecked": "2025-10-05"
-      }
+        {
+          "path": "lib/airtable.ts",
+          "exists": true,
+          "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/airtable.ts",
+          "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fairtable.ts",
+          "purpose": "Airtable REST client (performUpsert)",
+          "lastChecked": "2025-10-04"
+        },
+        {
+          "path": "app/api/airtable/source/route.ts",
+          "exists": true,
+          "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/airtable/source/route.ts",
+          "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Fairtable%2Fsource%2Froute.ts",
+          "purpose": "JSON export for Airtable sync",
+          "lastChecked": "2025-10-04"
+        },
+        {
+          "path": "scripts/airtable-sync.mjs",
+          "exists": true,
+          "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/airtable-sync.mjs",
+          "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=scripts%2Fairtable-sync.mjs",
+          "purpose": "One-way sync CLI",
+          "lastChecked": "2025-10-04"
+        },
+        {
+          "path": ".github/workflows/airtable-sync.yml",
+          "exists": true,
+          "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/airtable-sync.yml",
+          "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fairtable-sync.yml",
+          "purpose": "CI workflow for Airtable sync",
+          "lastChecked": "2025-10-04"
+        },
+        {
+          "path": "apps/portal/app/api/providers/bootstrap/route.ts",
+          "exists": true,
+          "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/bootstrap/route.ts",
+          "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fbootstrap%2Froute.ts",
+          "purpose": "Idempotent DDL: providers, provider_services, provider_zips + indexes",
+          "lastChecked": "2025-10-04"
+        },
+        {
+          "path": "apps/portal/app/api/providers/apply/route.ts",
+          "exists": true,
+          "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/apply/route.ts",
+          "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fapply%2Froute.ts",
+          "purpose": "Create provider; upsert services; insert ZIP coverage rows",
+          "lastChecked": "2025-10-04"
+        },
+        {
+          "path": "apps/portal/db/bootstrap.sql",
+          "exists": true,
+          "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/db/bootstrap.sql",
+          "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fdb%2Fbootstrap.sql",
+          "purpose": "DDL mirror of provider tables/indexes (idempotent)",
+          "lastChecked": "2025-10-04"
+        }
     ]
   },
   "operationalNotes": {
     "agentInstructionStyle": [
       "FULL-FILE REPLACEMENTS ONLY for all files (no partial snippets).",
-      "Put the Edit or Create link immediately above each file.",
+      "Put the Edit/Create link immediately above each file.",
       "Provide numbered click-by-click steps and a concise commit title after files.",
-      "Include a Verify section with exact URLs or curl and the expected statuses.",
+      "Include a Verify section with exact URLs/cURL and expected statuses.",
       "Never edit inside <!-- CL:START --> ... <!-- CL:END --> in playbook.md; use the reset protocol if stale.",
       "ASCII-only JSON for decisions.json.",
       "No secrets in repo; refer to secret names only.",
-      "Avoid '@/app/../..' style imports; prefer '@/lib/*', '@/db/*', or stable relatives.",
+      "Avoid '@/lib/*' imports that traverse upward directories; prefer stable roots or local relative imports under apps/portal.",
       "Redeploy on Vercel with Use existing Build Cache unchecked when debugging."
     ],
     "reconcilerProcess": {
       "summary": "Run once after edits; use reset protocol if needed.",
       "normalRun": {
         "commitTitle": "playbook: sync decisions",
-        "steps": [
-          "Open links.runReconciler and run it",
-          "Open links.pulls and merge the PR it opens"
-        ]
+        "steps": ["Open links.runReconciler and run it", "Open links.pulls and merge the PR it opens"]
       },
       "resetRun": {
         "when": "Only if prior runs report no changes or the block is stale.",
@@ -293,43 +269,12 @@
       "note": "Set in Vercel (routes) and GitHub Actions (workflow). Never commit secrets."
     },
     "providerIntake": {
-      "summary": "Provider intake and coverage captured and verified.",
+      "summary": "Provider intake + coverage captured and verified.",
       "schema": {
         "tables": [
-          {
-            "name": "providers",
-            "pk": ["id"],
-            "columns": {
-              "id": "uuid primary key",
-              "company_name": "text not null",
-              "contact_email": "text not null",
-              "contact_phone": "text",
-              "status": "text not null default 'pending'"
-            }
-          },
-          {
-            "name": "provider_services",
-            "pk": ["provider_id", "service_code"],
-            "columns": {
-              "provider_id": "uuid not null references providers(id) on delete cascade",
-              "service_code": "text not null"
-            },
-            "indexes": [
-              { "name": "idx_provider_services_service_code", "columns": ["service_code"] }
-            ]
-          },
-          {
-            "name": "provider_zips",
-            "pk": ["provider_id", "zip"],
-            "columns": {
-              "provider_id": "uuid not null references providers(id) on delete cascade",
-              "zip": "text not null check (zip ~ '^[0-9]{5}$')"
-            },
-            "indexes": [
-              { "name": "idx_provider_zips_zip", "columns": ["zip"] },
-              { "name": "idx_provider_zips_provider_id", "columns": ["provider_id"] }
-            ]
-          }
+          { "name": "providers", "pk": ["id"], "columns": { "id": "uuid primary key", "company_name": "text not null", "contact_email": "text not null", "contact_phone": "text", "status": "text not null default 'pending'" } },
+          { "name": "provider_services", "pk": ["provider_id", "service_code"], "columns": { "provider_id": "uuid not null references providers(id) on delete cascade", "service_code": "text not null" }, "indexes": [ { "name": "idx_provider_services_service_code", "columns": ["service_code"] } ] },
+          { "name": "provider_zips", "pk": ["provider_id", "zip"], "columns": { "provider_id": "uuid not null references providers(id) on delete cascade", "zip": "text not null check (zip ~ '^[0-9]{5}$')" }, "indexes": [ { "name": "idx_provider_zips_zip", "columns": ["zip"] }, { "name": "idx_provider_zips_provider_id", "columns": ["provider_id"] } ] }
         ],
         "serviceCodes": ["EXIT_SIGN", "E_LIGHT", "EXTINGUISHERS"]
       },
@@ -340,8 +285,8 @@
         { "name": "Provider Score (implemented)", "method": "POST", "path": "/api/providers/score" }
       ],
       "decisions": [
-        "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any .unsafe or string-concat SQL.",
-        "Idempotent DDL: CREATE TABLE IF NOT EXISTS and ON CONFLICT DO NOTHING for multi-row inserts.",
+        "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any .unsafe/sql.join/sql.array usage.",
+        "Idempotent DDL: CREATE TABLE IF NOT EXISTS, ON CONFLICT DO NOTHING for multi-row inserts.",
         "Neon typing: prefer UNNEST CTEs and parameterized sql(text, params) over ANY($1) in tagged templates to avoid TypeScript overload issues.",
         "Expose CORS on public read endpoints (OPTIONS + Access-Control-Allow-* headers) so browser clients can exercise APIs during development."
       ]
