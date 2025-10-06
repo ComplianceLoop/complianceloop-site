@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-05.3",
+  "version": "2025-10-05.4",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -267,14 +267,17 @@
       "Never edit inside <!-- CL:START --> ... <!-- CL:END --> in playbook.md; use the reset protocol if stale.",
       "ASCII-only JSON for decisions.json.",
       "No secrets in repo; refer to secret names only.",
-      "Avoid '@/app/../…' imports; prefer '@/lib/*', '@/db/*', or stable relatives.",
+      "Avoid '@/lib/*' imports that traverse upward directories; prefer stable roots or local relative imports under apps/portal when needed.",
       "Redeploy on Vercel with Use existing Build Cache unchecked when debugging."
     ],
     "reconcilerProcess": {
       "summary": "Run once after edits; use reset protocol if needed.",
       "normalRun": {
         "commitTitle": "playbook: sync decisions",
-        "steps": ["Open links.runReconciler and run it", "Open links.pulls and merge the PR it opens"]
+        "steps": [
+          "Open links.runReconciler and run it",
+          "Open links.pulls and merge the PR it opens"
+        ]
       },
       "resetRun": {
         "when": "Only if prior runs report no changes or the block is stale.",
@@ -293,9 +296,40 @@
       "summary": "Provider intake + coverage captured and verified.",
       "schema": {
         "tables": [
-          { "name": "providers", "pk": ["id"], "columns": { "id": "uuid primary key", "company_name": "text not null", "contact_email": "text not null", "contact_phone": "text", "status": "text not null default 'pending'" } },
-          { "name": "provider_services", "pk": ["provider_id", "service_code"], "columns": { "provider_id": "uuid not null references providers(id) on delete cascade", "service_code": "text not null" }, "indexes": [{ "name": "idx_provider_services_service_code", "columns": ["service_code"] }] },
-          { "name": "provider_zips", "pk": ["provider_id", "zip"], "columns": { "provider_id": "uuid not null references providers(id) on delete cascade", "zip": "text not null check (zip ~ '^[0-9]{5}$')" }, "indexes": [{ "name": "idx_provider_zips_zip", "columns": ["zip"] }, { "name": "idx_provider_zips_provider_id", "columns": ["provider_id"] }] }
+          {
+            "name": "providers",
+            "pk": ["id"],
+            "columns": {
+              "id": "uuid primary key",
+              "company_name": "text not null",
+              "contact_email": "text not null",
+              "contact_phone": "text",
+              "status": "text not null default 'pending'"
+            }
+          },
+          {
+            "name": "provider_services",
+            "pk": ["provider_id", "service_code"],
+            "columns": {
+              "provider_id": "uuid not null references providers(id) on delete cascade",
+              "service_code": "text not null"
+            },
+            "indexes": [
+              { "name": "idx_provider_services_service_code", "columns": ["service_code"] }
+            ]
+          },
+          {
+            "name": "provider_zips",
+            "pk": ["provider_id", "zip"],
+            "columns": {
+              "provider_id": "uuid not null references providers(id) on delete cascade",
+              "zip": "text not null check (zip ~ '^[0-9]{5}$')"
+            },
+            "indexes": [
+              { "name": "idx_provider_zips_zip", "columns": ["zip"] },
+              { "name": "idx_provider_zips_provider_id", "columns": ["provider_id"] }
+            ]
+          }
         ],
         "serviceCodes": ["EXIT_SIGN", "E_LIGHT", "EXTINGUISHERS"]
       },
