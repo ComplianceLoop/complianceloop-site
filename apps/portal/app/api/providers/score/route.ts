@@ -7,7 +7,7 @@
 // Logic:
 //  • Find providers covering the ZIP (provider_zips.zip).
 //  • Ensure provider has ALL requested services (provider_services.service_code).
-//  • Filter status in ('approved','active') first; allow 'pending' only if no approved/active match.
+//  • Prefer statuses 'active' and 'approved'; include 'pending' only if no active/approved match.
 //  • Sort: status DESC (active > approved > pending), company_name ASC.
 //  • Limit 100.
 //
@@ -42,9 +42,9 @@ function getSql() {
 
 /**
  * Implementation notes:
- * - To avoid TypeScript overload issues in tagged template mode, use the
- *   parameterized-call form: sql(<text>, [params...]) with $1, $2, $3 placeholders.
- * - Arrays are handled via UNNEST CTEs for clean typing and performance.
+ * - Use UNNEST CTEs for array filters (services, statuses).
+ * - Use parameterized text + params to avoid ANY($1) typed-template edge cases.
+ * - Narrow cast the result to ProviderRow[] to bypass Neon TS overload ambiguity.
  */
 async function queryEligible(
   zip: string,
@@ -89,8 +89,13 @@ async function queryEligible(
     limit 100
   ` as const;
 
-  // Parameterized form: first argument is SQL text, second is params array.
-  const rows = await sql<ProviderRow[]>(text, [services, allowedStatuses, zip]);
+  // Narrow cast to sidestep Neon’s call-overload typing.
+  const rows = (await (sql as unknown as (q: string, params?: unknown[]) => Promise<unknown>)(text, [
+    services,
+    allowedStatuses,
+    zip
+  ])) as ProviderRow[];
+
   return rows;
 }
 
@@ -156,7 +161,7 @@ export async function POST(req: NextRequest) {
 
 /**
  * NOTES:
- * - Arrays handled via UNNEST CTEs and parameterized sql(text, params) form to avoid Neon/TS overload issues.
+ * - Arrays handled via UNNEST CTEs and parameterized call form to avoid typing complaints.
  * - Parameterized SQL only; no concatenation beyond static query string.
  * - Apply CDN/edge rate limiting in production (e.g., 60 req/min per IP).
  */
