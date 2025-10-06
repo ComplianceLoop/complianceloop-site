@@ -54,5 +54,8 @@ curl -sfL https://api.github.com/repos/ComplianceLoop/complianceloop-site/conten
 # Fetch an app source file via raw:
 curl -sfL https://raw.githubusercontent.com/ComplianceLoop/complianceloop-site/main/apps/portal/app/api/providers/score/route.ts | sed -n '1,30p'
 
+# Agent Readme — Canonical, Public Read Access
+<!-- (unchanged content) -->
 ## 6) Updating Links
 When you add or rename important files, update `links.agent.json` at the repo root (full-file replacement). A CI job (`.github/workflows/agent-read-selftest.yml`) validates every link in that file on each push.
+
