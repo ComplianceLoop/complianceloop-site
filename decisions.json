@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-05.11",
+  "version": "2025-10-05.12",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -119,7 +119,7 @@
         { "id": "score", "title": "POST /api/providers/score (zip + services, sorted)", "status": "implemented" }
       ]
     }
-  },
+  ],
   "finances": {
     "currency": "USD",
     "oneTime": {
@@ -155,7 +155,8 @@
     "pulls": "https://github.com/ComplianceLoop/complianceloop-site/pulls",
     "vercelEnv": "https://vercel.com/compliance-loop/complianceloop-portal/settings/environment-variables",
     "vercelDeployments": "https://vercel.com/compliance-loop/complianceloop-portal/deployments",
-    "handoffPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.md"
+    "handoffPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.md",
+    "diagnoseDecisions": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/diagnose-decisions-json.yml"
   },
   "fileActions": {
     "policy": "Use EDIT links if file exists; otherwise use CREATE links.",
@@ -247,6 +248,20 @@
           "Open links.pulls and merge the PR it opens"
         ]
       }
+    },
+    "jsonHygiene": {
+      "rules": [
+        "ASCII-only content (no smart quotes, em dashes).",
+        "No trailing commas before ']' or '}'.",
+        "Keep property order stable; prefer short strings in notes.",
+        "If Reconciler throws 'position NNNN', run the diagnose workflow below and patch the exact byte."
+      ],
+      "diagnosticWorkflow": ".github/workflows/diagnose-decisions-json.yml",
+      "howToRun": [
+        "Open links.diagnoseDecisions, click 'Run workflow', set pos to the byte index from the Reconciler log.",
+        "Read 'UTF-8 window' and line/column to locate the issue.",
+        "Submit a full-file replacement that fixes only the offending character(s), then run the Reconciler again."
+      ]
     },
     "airtableEnv": {
       "vars": ["AIRTABLE_API_KEY", "AIRTABLE_BASE_ID", "AIRTABLE_SYNC_KEY? (for POST /api/airtable/sync)", "BASE_URL? (scripts)", "SYNC_SOURCE_URL?"],
