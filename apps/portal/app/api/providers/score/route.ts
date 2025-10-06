@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
       .sort((a, b) => {
         if (b._rank !== a._rank) return b._rank - a._rank;
         return a.companyName.localeCompare(b.companyName);
-      }))
+      })
       .map<EligibleItem>(({ providerId, companyName, status }) => ({
         providerId,
         companyName,
