@@ -1,15 +1,45 @@
-name: validate-decisions
+name: validate-decisions.json
+
 on:
   push:
-    branches: [ main ]
-    paths: [ "decisions.json" ]
+    paths:
+      - "decisions.json"
   pull_request:
-    branches: [ main ]
-    paths: [ "decisions.json" ]
+    paths:
+      - "decisions.json"
+  workflow_dispatch: {}
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Validate JSON (node)
-        run: node -e "JSON.parse(require('fs').readFileSync('decisions.json','utf8')); console.log('decisions.json valid')"
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure file exists
+        run: |
+          test -f decisions.json || { echo "::error file=decisions.json::decisions.json not found"; exit 1; }
+
+      - name: Validate JSON syntax (jq)
+        run: |
+          sudo apt-get update -y >/dev/null
+          sudo apt-get install -y jq >/dev/null
+          jq -e . decisions.json >/dev/null
+
+      - name: Enforce ASCII-only (no smart quotes/em dashes)
+        run: |
+          if LC_ALL=C grep -P -n "[^\x00-\x7F]" decisions.json; then
+            echo "::error file=decisions.json::Non-ASCII characters found (policy: ASCII-only)."
+            exit 1
+          fi
+
+      - name: Detect control characters (except tab/newline)
+        run: |
+          if LC_ALL=C grep -P -n "[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]" decisions.json; then
+            echo "::error file=decisions.json::Control characters detected."
+            exit 1
+          fi
+
+      - name: Summarize
+        run: |
+          echo "decisions.json: ✅ JSON parse OK, ✅ ASCII-only, ✅ no hidden control chars"
