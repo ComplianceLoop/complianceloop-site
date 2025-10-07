@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-05.13",
+  "version": "2025-10-05.14",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -52,7 +52,7 @@
       "startedAt": "2025-10-04",
       "notes": [
         "POST /api/providers/apply and POST /api/providers/score deployed.",
-        "Functional tests validated via Hoppscotch (Proxy mode) and curl: invalid body 400, unknown ZIP 200 with empty list, happy-path returns TestCo QA.",
+        "Functional tests validated via Hoppscotch (Proxy mode) and curl: invalid body 400, unknown ZIP 200 with empty list, happy-path returns provider when present.",
         "Next: criteria engine + guidance pages before marking phase landed."
       ]
     },
@@ -96,7 +96,7 @@
       "phase": "Polish & launch",
       "objective": "SEO, accessibility, rate limits, QA.",
       "deliverables": ["schema.org Business markup", "robots, sitemaps", "basic rate limiting"],
-      "acceptance": ["Lighthouse >= 90", "No PII leaks", "Runbook updated"]
+      "acceptance": ["Lighthouse >=90", "No PII leaks", "Runbook updated"]
     }
   ],
   "phaseProgress": {
@@ -161,6 +161,7 @@
     "vercelEnv": "https://vercel.com/compliance-loop/complianceloop-portal/settings/environment-variables",
     "vercelDeployments": "https://vercel.com/compliance-loop/complianceloop-portal/deployments",
     "handoffPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.md",
+    "handoffAgentPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.agent.md",
     "diagnoseDecisions": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/diagnose-decisions-json.yml"
   },
   "fileActions": {
@@ -233,7 +234,7 @@
       "Never edit inside <!-- CL:START --> <!-- CL:END --> in playbook.md; use the reset protocol if stale.",
       "ASCII-only JSON for decisions.json.",
       "No secrets in repo; refer to secret names only.",
-      "Avoid '@/app/../..' style imports; prefer '@/lib/*', '@/db/*', or stable relatives.",
+      "Avoid '@/app/../..' imports; prefer '@/lib/*', '@/db/*', or stable relatives.",
       "Redeploy on Vercel with Use existing Build Cache unchecked when debugging."
     ],
     "reconcilerProcess": {
@@ -288,8 +289,8 @@
       "schema": {
         "tables": [
           { "name": "providers", "pk": ["id"], "columns": { "id": "uuid primary key", "company_name": "text not null", "contact_email": "text not null", "contact_phone": "text", "status": "text not null default 'pending'" } },
-          { "name": "provider_services", "pk": ["provider_id", "service_code"], "columns": { "provider_id": "uuid not null references providers(id) on delete cascade", "service_code": "text not null" }, "indexes": [ { "name": "idx_provider_services_service_code", "columns": ["service_code"] } ] },
-          { "name": "provider_zips", "pk": ["provider_id", "zip"], "columns": { "provider_id": "uuid not null references providers(id) on delete cascade", "zip": "text not null check (zip ~ '^[0-9]{5}$')" }, "indexes": [ { "name": "idx_provider_zips_zip", "columns": ["zip"] }, { "name": "idx_provider_zips_provider_id", "columns": ["provider_id"] } ] }
+          { "name": "provider_services", "pk": ["provider_id", "service_code"], "columns": { "provider_id": "uuid not null references providers(id) on delete cascade", "service_code": "text not null" }, "indexes": [{ "name": "idx_provider_services_service_code", "columns": ["service_code"] }] },
+          { "name": "provider_zips", "pk": ["provider_id", "zip"], "columns": { "provider_id": "uuid not null references providers(id) on delete cascade", "zip": "text not null check (zip ~ '^[0-9]{5}$')" }, "indexes": [{ "name": "idx_provider_zips_zip", "columns": ["zip"] }, { "name": "idx_provider_zips_provider_id", "columns": ["provider_id"] }] }
         ],
         "serviceCodes": ["EXIT_SIGN", "E_LIGHT", "EXTINGUISHERS"]
       },
