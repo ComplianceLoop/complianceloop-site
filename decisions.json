@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-05.12",
+  "version": "2025-10-05.13",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -49,7 +49,12 @@
       "deliverables": ["criteria engine", "provider onboarding form", "how-to-qualify guidance", "provider scoring endpoint"],
       "acceptance": ["Pass or fail immediate", "Declined path shows guidance", "Scoring endpoint returns eligible providers"],
       "status": "in_progress",
-      "startedAt": "2025-10-04"
+      "startedAt": "2025-10-04",
+      "notes": [
+        "POST /api/providers/apply and POST /api/providers/score deployed.",
+        "Functional tests validated via Hoppscotch (Proxy mode) and curl: invalid body 400, unknown ZIP 200 with empty list, happy-path returns TestCo QA.",
+        "Next: criteria engine + guidance pages before marking phase landed."
+      ]
     },
     {
       "phase": "Assignment engine",
@@ -253,19 +258,30 @@
       "rules": [
         "ASCII-only content (no smart quotes, em dashes).",
         "No trailing commas before ']' or '}'.",
-        "Keep property order stable; prefer short strings in notes.",
-        "If Reconciler throws 'position NNNN', run the diagnose workflow below and patch the exact byte."
+        "If Reconciler throws 'position NNNN', run diagnose-decisions-json with that byte index and patch exactly there."
       ],
       "diagnosticWorkflow": ".github/workflows/diagnose-decisions-json.yml",
       "howToRun": [
-        "Open links.diagnoseDecisions, click 'Run workflow', set pos to the byte index from the Reconciler log.",
-        "Read 'UTF-8 window' and line/column to locate the issue.",
-        "Submit a full-file replacement that fixes only the offending character(s), then run the Reconciler again."
+        "Open links.diagnoseDecisions, click 'Run workflow', set pos to the byte index from Reconciler.",
+        "Read the window around pos to find the offending character(s), then submit a full-file fix."
       ]
     },
-    "airtableEnv": {
-      "vars": ["AIRTABLE_API_KEY", "AIRTABLE_BASE_ID", "AIRTABLE_SYNC_KEY? (for POST /api/airtable/sync)", "BASE_URL? (scripts)", "SYNC_SOURCE_URL?"],
-      "note": "Set in Vercel (routes) and GitHub Actions (workflow). Never commit secrets."
+    "apiTesting": {
+      "baseUrlPolicy": "Prefer the Production alias for testing; preview URLs may be protected.",
+      "productionBase": "https://complianceloop-portal.vercel.app",
+      "previewBypassHeader": "x-vercel-protection-bypass: <token>",
+      "hoppscotch": [
+        "Set Interceptor = Proxy (avoids browser CORS preflight).",
+        "POST /api/providers/score with {} -> expect 400 (invalid zip).",
+        "POST /api/providers/score with {\"zip\":\"00000\",\"services\":[\"EXIT_SIGN\",\"E_LIGHT\"]} -> 200 with empty list.",
+        "POST /api/providers/apply then POST /api/providers/score for that zip -> returns eligible providers."
+      ],
+      "curlExamples": [
+        "curl -i -X POST $BASE/api/providers/score -H 'content-type: application/json' --data '{}'",
+        "curl -s -X POST $BASE/api/providers/score -H 'content-type: application/json' --data '{\"zip\":\"00000\",\"services\":[\"EXIT_SIGN\",\"E_LIGHT\"]}'",
+        "curl -s -X POST $BASE/api/providers/apply -H 'content-type: application/json' --data '{\"companyName\":\"TestCo QA\",\"contactEmail\":\"qa@example.com\",\"zips\":[\"11223\"],\"services\":[\"EXIT_SIGN\",\"E_LIGHT\"]}'",
+        "curl -s -X POST $BASE/api/providers/score -H 'content-type: application/json' --data '{\"zip\":\"11223\",\"services\":[\"EXIT_SIGN\",\"E_LIGHT\"]}'"
+      ]
     },
     "providerIntake": {
       "summary": "Provider intake and coverage captured and verified.",
