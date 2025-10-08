@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-06.4",
+  "version": "2025-10-08.0",
   "currentPhase": "Provider directory & eligibility",
   "phases": [
     {
@@ -131,7 +131,7 @@
         { "id": "score", "title": "POST /api/providers/score (zip + services, sorted)", "status": "implemented" }
       ]
     }
-  ],
+  },
   "finances": {
     "currency": "USD",
     "oneTime": {
@@ -158,7 +158,7 @@
       "annualOnlyTotal": 11.08,
       "arr": 1446.28
     },
-    "lastUpdated": "2025-10-04"
+    "lastUpdated": "2025-10-08"
   },
   "links": {
     "editDecisions": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json",
@@ -174,62 +174,62 @@
   "fileActions": {
     "policy": "Use EDIT links if file exists; otherwise use CREATE links.",
     "items": [
-        {
-          "path": "lib/airtable.ts",
-          "exists": true,
-          "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/airtable.ts",
-          "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fairtable.ts",
-          "purpose": "Airtable REST client (performUpsert)",
-          "lastChecked": "2025-10-04"
-        },
-        {
-          "path": "app/api/airtable/source/route.ts",
-          "exists": true,
-          "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/airtable/source/route.ts",
-          "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Fairtable%2Fsource%2Froute.ts",
-          "purpose": "JSON export for Airtable sync",
-          "lastChecked": "2025-10-04"
-        },
-        {
-          "path": "scripts/airtable-sync.mjs",
-          "exists": true,
-          "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/airtable-sync.mjs",
-          "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=scripts%2Fairtable-sync.mjs",
-          "purpose": "One-way sync CLI",
-          "lastChecked": "2025-10-04"
-        },
-        {
-          "path": ".github/workflows/airtable-sync.yml",
-          "exists": true,
-          "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/airtable-sync.yml",
-          "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fairtable-sync.yml",
-          "purpose": "CI workflow for Airtable sync",
-          "lastChecked": "2025-10-04"
-        },
-        {
-          "path": "apps/portal/app/api/providers/bootstrap/route.ts",
-          "exists": true,
-          "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/bootstrap/route.ts",
-          "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fbootstrap%2Froute.ts",
-          "purpose": "Idempotent DDL: providers, provider_services, provider_zips + indexes",
-          "lastChecked": "2025-10-04"
-        },
-        {
-          "path": "apps/portal/app/api/providers/apply/route.ts",
-          "exists": true,
-          "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/apply/route.ts",
-          "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fapply%2Froute.ts",
-          "purpose": "Create provider; upsert services; insert ZIP coverage rows",
-          "lastChecked": "2025-10-04"
-        },
-        {
-          "path": "apps/portal/db/bootstrap.sql",
-          "exists": true,
-          "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/db/bootstrap.sql",
-          "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fdb%2Fbootstrap.sql",
-          "purpose": "DDL mirror of provider tables/indexes (idempotent)",
-          "lastChecked": "2025-10-04"
-        }
+      {
+        "path": "lib/airtable.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/airtable.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fairtable.ts",
+        "purpose": "Airtable REST client (performUpsert)",
+        "lastChecked": "2025-10-08"
+      },
+      {
+        "path": "app/api/airtable/source/route.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/airtable/source/route.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Fairtable%2Fsource%2Froute.ts",
+        "purpose": "JSON export for Airtable sync",
+        "lastChecked": "2025-10-08"
+      },
+      {
+        "path": "scripts/airtable-sync.mjs",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/airtable-sync.mjs",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=scripts%2Fairtable-sync.mjs",
+        "purpose": "One-way sync CLI",
+        "lastChecked": "2025-10-08"
+      },
+      {
+        "path": ".github/workflows/airtable-sync.yml",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/airtable-sync.yml",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fairtable-sync.yml",
+        "purpose": "CI workflow for Airtable sync",
+        "lastChecked": "2025-10-08"
+      },
+      {
+        "path": "apps/portal/app/api/providers/bootstrap/route.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/bootstrap/route.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fbootstrap%2Froute.ts",
+        "purpose": "Idempotent DDL: providers, provider_services, provider_zips + indexes",
+        "lastChecked": "2025-10-08"
+      },
+      {
+        "path": "apps/portal/app/api/providers/apply/route.ts",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/apply/route.ts",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fapply%2Froute.ts",
+        "purpose": "Create provider; upsert services; insert ZIP coverage rows",
+        "lastChecked": "2025-10-08"
+      },
+      {
+        "path": "apps/portal/db/bootstrap.sql",
+        "exists": true,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/db/bootstrap.sql",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fdb%2Fbootstrap.sql",
+        "purpose": "DDL mirror of provider tables/indexes (idempotent)",
+        "lastChecked": "2025-10-08"
+      }
     ]
   },
   "operationalNotes": {
@@ -238,7 +238,7 @@
       "Put the Edit/Create link immediately above each file.",
       "Provide numbered click-by-click steps and a concise commit title after files.",
       "Include a Verify section with exact URLs/cURL and the expected statuses.",
-      "Never edit inside <!-- CL:START --> ... <!-- CL:END --> in playbook.md; use the reset protocol if stale.",
+      "Never edit inside the generated block in playbook.md; use the reset protocol if stale.",
       "ASCII-only JSON for decisions.json.",
       "No secrets in repo; refer to secret names only.",
       "Avoid '@/lib/*' imports that point above app; prefer '@/lib/*', '@/db/*', or stable relatives.",
@@ -253,7 +253,7 @@
       "resetRun": {
         "when": "Only if prior runs report no changes or the block is stale.",
         "steps": [
-          "Open links.editPlaybook and replace with '<!-- CL:START -->\\n<!-- CL:END -->' then commit with 'playbook: reset generated block'",
+          "Open links.editPlaybook and replace with '\\n' then commit with 'playbook: reset generated block'",
           "Open links.runReconciler and run it",
           "Open links.pulls and merge the PR it opens"
         ]
@@ -274,7 +274,7 @@
     "apiTesting": {
       "baseUrlPolicy": "Prefer the Production alias for testing; preview URLs may be protected.",
       "productionBase": "https://complianceloop-portal.vercel.app",
-      "previewBypassHeader": "x-vercel-protection-bypass: <token>",
+      "previewBypassHeader": "x-vercel-protection-bypass: ",
       "hoppscotch": [
         "Set Interceptor to Proxy.",
         "POST /api/providers/score with empty JSON body => expect 400 invalid zip.",
@@ -283,59 +283,72 @@
       ]
     },
     "airtableEnv": {
-      "vars": ["AIRTABLE_API_KEY", "AIRTABLE_BASE_ID", "AIRTABLE_SYNC_KEY? (for POST /api/airtable/sync)", "BASE_URL? (scripts)", "SYNC_SOURCE_URL?"],
+      "vars": [
+        "AIRTABLE_API_KEY",
+        "AIRTABLE_BASE_ID",
+        "AIRTABLE_SYNC_KEY? (for POST /api/airtable/sync)",
+        "BASE_URL? (scripts)",
+        "SYNC_SOURCE_URL?"
+      ],
       "note": "Set in Vercel (routes) and GitHub Actions (workflow). Never commit secrets."
     },
-    "providerIntake": {
-      "summary": "Provider intake + coverage captured and verified.",
-      "schema": {
-        "tables": [
-          {
-            "name": "providers",
-            "pk": ["id"],
-            "columns": {
-              "id": "uuid primary key",
-              "company_name": "text not null",
-              "contact_email": "text not null",
-              "contact_phone": "text",
-              "status": "text not null default 'pending'"
-            }
-          },
-          {
-            "name": "provider_services",
-            "pk": ["provider_id", "service_code"],
-            "columns": {
-              "provider_id": "uuid not null references providers(id) on delete cascade",
-              "service_code": "text not null"
-            },
-            "indexes": [{ "name": "idx_provider_services_service_code", "columns": ["service_code"] }]
-          },
-          {
-            "name": "provider_zips",
-            "pk": ["provider_id", "zip"],
-            "columns": {
-              "provider_id": "uuid not null references providers(id) on delete cascade",
-              "zip": "text not null check (zip ~ '^[0-9]{5}$')"
-            },
-            "indexes": [
-              { "name": "idx_provider_zips_zip", "columns": ["zip"] },
-              { "name": "idx_provider_zips_provider_id", "columns": ["provider_id"] }
-            ]
-          }
-        ],
-        "serviceCodes": ["EXIT_SIGN", "E_LIGHT", "EXTINGUISHERS"]
-      },
-      "endpoints": [
-        { "name": "Bootstrap", "method": "GET", "path": "/api/providers/bootstrap" },
-        { "name": "Provider Apply (UI)", "method": "POST-via-form", "path": "/providers/apply" },
-        { "name": "Provider Apply (API)", "method": "POST", "path": "/api/providers/apply" },
-        { "name": "Provider Score (implemented)", "method": "POST", "path": "/api/providers/score" }
-      ],
-      "decisions": [
-        "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any unsafe SQL.",
-        "Idempotent DDL: CREATE TABLE IF NOT EXISTS, ON CONFLICT DO NOTHING for multi-row inserts."
-      ]
-    }
+    "apiTestingResults": [],
+    "apiTestingNotes": "Append short lines to apiTestingResults after running the four checks, e.g., '2025-10-08: score {} -> 400 invalid zip OK'."
   },
-  "status": { "playbookGeneratedAt": null, "lastReconciledAt": null }
+  "providerIntake": {
+    "summary": "Provider intake + coverage captured and verified.",
+    "schema": {
+      "tables": [
+        {
+          "name": "providers",
+          "pk": ["id"],
+          "columns": {
+            "id": "uuid primary key",
+            "company_name": "text not null",
+            "contact_email": "text not null",
+            "contact_phone": "text",
+            "status": "text not null default 'pending'"
+          }
+        },
+        {
+          "name": "provider_services",
+          "pk": ["provider_id", "service_code"],
+          "columns": {
+            "provider_id": "uuid not null references providers(id) on delete cascade",
+            "service_code": "text not null"
+          },
+          "indexes": [
+            { "name": "idx_provider_services_service_code", "columns": ["service_code"] }
+          ]
+        },
+        {
+          "name": "provider_zips",
+          "pk": ["provider_id", "zip"],
+          "columns": {
+            "provider_id": "uuid not null references providers(id) on delete cascade",
+            "zip": "text not null check (zip ~ '^[0-9]{5}$')"
+          },
+          "indexes": [
+            { "name": "idx_provider_zips_zip", "columns": ["zip"] },
+            { "name": "idx_provider_zips_provider_id", "columns": ["provider_id"] }
+          ]
+        }
+      ],
+      "serviceCodes": ["EXIT_SIGN", "E_LIGHT", "EXTINGUISHERS"]
+    },
+    "endpoints": [
+      { "name": "Bootstrap", "method": "GET", "path": "/api/providers/bootstrap" },
+      { "name": "Provider Apply (UI)", "method": "POST-via-form", "path": "/providers/apply" },
+      { "name": "Provider Apply (API)", "method": "POST", "path": "/api/providers/apply" },
+      { "name": "Provider Score (implemented)", "method": "POST", "path": "/api/providers/score" }
+    ],
+    "decisions": [
+      "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any unsafe SQL.",
+      "Idempotent DDL: CREATE TABLE IF NOT EXISTS, ON CONFLICT DO NOTHING for multi-row inserts."
+    ]
+  },
+  "status": {
+    "playbookGeneratedAt": null,
+    "lastReconciledAt": null
+  }
 }
