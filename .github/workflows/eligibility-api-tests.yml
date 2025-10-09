@@ -1,0 +1,89 @@
+name: eligibility-api-tests
+on:
+  workflow_dispatch:
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Run API tests against Production alias
+        env:
+          BASE_URL: https://complianceloop-portal.vercel.app
+        run: |
+          set -euo pipefail
+          mkdir -p api-logs
+
+          # A) Empty body -> expect 400
+          curl -s -D api-logs/score_empty_headers.txt -o api-logs/score_empty_body.json \
+            -H "Content-Type: application/json" \
+            -X POST "$BASE_URL/api/providers/score" \
+            --data '{}' || true
+          codeA=$(awk 'NR==1{print $2}' api-logs/score_empty_headers.txt)
+          idA=$(awk 'BEGIN{IGNORECASE=1}/^x-vercel-id:/ {print $0}' api-logs/score_empty_headers.txt | awk -F': ' '{print $2}')
+
+          # B) Unknown zip -> expect 200, count:0
+          printf '{"zip":"00000","services":["EXIT_SIGN","E_LIGHT"]}' > /tmp/b.json
+          curl -s -D api-logs/score_unknown_headers.txt -o api-logs/score_unknown_body.json \
+            -H "Content-Type: application/json" \
+            -X POST "$BASE_URL/api/providers/score" \
+            --data @/tmp/b.json
+          codeB=$(awk 'NR==1{print $2}' api-logs/score_unknown_headers.txt)
+          idB=$(awk 'BEGIN{IGNORECASE=1}/^x-vercel-id:/ {print $0}' api-logs/score_unknown_headers.txt | awk -F': ' '{print $2}')
+          countB=$(jq -r '.count // "N/A"' api-logs/score_unknown_body.json)
+
+          # C) Apply provider -> expect 200 with providerId
+          printf '{"companyName":"TestCo %s","status":"active","services":["EXIT_SIGN","E_LIGHT"],"zips":["11223"],"contactName":"Agent","contactEmail":"agent@example.com"}' "$(date +%s)" > /tmp/c.json
+          curl -s -D api-logs/apply_headers.txt -o api-logs/apply_body.json \
+            -H "Content-Type: application/json" \
+            -X POST "$BASE_URL/api/providers/apply" \
+            --data @/tmp/c.json
+          codeC=$(awk 'NR==1{print $2}' api-logs/apply_headers.txt)
+          idC=$(awk 'BEGIN{IGNORECASE=1}/^x-vercel-id:/ {print $0}' api-logs/apply_headers.txt | awk -F': ' '{print $2}')
+          providerId=$(jq -r '.providerId // "N/A"' api-logs/apply_body.json)
+
+          # D) Score for 11223 -> expect 200 with count>=1
+          printf '{"zip":"11223","services":["EXIT_SIGN","E_LIGHT"]}' > /tmp/d.json
+          curl -s -D api-logs/score_zip_headers.txt -o api-logs/score_zip_body.json \
+            -H "Content-Type: application/json" \
+            -X POST "$BASE_URL/api/providers/score" \
+            --data @/tmp/d.json
+          codeD=$(awk 'NR==1{print $2}' api-logs/score_zip_headers.txt)
+          idD=$(awk 'BEGIN{IGNORECASE=1}/^x-vercel-id:/ {print $0}' api-logs/score_zip_headers.txt | awk -F': ' '{print $2}')
+          countD=$(jq -r '.count // "N/A"' api-logs/score_zip_body.json)
+
+          # Build four lines and append to decisions.json (full-file write)
+          curl -s https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/decisions.json > decisions.current.json
+          today=$(date -u +%F)
+          lineA="$today: score {} -> $codeA (x-vercel-id:$idA)"
+          lineB="$today: score 00000 EXIT_SIGN,E_LIGHT -> $codeB count:$countB (x-vercel-id:$idB)"
+          lineC="$today: apply TestCo -> $codeC providerId:$providerId (x-vercel-id:$idC)"
+          lineD="$today: score 11223 EXIT_SIGN,E_LIGHT -> $codeD count:$countD (x-vercel-id:$idD)"
+
+          jq \
+            --arg a "$lineA" \
+            --arg b "$lineB" \
+            --arg c "$lineC" \
+            --arg d "$lineD" '
+            (.operationalNotes //= {}) as $root
+            | ($root.apiTestingResults //= []) as $arr
+            | .operationalNotes.apiTestingResults += [$a, $b, $c, $d]
+          ' decisions.current.json > decisions.json
+
+      - name: Upload logs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eligibility-api-logs
+          path: api-logs/
+
+      - name: Commit decisions.json update
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "playbook(decisions): record live Eligibility API results (production)"
+          file_pattern: decisions.json
