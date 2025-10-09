@@ -13,74 +13,101 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Run API tests against Production alias
+      - name: Run API tests against Production alias (robust)
         env:
           BASE_URL: https://complianceloop-portal.vercel.app
         run: |
           set -euo pipefail
           mkdir -p api-logs
 
-          # A) Empty body -> expect 400
-          curl -s -D api-logs/score_empty_headers.txt -o api-logs/score_empty_body.json \
-            -H "Content-Type: application/json" \
-            -X POST "$BASE_URL/api/providers/score" \
-            --data '{}' || true
-          codeA=$(awk 'NR==1{print $2}' api-logs/score_empty_headers.txt)
-          idA=$(awk 'BEGIN{IGNORECASE=1}/^x-vercel-id:/ {print $0}' api-logs/score_empty_headers.txt | awk -F': ' '{print $2}')
+          jqsafe() {
+            # jqsafe <file> <jq expr> <fallback>
+            local f="$1"; shift
+            local expr="$1"; shift
+            local fb="$1"
+            if jq -e '.' "$f" >/dev/null 2>&1; then
+              jq -r "$expr // \"$fb\"" "$f" 2>/dev/null || echo "$fb"
+            else
+              echo "$fb"
+            fi
+          }
 
-          # B) Unknown zip -> expect 200, count:0
+          status_from_headers() { awk 'NR==1{print $2}' "$1" 2>/dev/null || echo "N/A"; }
+          vercel_id_from_headers() { awk 'BEGIN{IGNORECASE=1}/^x-vercel-id:/ {print $0}' "$1" | awk -F': ' '{print $2}' | tr -d '\r' || true; }
+
+          RUN_DATE=$(date -u +%F)
+
+          # A) score {} -> expect 400
+          curl -s -D api-logs/score_empty_headers.txt -o api-logs/score_empty_body.json \
+               -H "Content-Type: application/json" \
+               -X POST "$BASE_URL/api/providers/score" \
+               --data '{}' || true
+          A_CODE=$(status_from_headers api-logs/score_empty_headers.txt)
+          A_ID=$(vercel_id_from_headers api-logs/score_empty_headers.txt)
+
+          # B) score unknown zip -> expect 200, count:0
           printf '{"zip":"00000","services":["EXIT_SIGN","E_LIGHT"]}' > /tmp/b.json
           curl -s -D api-logs/score_unknown_headers.txt -o api-logs/score_unknown_body.json \
-            -H "Content-Type: application/json" \
-            -X POST "$BASE_URL/api/providers/score" \
-            --data @/tmp/b.json
-          codeB=$(awk 'NR==1{print $2}' api-logs/score_unknown_headers.txt)
-          idB=$(awk 'BEGIN{IGNORECASE=1}/^x-vercel-id:/ {print $0}' api-logs/score_unknown_headers.txt | awk -F': ' '{print $2}')
-          countB=$(jq -r '.count // "N/A"' api-logs/score_unknown_body.json)
+               -H "Content-Type: application/json" \
+               -X POST "$BASE_URL/api/providers/score" \
+               --data @/tmp/b.json || true
+          B_CODE=$(status_from_headers api-logs/score_unknown_headers.txt)
+          B_ID=$(vercel_id_from_headers api-logs/score_unknown_headers.txt)
+          B_COUNT=$(jqsafe api-logs/score_unknown_body.json '.count' 'N/A')
 
-          # C) Apply provider -> expect 200 with providerId
+          # C) apply provider -> expect 200 with providerId
           printf '{"companyName":"TestCo %s","status":"active","services":["EXIT_SIGN","E_LIGHT"],"zips":["11223"],"contactName":"Agent","contactEmail":"agent@example.com"}' "$(date +%s)" > /tmp/c.json
           curl -s -D api-logs/apply_headers.txt -o api-logs/apply_body.json \
-            -H "Content-Type: application/json" \
-            -X POST "$BASE_URL/api/providers/apply" \
-            --data @/tmp/c.json
-          codeC=$(awk 'NR==1{print $2}' api-logs/apply_headers.txt)
-          idC=$(awk 'BEGIN{IGNORECASE=1}/^x-vercel-id:/ {print $0}' api-logs/apply_headers.txt | awk -F': ' '{print $2}')
-          providerId=$(jq -r '.providerId // "N/A"' api-logs/apply_body.json)
+               -H "Content-Type: application/json" \
+               -X POST "$BASE_URL/api/providers/apply" \
+               --data @/tmp/c.json || true
+          C_CODE=$(status_from_headers api-logs/apply_headers.txt)
+          C_ID=$(vercel_id_from_headers api-logs/apply_headers.txt)
+          C_PROVIDER_ID=$(jqsafe api-logs/apply_body.json '.providerId' 'N/A')
 
-          # D) Score for 11223 -> expect 200 with count>=1
+          # D) score 11223 -> expect 200, count>=1
           printf '{"zip":"11223","services":["EXIT_SIGN","E_LIGHT"]}' > /tmp/d.json
           curl -s -D api-logs/score_zip_headers.txt -o api-logs/score_zip_body.json \
-            -H "Content-Type: application/json" \
-            -X POST "$BASE_URL/api/providers/score" \
-            --data @/tmp/d.json
-          codeD=$(awk 'NR==1{print $2}' api-logs/score_zip_headers.txt)
-          idD=$(awk 'BEGIN{IGNORECASE=1}/^x-vercel-id:/ {print $0}' api-logs/score_zip_headers.txt | awk -F': ' '{print $2}')
-          countD=$(jq -r '.count // "N/A"' api-logs/score_zip_body.json)
+               -H "Content-Type: application/json" \
+               -X POST "$BASE_URL/api/providers/score" \
+               --data @/tmp/d.json || true
+          D_CODE=$(status_from_headers api-logs/score_zip_headers.txt)
+          D_ID=$(vercel_id_from_headers api-logs/score_zip_headers.txt)
+          D_COUNT=$(jqsafe api-logs/score_zip_body.json '.count' 'N/A')
 
-          # Build four lines and append to decisions.json (full-file write)
-          curl -s https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/decisions.json > decisions.current.json
-          today=$(date -u +%F)
-          lineA="$today: score {} -> $codeA (x-vercel-id:$idA)"
-          lineB="$today: score 00000 EXIT_SIGN,E_LIGHT -> $codeB count:$countB (x-vercel-id:$idB)"
-          lineC="$today: apply TestCo -> $codeC providerId:$providerId (x-vercel-id:$idC)"
-          lineD="$today: score 11223 EXIT_SIGN,E_LIGHT -> $codeD count:$countD (x-vercel-id:$idD)"
-
-          jq \
-            --arg a "$lineA" \
-            --arg b "$lineB" \
-            --arg c "$lineC" \
-            --arg d "$lineD" '
-            (.operationalNotes //= {}) as $root
-            | ($root.apiTestingResults //= []) as $arr
-            | .operationalNotes.apiTestingResults += [$a, $b, $c, $d]
-          ' decisions.current.json > decisions.json
+          {
+            echo "RUN_DATE=$RUN_DATE"
+            echo "A_CODE=$A_CODE"; echo "A_ID=$A_ID"
+            echo "B_CODE=$B_CODE"; echo "B_ID=$B_ID"; echo "B_COUNT=$B_COUNT"
+            echo "C_CODE=$C_CODE"; echo "C_ID=$C_ID"; echo "C_PROVIDER_ID=$C_PROVIDER_ID"
+            echo "D_CODE=$D_CODE"; echo "D_ID=$D_ID"; echo "D_COUNT=$D_COUNT"
+          } >> $GITHUB_ENV
 
       - name: Upload logs artifact
         uses: actions/upload-artifact@v4
         with:
           name: eligibility-api-logs
           path: api-logs/
+
+      - name: Append results to decisions.json (full-file replacement)
+        run: |
+          set -euo pipefail
+          curl -s https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/decisions.json > decisions.current.json
+
+          lineA="$RUN_DATE: score {} -> $A_CODE (x-vercel-id:$A_ID)"
+          lineB="$RUN_DATE: score 00000 EXIT_SIGN,E_LIGHT -> $B_CODE count:$B_COUNT (x-vercel-id:$B_ID)"
+          lineC="$RUN_DATE: apply TestCo -> $C_CODE providerId:$C_PROVIDER_ID (x-vercel-id:$C_ID)"
+          lineD="$RUN_DATE: score 11223 EXIT_SIGN,E_LIGHT -> $D_CODE count:$D_COUNT (x-vercel-id:$D_ID)"
+
+          jq \
+            --arg a "$lineA" \
+            --arg b "$lineB" \
+            --arg c "$lineC" \
+            --arg d "$lineD" '
+              (.operationalNotes //= {}) as $root
+              | ($root.apiTestingResults //= []) as $arr
+              | .operationalNotes.apiTestingResults += [$a, $b, $c, $d]
+            ' decisions.current.json > decisions.json
 
       - name: Commit decisions.json update
         uses: stefanzweifel/git-auto-commit-action@v5
