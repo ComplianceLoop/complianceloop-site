@@ -80,18 +80,19 @@ export async function POST(req: NextRequest) {
   const sql = neon(DATABASE_URL);
 
   try {
-    // ---- Transaction (function-call form) ----
-    await sql("begin");
+    // ---- Transaction using function-call API ----
+    await sql("BEGIN");
 
-    // Insert provider and return id
-    const rows = (await sql<{ id: string }[]>(
+    // Insert provider and get id
+    const insertRes: any = await sql(
       "insert into providers (company_name, status, contact_email) values ($1, $2, $3) returning id",
       [companyName, status, contactEmail]
-    )) as { id: string }[];
+    );
+    const providerId: string | undefined =
+      insertRes?.rows?.[0]?.id ?? insertRes?.[0]?.id;
 
-    const providerId = rows?.[0]?.id;
     if (!providerId) {
-      await sql("rollback");
+      await sql("ROLLBACK");
       return serverError("insert_failed");
     }
 
@@ -117,12 +118,12 @@ export async function POST(req: NextRequest) {
       [providerId, zips]
     );
 
-    await sql("commit");
+    await sql("COMMIT");
 
     return NextResponse.json({ ok: true, providerId }, { status: 200 });
-  } catch (err) {
+  } catch {
     try {
-      await sql("rollback");
+      await sql("ROLLBACK");
     } catch {
       // ignore rollback failure
     }
