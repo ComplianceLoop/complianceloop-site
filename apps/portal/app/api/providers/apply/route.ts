@@ -1,6 +1,6 @@
 /* apps/portal/app/api/providers/apply/route.ts
  *
- * Creates a provider and UPSERTS coverage + services in a single transaction.
+ * Creates a provider and UPSERTS coverage + services in one transaction.
  * Contract (JSON body):
  * {
  *   "companyName": "Acme Co",
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   const status = (body.status ?? "").trim().toLowerCase();
   const contactEmail = (body.contactEmail ?? "").trim();
 
-  // Normalize services & zips (trim + upper for services)
+  // Normalize arrays
   const services = Array.isArray(body.services)
     ? body.services
         .map((s) => String(s).trim())
@@ -79,40 +79,46 @@ export async function POST(req: NextRequest) {
 
   const sql = neon(DATABASE_URL);
 
+  // Manual transaction (BEGIN/COMMIT) to avoid sql.begin() type issues
   try {
-    // Single transaction for provider + coverage + services
-    const providerId = await sql.begin(async (tx) => {
-      const inserted = await tx<
-        { id: string }[]
-      >`insert into providers (company_name, status, contact_email)
-         values (${companyName}, ${status}, ${contactEmail})
-         returning id`;
+    await sql`begin`;
 
-      const id = inserted[0]?.id;
-      if (!id) throw new Error("insert_failed");
+    const inserted = await sql<{ id: string }[]>`
+      insert into providers (company_name, status, contact_email)
+      values (${companyName}, ${status}, ${contactEmail})
+      returning id
+    `;
+    const providerId = inserted[0]?.id;
+    if (!providerId) {
+      await sql`rollback`;
+      return serverError("insert_failed");
+    }
 
-      // UPSERT services
-      await tx`
-        insert into provider_services (provider_id, service_code)
-        select ${id}::uuid, s as service_code
-        from unnest(${services}::text[]) as s
-        on conflict do nothing
-      `;
+    // UPSERT services
+    await sql`
+      insert into provider_services (provider_id, service_code)
+      select ${providerId}::uuid, s as service_code
+      from unnest(${services}::text[]) as s
+      on conflict do nothing
+    `;
 
-      // UPSERT zips
-      await tx`
-        insert into provider_zips (provider_id, zip)
-        select ${id}::uuid, z as zip
-        from unnest(${zips}::text[]) as z
-        on conflict do nothing
-      `;
+    // UPSERT zips
+    await sql`
+      insert into provider_zips (provider_id, zip)
+      select ${providerId}::uuid, z as zip
+      from unnest(${zips}::text[]) as z
+      on conflict do nothing
+    `;
 
-      return id;
-    });
+    await sql`commit`;
 
-    return NextResponse.json({ ok: true, providerId: providerId }, { status: 200 });
+    return NextResponse.json({ ok: true, providerId }, { status: 200 });
   } catch (err) {
-    // Optionally log err to your logger here
+    try {
+      await sql`rollback`;
+    } catch {
+      // swallow rollback error
+    }
     return serverError();
   }
 }
