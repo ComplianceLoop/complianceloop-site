@@ -1,85 +1,118 @@
-// apps/portal/app/api/providers/apply/route.ts
-import { NextResponse } from "next/server";
-import { exec } from "../../../../lib/neon"; // from apps/portal/app/api/providers/apply -> apps/portal/lib/neon.ts
+/* apps/portal/app/api/providers/apply/route.ts
+ *
+ * Creates a provider and UPSERTS coverage + services in a single transaction.
+ * Contract (JSON body):
+ * {
+ *   "companyName": "Acme Co",
+ *   "status": "pending" | "approved" | "active",
+ *   "services": ["EXIT_SIGN","E_LIGHT"],
+ *   "zips": ["11223"],
+ *   "contactName": "Optional",
+ *   "contactEmail": "agent@example.com"
+ * }
+ *
+ * Returns: { ok: true, providerId: "uuid" } on success
+ * Errors:  400 { ok:false, error:"bad_request" } for invalid body
+ *          500 { ok:false, error:"server_error" } for unexpected failures
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { neon } from "@neondatabase/serverless";
+
+export const runtime = "edge";
+export const dynamic = "force-dynamic";
 
 type ApplyBody = {
-  companyName: string;
-  contactEmail: string;
-  contactPhone?: string | null;
-  postalCodes?: string; // comma or space separated: "06010,06011 06012"
-  services?: string[];  // e.g., ["EXIT_SIGN","E_LIGHT"]
+  companyName?: string;
+  status?: string;
+  services?: string[];
+  zips?: string[];
+  contactName?: string;
+  contactEmail?: string;
 };
 
-function bad(message = "bad_request") {
-  return NextResponse.json({ ok: false, error: message }, { status: 400 });
-}
-function fail(message: string, detail?: unknown) {
-  return NextResponse.json({ ok: false, error: "server_error", message, detail }, { status: 500 });
-}
-function ok(data: unknown) {
-  return NextResponse.json(data, { status: 200 });
+const ALLOWED_STATUS = new Set(["pending", "approved", "active"]);
+const ZIP_RE = /^[0-9]{5}$/;
+
+function badRequest(msg = "bad_request") {
+  return NextResponse.json({ ok: false, error: msg }, { status: 400 });
 }
 
-export async function POST(request: Request) {
-  // Parse + validate body
+function serverError(msg = "server_error") {
+  return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+}
+
+export async function POST(req: NextRequest) {
   let body: ApplyBody;
   try {
-    body = (await request.json()) as ApplyBody;
+    body = (await req.json()) as ApplyBody;
   } catch {
-    return bad();
+    return badRequest("invalid_json");
   }
-  if (!body?.companyName || !body?.contactEmail) {
-    return bad();
-  }
+
+  const companyName = (body.companyName ?? "").trim();
+  const status = (body.status ?? "").trim().toLowerCase();
+  const contactEmail = (body.contactEmail ?? "").trim();
+
+  // Normalize services & zips (trim + upper for services)
+  const services = Array.isArray(body.services)
+    ? body.services
+        .map((s) => String(s).trim())
+        .filter(Boolean)
+        .map((s) => s.toUpperCase())
+    : [];
+
+  const zips = Array.isArray(body.zips)
+    ? body.zips.map((z) => String(z).trim()).filter(Boolean)
+    : [];
+
+  // Validate
+  if (!companyName) return badRequest("missing_companyName");
+  if (!ALLOWED_STATUS.has(status)) return badRequest("invalid_status");
+  if (!contactEmail) return badRequest("missing_contactEmail");
+  if (zips.length === 0) return badRequest("missing_zips");
+  if (services.length === 0) return badRequest("missing_services");
+  if (!zips.every((z) => ZIP_RE.test(z))) return badRequest("invalid_zip_format");
+
+  const DATABASE_URL = process.env.DATABASE_URL;
+  if (!DATABASE_URL) return serverError("db_not_configured");
+
+  const sql = neon(DATABASE_URL);
 
   try {
-    // 1) Insert provider row (exec with text + params[])
-    const insertProviderSql = `
-      INSERT INTO providers (company_name, contact_email, contact_phone, status)
-      VALUES ($1, $2, $3, 'pending')
-      RETURNING id
-    `;
-    const [prov] = await exec<{ id: string }>(insertProviderSql, [
-      body.companyName,
-      body.contactEmail,
-      body.contactPhone ?? null,
-    ]);
-    const providerId = prov.id;
+    // Single transaction for provider + coverage + services
+    const providerId = await sql.begin(async (tx) => {
+      const inserted = await tx<
+        { id: string }[]
+      >`insert into providers (company_name, status, contact_email)
+         values (${companyName}, ${status}, ${contactEmail})
+         returning id`;
 
-    // 2) Upsert selected services (each as its own exec call)
-    if (Array.isArray(body.services) && body.services.length) {
-      const insertSvcSql = `
-        INSERT INTO provider_services (provider_id, service_code)
-        VALUES ($1, $2)
-        ON CONFLICT (provider_id, service_code) DO NOTHING
+      const id = inserted[0]?.id;
+      if (!id) throw new Error("insert_failed");
+
+      // UPSERT services
+      await tx`
+        insert into provider_services (provider_id, service_code)
+        select ${id}::uuid, s as service_code
+        from unnest(${services}::text[]) as s
+        on conflict do nothing
       `;
-      for (const svc of body.services) {
-        await exec(insertSvcSql, [providerId, svc]);
-      }
-    }
 
-    // 3) Insert ZIP coverage (accept comma/space separated; only 5-digit tokens)
-    if (body.postalCodes) {
-      const zips = body.postalCodes
-        .split(/[,\s]+/g)
-        .map((t) => t.trim())
-        .filter((t) => /^\d{5}$/.test(t));
+      // UPSERT zips
+      await tx`
+        insert into provider_zips (provider_id, zip)
+        select ${id}::uuid, z as zip
+        from unnest(${zips}::text[]) as z
+        on conflict do nothing
+      `;
 
-      if (zips.length) {
-        const insertZipSql = `
-          INSERT INTO provider_zips (provider_id, zip)
-          VALUES ($1, $2)
-          ON CONFLICT DO NOTHING
-        `;
-        for (const z of zips) {
-          await exec(insertZipSql, [providerId, z]);
-        }
-      }
-    }
+      return id;
+    });
 
-    return ok({ ok: true, providerId });
+    return NextResponse.json({ ok: true, providerId: providerId }, { status: 200 });
   } catch (err) {
-    console.error("providers/apply error", err);
-    return fail("Failed to apply provider", (err as Error)?.message ?? String(err));
+    // Optionally log err to your logger here
+    return serverError();
   }
 }
