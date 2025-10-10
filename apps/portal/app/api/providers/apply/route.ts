@@ -79,45 +79,52 @@ export async function POST(req: NextRequest) {
 
   const sql = neon(DATABASE_URL);
 
-  // Manual transaction (BEGIN/COMMIT) to avoid sql.begin() type issues
   try {
-    await sql`begin`;
+    // ---- Transaction (function-call form) ----
+    await sql("begin");
 
-    const inserted = await sql<{ id: string }[]>`
-      insert into providers (company_name, status, contact_email)
-      values (${companyName}, ${status}, ${contactEmail})
-      returning id
-    `;
-    const providerId = inserted[0]?.id;
+    // Insert provider and return id
+    const rows = (await sql<{ id: string }[]>(
+      "insert into providers (company_name, status, contact_email) values ($1, $2, $3) returning id",
+      [companyName, status, contactEmail]
+    )) as { id: string }[];
+
+    const providerId = rows?.[0]?.id;
     if (!providerId) {
-      await sql`rollback`;
+      await sql("rollback");
       return serverError("insert_failed");
     }
 
-    // UPSERT services
-    await sql`
+    // Upsert services
+    await sql(
+      `
       insert into provider_services (provider_id, service_code)
-      select ${providerId}::uuid, s as service_code
-      from unnest(${services}::text[]) as s
+      select $1::uuid, s as service_code
+      from unnest($2::text[]) as s
       on conflict do nothing
-    `;
+      `,
+      [providerId, services]
+    );
 
-    // UPSERT zips
-    await sql`
+    // Upsert zips
+    await sql(
+      `
       insert into provider_zips (provider_id, zip)
-      select ${providerId}::uuid, z as zip
-      from unnest(${zips}::text[]) as z
+      select $1::uuid, z as zip
+      from unnest($2::text[]) as z
       on conflict do nothing
-    `;
+      `,
+      [providerId, zips]
+    );
 
-    await sql`commit`;
+    await sql("commit");
 
     return NextResponse.json({ ok: true, providerId }, { status: 200 });
   } catch (err) {
     try {
-      await sql`rollback`;
+      await sql("rollback");
     } catch {
-      // swallow rollback error
+      // ignore rollback failure
     }
     return serverError();
   }
