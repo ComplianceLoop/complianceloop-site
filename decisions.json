@@ -1,6 +1,6 @@
 {
-  "version": "2025-10-08.0",
-  "currentPhase": "Provider directory & eligibility",
+  "version": "2025-10-10.0",
+  "currentPhase": "Assignment engine",
   "phases": [
     {
       "phase": "Design Skin Kit",
@@ -54,20 +54,22 @@
       "objective": "Eligibility rules + instant decision.",
       "deliverables": ["criteria engine", "provider onboarding form", "how-to-qualify guidance", "provider scoring endpoint"],
       "acceptance": ["Pass/fail immediate", "Declined path shows guidance", "Scoring endpoint returns eligible providers"],
-      "status": "in_progress",
+      "status": "landed",
       "startedAt": "2025-10-04",
+      "landedAt": "2025-10-10",
       "notes": [
-        "Provider application form posts to /api/providers/apply.",
-        "provider_zips table added (idempotent bootstrap) and populated from application ZIPs.",
-        "POST /api/providers/score implemented: filters by ZIP + ALL requested services; status rank active > approved > pending; company_name ASC; limit 100.",
-        "Happy-path and edge tests validated via Hoppscotch (Proxy) and curl."
+        "Production verified: POST /api/providers/apply persists provider, zips, services.",
+        "Production verified: POST /api/providers/score returns count>=1 for 11223 with EXIT_SIGN,E_LIGHT.",
+        "Status rank: active > approved > pending; sort by company_name; limit 100."
       ]
     },
     {
       "phase": "Assignment engine",
       "objective": "First-accept wins + 15m soft-hold + single-eligible auto-assign.",
       "deliverables": ["offer broadcast", "accept endpoint", "cascade logic"],
-      "acceptance": ["Race handled; winner locks; cascade on timeout/decline"]
+      "acceptance": ["Race handled; winner locks; cascade on timeout/decline"],
+      "status": "in_progress",
+      "startedAt": "2025-10-10"
     },
     {
       "phase": "Customer dashboard",
@@ -158,7 +160,7 @@
       "annualOnlyTotal": 11.08,
       "arr": 1446.28
     },
-    "lastUpdated": "2025-10-08"
+    "lastUpdated": "2025-10-10"
   },
   "links": {
     "editDecisions": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json",
@@ -220,7 +222,7 @@
         "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/apply/route.ts",
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fapply%2Froute.ts",
         "purpose": "Create provider; upsert services; insert ZIP coverage rows",
-        "lastChecked": "2025-10-08"
+        "lastChecked": "2025-10-10"
       },
       {
         "path": "apps/portal/db/bootstrap.sql",
