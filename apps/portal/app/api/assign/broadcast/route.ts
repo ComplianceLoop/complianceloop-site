@@ -16,10 +16,11 @@
 // { "job_id": "uuid", "eligible_count": 1, "assigned": { "provider_id": "uuid" } }
 //
 // Notes:
-// - Eligibility rule reuses existing Provider logic: provider must cover the ZIP and the service.
-// - Provider status accepted for eligibility: active, approved, pending (consistent with score endpoint ranking).
+// - Eligibility rule mirrors providers/score: provider must cover the ZIP and the service.
+// - Acceptable provider statuses for eligibility: active, approved, pending.
 // - Single winner is guaranteed by PK on job_assignments(job_id).
 // - All SQL is parameterized.
+// - This version avoids TypeScript generics on the neon client to fix build errors.
 
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
@@ -50,7 +51,9 @@ export async function POST(req: Request) {
 
   const service_code = (body.service_code || '').trim();
   const zip = (body.zip || '').trim();
-  const hold_minutes = Number.isFinite(body.hold_minutes) ? Math.max(1, Math.floor(body.hold_minutes as number)) : 15;
+  const hold_minutes = Number.isFinite(body.hold_minutes)
+    ? Math.max(1, Math.floor(Number(body.hold_minutes)))
+    : 15;
   const meta = body.meta ?? {};
 
   if (!service_code) return bad('service_code is required');
@@ -63,17 +66,15 @@ export async function POST(req: Request) {
   await sql`SET TRANSACTION ISOLATION LEVEL SERIALIZABLE`;
   try {
     // 1) Create a pending job
-    const jobRow = await sql<{ id: string }>`
+    const jobRow = await sql`
       INSERT INTO jobs (service_code, zip, status)
       VALUES (${service_code}, ${zip}, 'pending')
       RETURNING id
     `;
-    const job_id = jobRow[0].id;
+    const job_id: string = (jobRow as any[])[0].id;
 
-    // 2) Compute eligibility (providers who cover the service AND the zip; acceptable statuses)
-    // We intentionally reuse the rule: ALL required service(s) must be present.
-    // Here, only one service_code is provided, so a single match suffices.
-    const eligible = await sql<{ id: string }>`
+    // 2) Count eligible providers (ZIP + service + allowed statuses)
+    const eligible = await sql`
       WITH eligible AS (
         SELECT p.id
         FROM providers p
@@ -86,12 +87,11 @@ export async function POST(req: Request) {
       )
       SELECT id FROM eligible
     `;
-
-    const eligible_count = eligible.length;
+    const eligible_count: number = (eligible as any[]).length;
 
     // 3) If exactly one eligible → auto-assign, else create offers with soft-hold expiry
     if (eligible_count === 1) {
-      const winner = eligible[0].id;
+      const winner: string = (eligible as any[])[0].id as string;
 
       // Insert assignment (PK on job_id enforces single winner)
       await sql`
@@ -113,12 +113,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ job_id, eligible_count, assigned: { provider_id: winner } });
     }
 
-    // 3b) Create offers for all eligible providers with expiry = now() + hold_minutes
     if (eligible_count > 1) {
+      // 3b) Create offers by reusing the eligibility SELECT directly inside INSERT
       await sql`
         INSERT INTO job_offers (id, job_id, provider_id, expires_at)
         SELECT gen_random_uuid(), ${job_id}, e.id, now() + make_interval(mins => ${hold_minutes})
-        FROM (SELECT id FROM (${sql(eligible.map(e => e.id))}) AS t(id)) e
+        FROM (
+          SELECT p.id
+          FROM providers p
+          JOIN provider_services ps ON ps.provider_id = p.id
+          JOIN provider_zips pz ON pz.provider_id = p.id
+          WHERE ps.service_code = ${service_code}
+            AND pz.zip = ${zip}
+            AND p.status IN ('active','approved','pending')
+          GROUP BY p.id
+        ) AS e
         ON CONFLICT (job_id, provider_id) DO NOTHING
       `;
 
@@ -135,7 +144,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ job_id, eligible_count });
     }
 
-    // 3c) No eligible providers → mark expired (or stay pending). We choose 'expired' to denote no route forward.
+    // 3c) No eligible providers → mark expired (denotes no route forward)
     await sql`UPDATE jobs SET status = 'expired' WHERE id = ${job_id}`;
     await sql`
       INSERT INTO assignment_logs (job_id, event, meta)
