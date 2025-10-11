@@ -1,0 +1,150 @@
+// apps/portal/app/api/assign/broadcast/route.ts
+// Purpose: Create a job and broadcast soft-hold offers to eligible providers,
+// or auto-assign immediately if exactly one eligible provider exists.
+//
+// Input JSON:
+// {
+//   "service_code": "string",            // required
+//   "zip": "string",                     // required
+//   "hold_minutes": 15,                  // optional, default 15
+//   "meta": { ... }                      // optional, recorded to logs
+// }
+//
+// Output JSON (200):
+// { "job_id": "uuid", "eligible_count": number }
+// or, when auto-assigned:
+// { "job_id": "uuid", "eligible_count": 1, "assigned": { "provider_id": "uuid" } }
+//
+// Notes:
+// - Eligibility rule reuses existing Provider logic: provider must cover the ZIP and the service.
+// - Provider status accepted for eligibility: active, approved, pending (consistent with score endpoint ranking).
+// - Single winner is guaranteed by PK on job_assignments(job_id).
+// - All SQL is parameterized.
+
+import { NextResponse } from 'next/server';
+import { neon } from '@neondatabase/serverless';
+
+export const runtime = 'nodejs';
+
+type BroadcastBody = {
+  service_code?: string;
+  zip?: string;
+  hold_minutes?: number;
+  meta?: Record<string, unknown>;
+};
+
+function bad(message: string, status = 400) {
+  return NextResponse.json({ ok: false, error: message }, { status });
+}
+
+export async function POST(req: Request) {
+  const { DATABASE_URL } = process.env;
+  if (!DATABASE_URL) return bad('DATABASE_URL is not set', 500);
+
+  let body: BroadcastBody;
+  try {
+    body = await req.json();
+  } catch {
+    return bad('Invalid JSON body');
+  }
+
+  const service_code = (body.service_code || '').trim();
+  const zip = (body.zip || '').trim();
+  const hold_minutes = Number.isFinite(body.hold_minutes) ? Math.max(1, Math.floor(body.hold_minutes as number)) : 15;
+  const meta = body.meta ?? {};
+
+  if (!service_code) return bad('service_code is required');
+  if (!zip) return bad('zip is required');
+
+  const sql = neon(DATABASE_URL);
+
+  // Start a SERIALIZABLE transaction to keep job creation + offer fanout atomic
+  await sql`BEGIN`;
+  await sql`SET TRANSACTION ISOLATION LEVEL SERIALIZABLE`;
+  try {
+    // 1) Create a pending job
+    const jobRow = await sql<{ id: string }>`
+      INSERT INTO jobs (service_code, zip, status)
+      VALUES (${service_code}, ${zip}, 'pending')
+      RETURNING id
+    `;
+    const job_id = jobRow[0].id;
+
+    // 2) Compute eligibility (providers who cover the service AND the zip; acceptable statuses)
+    // We intentionally reuse the rule: ALL required service(s) must be present.
+    // Here, only one service_code is provided, so a single match suffices.
+    const eligible = await sql<{ id: string }>`
+      WITH eligible AS (
+        SELECT p.id
+        FROM providers p
+        JOIN provider_services ps ON ps.provider_id = p.id
+        JOIN provider_zips pz ON pz.provider_id = p.id
+        WHERE ps.service_code = ${service_code}
+          AND pz.zip = ${zip}
+          AND p.status IN ('active','approved','pending')
+        GROUP BY p.id
+      )
+      SELECT id FROM eligible
+    `;
+
+    const eligible_count = eligible.length;
+
+    // 3) If exactly one eligible → auto-assign, else create offers with soft-hold expiry
+    if (eligible_count === 1) {
+      const winner = eligible[0].id;
+
+      // Insert assignment (PK on job_id enforces single winner)
+      await sql`
+        INSERT INTO job_assignments (job_id, provider_id)
+        VALUES (${job_id}, ${winner})
+        ON CONFLICT (job_id) DO NOTHING
+      `;
+
+      // Mark job assigned
+      await sql`UPDATE jobs SET status = 'assigned' WHERE id = ${job_id}`;
+
+      // Log
+      await sql`
+        INSERT INTO assignment_logs (job_id, provider_id, event, meta)
+        VALUES (${job_id}, ${winner}, 'auto_assigned_single_eligible', ${sql.json(meta)})
+      `;
+
+      await sql`COMMIT`;
+      return NextResponse.json({ job_id, eligible_count, assigned: { provider_id: winner } });
+    }
+
+    // 3b) Create offers for all eligible providers with expiry = now() + hold_minutes
+    if (eligible_count > 1) {
+      await sql`
+        INSERT INTO job_offers (id, job_id, provider_id, expires_at)
+        SELECT gen_random_uuid(), ${job_id}, e.id, now() + make_interval(mins => ${hold_minutes})
+        FROM (SELECT id FROM (${sql(eligible.map(e => e.id))}) AS t(id)) e
+        ON CONFLICT (job_id, provider_id) DO NOTHING
+      `;
+
+      // Update job status to 'offered'
+      await sql`UPDATE jobs SET status = 'offered' WHERE id = ${job_id}`;
+
+      // Log broadcast
+      await sql`
+        INSERT INTO assignment_logs (job_id, event, meta)
+        VALUES (${job_id}, 'broadcast_offers_created', ${sql.json({ ...meta, hold_minutes, eligible_count })})
+      `;
+
+      await sql`COMMIT`;
+      return NextResponse.json({ job_id, eligible_count });
+    }
+
+    // 3c) No eligible providers → mark expired (or stay pending). We choose 'expired' to denote no route forward.
+    await sql`UPDATE jobs SET status = 'expired' WHERE id = ${job_id}`;
+    await sql`
+      INSERT INTO assignment_logs (job_id, event, meta)
+      VALUES (${job_id}, 'no_eligible_providers', ${sql.json({ ...meta })})
+    `;
+    await sql`COMMIT`;
+    return NextResponse.json({ job_id, eligible_count: 0 });
+  } catch (err: any) {
+    try { await sql`ROLLBACK`; } catch {}
+    return NextResponse.json({ ok: false, error: err?.message ?? String(err) }, { status: 500 });
+  }
+}
