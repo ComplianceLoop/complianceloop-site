@@ -1,26 +1,7 @@
 // apps/portal/app/api/assign/broadcast/route.ts
-// Purpose: Create a job and broadcast soft-hold offers to eligible providers,
+// Purpose: Create an assign_job and broadcast soft-hold offers to eligible providers,
 // or auto-assign immediately if exactly one eligible provider exists.
-//
-// Input JSON:
-// {
-//   "service_code": "string",            // required
-//   "zip": "string",                     // required
-//   "hold_minutes": 15,                  // optional, default 15
-//   "meta": { ... }                      // optional, recorded to logs
-// }
-//
-// Output JSON (200):
-// { "job_id": "uuid", "eligible_count": number }
-// or, when auto-assigned:
-// { "job_id": "uuid", "eligible_count": 1, "assigned": { "provider_id": "uuid" } }
-//
-// Notes:
-// - Eligibility rule mirrors providers/score: provider must cover the ZIP and the service.
-// - Acceptable provider statuses for eligibility: active, approved, pending.
-// - Single winner is guaranteed by PK on job_assignments(job_id).
-// - All SQL is parameterized.
-// - Uses interval arithmetic `now() + (interval '1 minute' * $hold_minutes)` to avoid make_interval param issues.
+// Uses namespaced tables: assign_jobs, assign_job_offers, assign_job_assignments, assign_logs.
 
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
@@ -55,7 +36,7 @@ export async function POST(req: Request) {
     ? Math.max(1, Math.floor(Number(body.hold_minutes)))
     : 15;
   const meta = body.meta ?? {};
-  const metaJson = JSON.stringify(meta); // cast to jsonb in SQL
+  const metaJson = JSON.stringify(meta); // cast as ::jsonb in SQL
 
   if (!service_code) return bad('service_code is required');
   if (!zip) return bad('zip is required');
@@ -65,15 +46,15 @@ export async function POST(req: Request) {
   await sql`BEGIN`;
   await sql`SET TRANSACTION ISOLATION LEVEL SERIALIZABLE`;
   try {
-    // 1) Create a pending job
+    // 1) Create a pending assign_job
     const jobRow = await sql`
-      INSERT INTO jobs (service_code, zip, status)
+      INSERT INTO assign_jobs (service_code, zip, status)
       VALUES (${service_code}, ${zip}, 'pending')
       RETURNING id
     `;
     const job_id: string = (jobRow as any[])[0].id;
 
-    // 2) Compute eligibility (ZIP + service + allowed statuses)
+    // 2) Compute eligibility (ZIP + service + allowed provider statuses)
     const eligible = await sql`
       WITH eligible AS (
         SELECT p.id
@@ -89,20 +70,20 @@ export async function POST(req: Request) {
     `;
     const eligible_count: number = (eligible as any[]).length;
 
-    // 3) If exactly one eligible → auto-assign
+    // 3) Exactly one eligible → auto-assign
     if (eligible_count === 1) {
       const winner: string = (eligible as any[])[0].id as string;
 
       await sql`
-        INSERT INTO job_assignments (job_id, provider_id)
+        INSERT INTO assign_job_assignments (job_id, provider_id)
         VALUES (${job_id}, ${winner})
         ON CONFLICT (job_id) DO NOTHING
       `;
 
-      await sql`UPDATE jobs SET status = 'assigned' WHERE id = ${job_id}`;
+      await sql`UPDATE assign_jobs SET status = 'assigned' WHERE id = ${job_id}`;
 
       await sql`
-        INSERT INTO assignment_logs (job_id, provider_id, event, meta)
+        INSERT INTO assign_logs (job_id, provider_id, event, meta)
         VALUES (${job_id}, ${winner}, 'auto_assigned_single_eligible', ${metaJson}::jsonb)
       `;
 
@@ -110,10 +91,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ job_id, eligible_count, assigned: { provider_id: winner } });
     }
 
-    // 3b) Multiple eligible → insert offers with expiry = now() + hold_minutes
+    // 3b) Multiple eligible → insert offers, expire in hold_minutes
     if (eligible_count > 1) {
       await sql`
-        INSERT INTO job_offers (id, job_id, provider_id, expires_at)
+        INSERT INTO assign_job_offers (id, job_id, provider_id, expires_at)
         SELECT gen_random_uuid(), ${job_id}, p.id, now() + (interval '1 minute' * ${hold_minutes})
         FROM providers p
         JOIN provider_services ps ON ps.provider_id = p.id
@@ -125,10 +106,10 @@ export async function POST(req: Request) {
         ON CONFLICT (job_id, provider_id) DO NOTHING
       `;
 
-      await sql`UPDATE jobs SET status = 'offered' WHERE id = ${job_id}`;
+      await sql`UPDATE assign_jobs SET status = 'offered' WHERE id = ${job_id}`;
 
       await sql`
-        INSERT INTO assignment_logs (job_id, event, meta)
+        INSERT INTO assign_logs (job_id, event, meta)
         VALUES (${job_id}, 'broadcast_offers_created', ${JSON.stringify({
           ...meta,
           hold_minutes,
@@ -141,16 +122,15 @@ export async function POST(req: Request) {
     }
 
     // 3c) No eligible providers
-    await sql`UPDATE jobs SET status = 'expired' WHERE id = ${job_id}`;
+    await sql`UPDATE assign_jobs SET status = 'expired' WHERE id = ${job_id}`;
     await sql`
-      INSERT INTO assignment_logs (job_id, event, meta)
+      INSERT INTO assign_logs (job_id, event, meta)
       VALUES (${job_id}, 'no_eligible_providers', ${metaJson}::jsonb)
     `;
     await sql`COMMIT`;
     return NextResponse.json({ job_id, eligible_count: 0 });
   } catch (err: any) {
     try { await sql`ROLLBACK`; } catch {}
-    // Surface the message to aid debugging (still 500)
     return NextResponse.json({ ok: false, error: err?.message ?? String(err) }, { status: 500 });
   }
 }
