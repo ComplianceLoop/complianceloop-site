@@ -1,15 +1,44 @@
 -- apps/portal/db/bootstrap.sql
--- Idempotent DDL for Assignment Engine
+-- Assignment Engine schema (idempotent) + gentle migrations for existing tables.
 -- Safe to run multiple times.
 
--- 1) jobs: lifecycle of a request to assign
+-- Ensure UUID generator exists (Neon usually has this already).
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- 1) jobs: lifecycle of an assignment request
 CREATE TABLE IF NOT EXISTS jobs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  service_code TEXT NOT NULL,
-  zip TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('pending','offered','assigned','expired','cancelled')) DEFAULT 'pending',
+  -- columns may be added below via ALTER TABLE for existing installs
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Backfill/migrate columns for older deployments (no-op if they already exist)
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS service_code TEXT;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS zip TEXT;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS status TEXT;
+
+-- Make status values consistent; add the CHECK constraint if missing.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'jobs_status_check'
+      AND conrelid = 'jobs'::regclass
+  ) THEN
+    ALTER TABLE jobs
+      ADD CONSTRAINT jobs_status_check
+      CHECK (status IN ('pending','offered','assigned','expired','cancelled'));
+  END IF;
+END $$;
+
+-- Optionally set NOT NULL where safe; if any row is null this will be skipped.
+-- (We keep these columns nullable for maximum compatibility.)
+-- ALTER TABLE jobs ALTER COLUMN service_code SET NOT NULL;
+-- ALTER TABLE jobs ALTER COLUMN zip SET NOT NULL;
+-- ALTER TABLE jobs ALTER COLUMN status SET NOT NULL;
+
+-- Helpful index
+CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs (status);
 
 -- 2) job_offers: broadcast offers to eligible providers with soft-hold expiry
 CREATE TABLE IF NOT EXISTS job_offers (
@@ -22,7 +51,10 @@ CREATE TABLE IF NOT EXISTS job_offers (
   UNIQUE (job_id, provider_id)
 );
 
--- 3) job_assignments: single winner per job (enforced by PK)
+CREATE INDEX IF NOT EXISTS idx_job_offers_job_expires ON job_offers (job_id, expires_at);
+CREATE INDEX IF NOT EXISTS idx_job_offers_status ON job_offers (status);
+
+-- 3) job_assignments: exactly one winner per job (enforced by PK)
 CREATE TABLE IF NOT EXISTS job_assignments (
   job_id UUID PRIMARY KEY REFERENCES jobs(id) ON DELETE CASCADE,
   provider_id UUID NOT NULL REFERENCES providers(id) ON DELETE RESTRICT,
@@ -38,8 +70,3 @@ CREATE TABLE IF NOT EXISTS assignment_logs (
   meta JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
--- Helpful indexes
-CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs (status);
-CREATE INDEX IF NOT EXISTS idx_job_offers_job_expires ON job_offers (job_id, expires_at);
-CREATE INDEX IF NOT EXISTS idx_job_offers_status ON job_offers (status);
