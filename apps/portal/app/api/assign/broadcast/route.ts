@@ -20,7 +20,7 @@
 // - Acceptable provider statuses for eligibility: active, approved, pending.
 // - Single winner is guaranteed by PK on job_assignments(job_id).
 // - All SQL is parameterized.
-// - This version avoids TypeScript generics on the neon client to fix build errors.
+// - Avoids Neon `.json()` helper; we send JSON via text and cast to ::jsonb.
 
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
@@ -55,6 +55,7 @@ export async function POST(req: Request) {
     ? Math.max(1, Math.floor(Number(body.hold_minutes)))
     : 15;
   const meta = body.meta ?? {};
+  const metaJson = JSON.stringify(meta); // cast to jsonb in SQL
 
   if (!service_code) return bad('service_code is required');
   if (!zip) return bad('zip is required');
@@ -73,7 +74,7 @@ export async function POST(req: Request) {
     `;
     const job_id: string = (jobRow as any[])[0].id;
 
-    // 2) Count eligible providers (ZIP + service + allowed statuses)
+    // 2) Compute eligibility (ZIP + service + allowed statuses)
     const eligible = await sql`
       WITH eligible AS (
         SELECT p.id
@@ -89,7 +90,7 @@ export async function POST(req: Request) {
     `;
     const eligible_count: number = (eligible as any[]).length;
 
-    // 3) If exactly one eligible → auto-assign, else create offers with soft-hold expiry
+    // 3) If exactly one eligible → auto-assign
     if (eligible_count === 1) {
       const winner: string = (eligible as any[])[0].id as string;
 
@@ -106,15 +107,15 @@ export async function POST(req: Request) {
       // Log
       await sql`
         INSERT INTO assignment_logs (job_id, provider_id, event, meta)
-        VALUES (${job_id}, ${winner}, 'auto_assigned_single_eligible', ${sql.json(meta)})
+        VALUES (${job_id}, ${winner}, 'auto_assigned_single_eligible', ${metaJson}::jsonb)
       `;
 
       await sql`COMMIT`;
       return NextResponse.json({ job_id, eligible_count, assigned: { provider_id: winner } });
     }
 
+    // 3b) Create offers for multiple eligible providers
     if (eligible_count > 1) {
-      // 3b) Create offers by reusing the eligibility SELECT directly inside INSERT
       await sql`
         INSERT INTO job_offers (id, job_id, provider_id, expires_at)
         SELECT gen_random_uuid(), ${job_id}, e.id, now() + make_interval(mins => ${hold_minutes})
@@ -137,7 +138,11 @@ export async function POST(req: Request) {
       // Log broadcast
       await sql`
         INSERT INTO assignment_logs (job_id, event, meta)
-        VALUES (${job_id}, 'broadcast_offers_created', ${sql.json({ ...meta, hold_minutes, eligible_count })})
+        VALUES (${job_id}, 'broadcast_offers_created', ${JSON.stringify({
+          ...meta,
+          hold_minutes,
+          eligible_count,
+        })}::jsonb)
       `;
 
       await sql`COMMIT`;
@@ -148,7 +153,7 @@ export async function POST(req: Request) {
     await sql`UPDATE jobs SET status = 'expired' WHERE id = ${job_id}`;
     await sql`
       INSERT INTO assignment_logs (job_id, event, meta)
-      VALUES (${job_id}, 'no_eligible_providers', ${sql.json({ ...meta })})
+      VALUES (${job_id}, 'no_eligible_providers', ${metaJson}::jsonb)
     `;
     await sql`COMMIT`;
     return NextResponse.json({ job_id, eligible_count: 0 });
