@@ -2,7 +2,7 @@
 # ComplianceLoop — Canonical Plan (Generated)
 
 Version: unversioned
-Generated: 2025-10-12T15:42:11.003Z
+Generated: 2025-10-13T00:49:40.042Z
 
 ## Phases (13)
 - **undefined**:  — _landed_
