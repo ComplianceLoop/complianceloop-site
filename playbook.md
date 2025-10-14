@@ -1,8 +1,8 @@
 <!-- CL:START -->
 # ComplianceLoop — Canonical Plan (Generated)
 
-Version: unversioned
-Generated: 2025-10-13T00:49:40.042Z
+Version: 2025-10-14.0
+Generated: 2025-10-14T23:20:49.809Z
 
 ## Phases (13)
 - **undefined**:  — _landed_
@@ -20,10 +20,14 @@ Generated: 2025-10-13T00:49:40.042Z
 - **undefined**:  — _planned_
 
 ## Finances (summary)
-- One-time total: $0.00
-- Monthly total: $0.00
-- ARR: $0.00
+- One-time total: $395.00
+- Monthly total: $119.60
+- ARR: $1446.28
 
 ## Quick links
+- Edit decisions.json: https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json
+- Edit playbook.md: https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md
+- Run Reconciler: https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml
+- Pull Requests: https://github.com/ComplianceLoop/complianceloop-site/pulls
 
 <!-- CL:END -->
