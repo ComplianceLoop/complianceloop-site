@@ -36,32 +36,31 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Parse command (Node)
-        id: parse
+      - name: Parse command to JSON (Node)
         run: |
           node -e "(() => {
             const fs = require('fs');
             const body = process.env.BODY || '';
-            const out = process.env.GITHUB_OUTPUT;
-            // Grab everything after '/decide '
             const m = body.match(/\/decide\s+([\s\S]*)/);
             if (!m) { console.error('No /decide command found'); process.exit(1); }
             const tail = m[1].trim();
-
-            // Split: op (first token), path (second token), value (rest, may be empty)
             const parts = tail.split(/\s+/);
             const op = parts.shift() || '';
             const path = parts.shift() || '';
             const value = tail.slice((op + ' ' + path).length).trim();
-
             if (!op || !path || !path.startsWith('/')) {
-              console.error('Expected: /decide <op> </jsonPointer> <value?>');
-              process.exit(1);
+              console.error('Expected: /decide <op> </jsonPointer> <value?>'); process.exit(1);
             }
-            fs.appendFileSync(out, `op=${op}\n`);
-            fs.appendFileSync(out, `path=${path}\n`);
-            fs.appendFileSync(out, `value=${value}\n`);
+            fs.writeFileSync('parse.json', JSON.stringify({ op, path, value }), 'utf8');
           })();"
+
+      - name: Export outputs
+        id: parse
+        run: |
+          echo "op=$(node -p \"require('./parse.json').op\")" >> $GITHUB_OUTPUT
+          echo "path=$(node -p \"require('./parse.json').path\")" >> $GITHUB_OUTPUT
+          echo "value=$(node -p \"require('./parse.json').value\")" >> $GITHUB_OUTPUT
+          cat parse.json
 
       - run: npm ci || npm i
 
