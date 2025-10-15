@@ -1,0 +1,57 @@
+name: Decide (comment-driven)
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: read
+
+jobs:
+  run:
+    if: contains(github.event.comment.body, '/decide ')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Parse command
+        id: parse
+        run: |
+          BODY="${{ github.event.comment.body }}"
+          # Expected: /decide <op> <jsonPointer> <value?>
+          # ops: set, remove, add-history
+          CMD="$(echo "$BODY" | sed -n 's#.*\/decide[[:space:]]\+\(.*\)#\1#p')"
+          OP="$(echo "$CMD" | awk '{print $1}')"
+          PATH="$(echo "$CMD" | awk '{print $2}')"
+          VALUE="$(echo "$CMD" | cut -d' ' -f3-)"
+          echo "op=$OP" >> $GITHUB_OUTPUT
+          echo "path=$PATH" >> $GITHUB_OUTPUT
+          echo "value=$VALUE" >> $GITHUB_OUTPUT
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci || npm i
+
+      - name: Apply decision
+        run: |
+          node scripts/decisions-apply.mjs \
+            --op "${{ steps.parse.outputs.op }}" \
+            --path "${{ steps.parse.outputs.path }}" \
+            --value "${{ steps.parse.outputs.value }}"
+
+      - name: Commit
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add decisions.json
+            git commit -m "chore(decision): ${{ steps.parse.outputs.op }} ${{ steps.parse.outputs.path }}"
+            git push
+          else
+            echo "No changes"
+          fi
