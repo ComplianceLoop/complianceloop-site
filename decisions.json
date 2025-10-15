@@ -1,328 +1,236 @@
 {
-  "version": "2025-10-15.0",
-  "project": "complianceloop-site",
-  "repo": "ComplianceLoop/complianceloop-site",
+  "automation": {
+    "decide": {
+      "notes": "Post the command as a comment on any Issue/PR in this repo.",
+      "scriptPath": "scripts/decisions-apply.mjs",
+      "usage": [
+        "/decide set /<json-pointer> <value>",
+        "/decide remove /<json-pointer>",
+        "/decide add-history / {\"date\":\"YYYY-MM-DD\",\"decision\":\"...\",\"why\":\"...\"}"
+      ],
+      "workflowPath": ".github/workflows/decide.yml"
+    },
+    "syncFromUrl": {
+      "inputs": [
+        "bundle_url: HTTPS URL to .zip or .patch",
+        "sha256: expected SHA256 of file",
+        "mode: zip|patch",
+        "target_branch: default agent-sync"
+      ],
+      "runLink": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/sync-from-url.yml",
+      "workflowPath": ".github/workflows/sync-from-url.yml"
+    }
+  },
   "currentPhase": "Assignment engine",
-  "phaseCatalog": [
-    { "key": "design_skin", "title": "Design Skin Kit" },
-    { "key": "auth_db", "title": "Auth + DB base" },
-    { "key": "files_r2", "title": "Files & Certificates (R2)" },
-    { "key": "airtable_bridge", "title": "Airtable bridge (hybrid)" },
-    { "key": "job_model", "title": "Job model + booking skeleton" },
-    { "key": "eligibility", "title": "Provider directory & eligibility" },
-    { "key": "assignment", "title": "Assignment engine" },
-    { "key": "cust_dashboard", "title": "Customer dashboard" },
-    { "key": "prov_dashboard", "title": "Provider dashboard" },
-    { "key": "payments", "title": "Payments & invoices" },
-    { "key": "notifications", "title": "Notifications (email/SMS)" },
-    { "key": "admin_console", "title": "Admin console" },
-    { "key": "polish_launch", "title": "Polish & launch" }
-  ],
-  "phasesDetailed": [
-    {
-      "phase": "Design Skin Kit",
-      "objective": "Theme tokens, brand, and UI primitives to speed all later pages.",
-      "deliverables": ["theme.ts tokens", "globals.css", "Button/Input/Card", "/design-playground"],
-      "acceptance": ["Preview renders", "Tokens adjustable with hot reload"],
-      "status": "landed",
-      "landedAt": "2025-09-27"
-    },
-    {
-      "phase": "Auth + DB base",
-      "objective": "Neon + Drizzle schema, passwordless email code, sessions.",
-      "deliverables": ["/api/auth/send-code", "/api/auth/verify-code", "users, sessions tables"],
-      "acceptance": ["Vercel env DATABASE_URL set", "Auth code roundtrip works", "Dashboard gate honors session"],
-      "status": "landed",
-      "landedAt": "2025-09-26",
-      "verification": ["DATABASE_URL set", "send-code 200", "verify-code 200 (session issued)"]
-    },
-    {
-      "phase": "Files & Certificates (R2)",
-      "objective": "Private file storage with signed streaming.",
-      "deliverables": ["/api/files/upload", "/api/files/:key", "R2 bucket + IAM"],
-      "acceptance": ["Upload returns 200 and r2Key", "Authorized GET streams 200; unauthorized 403"],
-      "status": "landed",
-      "landedAt": "2025-09-29",
-      "notes": [
-        "Signer uses R2_ACCOUNT_ID (or R2_ENDPOINT override).",
-        "POST /api/files/upload returns { r2Key, putUrl }.",
-        "GET /api/files/[key] streams when authed; 403 when unauth."
-      ]
-    },
-    {
-      "phase": "Airtable bridge (hybrid)",
-      "objective": "Mirror critical records for ops; Neon remains source of record.",
-      "deliverables": ["lib/airtable.ts", "scripts/airtable-sync.mjs", ".github/workflows/airtable-sync.yml", "api/airtable/source", "optional: api/airtable/sync"],
-      "acceptance": ["One-way sync green in CI", "Backfill job OK"],
-      "status": "landed",
-      "landedAt": "2025-10-03"
-    },
-    {
-      "phase": "Job model + booking skeleton",
-      "objective": "Booking wizard + soft hold creation.",
-      "deliverables": ["/book wizard", "create Job(draft) API", "Soft-hold service"],
-      "acceptance": ["30m hold for multi-property", "Single-property flow ok"],
-      "status": "landed",
-      "landedAt": "2025-10-03",
-      "notes": ["Stripe preauth flow verified (mock + live).", "Jobs endpoints in place and green."]
-    },
-    {
-      "phase": "Provider directory & eligibility",
-      "objective": "Eligibility rules + instant decision.",
-      "deliverables": ["criteria engine", "provider onboarding form", "how-to-qualify guidance", "provider scoring endpoint"],
-      "acceptance": ["Pass/fail immediate", "Declined path shows guidance", "Scoring endpoint returns eligible providers"],
-      "status": "landed",
-      "startedAt": "2025-10-04",
-      "landedAt": "2025-10-10",
-      "notes": [
-        "Production verified: POST /api/providers/apply persists provider, zips, services.",
-        "Production verified: POST /api/providers/score returns count>=1 for 11223 with EXIT_SIGN,E_LIGHT.",
-        "Status rank: active > approved > pending; sort by company_name; limit 100."
-      ]
-    },
-    {
-      "phase": "Assignment engine",
-      "objective": "First-accept wins + 15m soft-hold + single-eligible auto-assign.",
-      "deliverables": ["offer broadcast", "accept endpoint", "cascade logic"],
-      "acceptance": ["Race handled; winner locks; cascade on timeout/decline"],
-      "status": "in_progress",
-      "startedAt": "2025-10-10"
-    },
-    {
-      "phase": "Customer dashboard",
-      "objective": "List past/upcoming jobs + files/invoices.",
-      "deliverables": ["dashboard pages", "job detail route"],
-      "acceptance": ["Auth required", "Documents stream correctly"],
-      "status": "planned"
-    },
-    {
-      "phase": "Provider dashboard",
-      "objective": "Job queue + day-of checklist + conflict report + tech email routing.",
-      "deliverables": ["checklist form", "conflict endpoint", "email routing field"],
-      "acceptance": ["Late submission possible", "Conflict auto-cascade"],
-      "status": "planned"
-    },
-    {
-      "phase": "Payments & invoices",
-      "objective": "Invoice links and settlement (minimal MVP).",
-      "deliverables": ["invoice record", "link on job page"],
-      "acceptance": ["Invoices viewable; payments later (toggle)"],
-      "status": "planned"
-    },
-    {
-      "phase": "Notifications (email/SMS)",
-      "objective": "Resend email events; SMS optional later.",
-      "deliverables": ["templates", "event triggers"],
-      "acceptance": ["Email on accept, conflict, ready-to-download"],
-      "status": "planned"
-    },
-    {
-      "phase": "Admin console",
-      "objective": "Search jobs/providers; manual override tools.",
-      "deliverables": ["admin routes", "impersonate (guarded)"],
-      "acceptance": ["Admin-only gate", "Audit trail"],
-      "status": "planned"
-    },
-    {
-      "phase": "Polish & launch",
-      "objective": "SEO, accessibility, rate limits, QA.",
-      "deliverables": ["schema.org Business markup", "robots, sitemaps", "basic rate limiting"],
-      "acceptance": ["Lighthouse >=90", "No PII leaks", "Runbook updated"],
-      "status": "planned"
-    }
-  ],
-  "phases": [
-    { "title": "Foundations", "name": "Foundations", "status": "landed" },
-    { "title": "Auth & Session", "name": "Auth & Session", "status": "landed" },
-    { "title": "Provider directory & eligibility", "name": "Provider directory & eligibility", "status": "landed", "landedAt": "2025-10-10" },
-    { "title": "Assignment engine", "name": "Assignment engine", "status": "in_progress" },
-    { "title": "Post-assignment ops", "name": "Post-assignment ops", "status": "planned" },
-    { "title": "Billing", "name": "Billing", "status": "planned" },
-    { "title": "Reporting", "name": "Reporting", "status": "planned" },
-    { "title": "Audit & exports", "name": "Audit & exports", "status": "planned" },
-    { "title": "Admin UX", "name": "Admin UX", "status": "planned" },
-    { "title": "Notifications", "name": "Notifications", "status": "planned" },
-    { "title": "Observability", "name": "Observability", "status": "planned" },
-    { "title": "SRE & runbooks", "name": "SRE & runbooks", "status": "planned" },
-    { "title": "Final hardening", "name": "Final hardening", "status": "planned" }
-  ],
-  "phaseProgress": {
-    "Airtable bridge (hybrid)": {
-      "tasks": [
-        { "id": "client", "title": "lib/airtable.ts", "status": "implemented" },
-        { "id": "source", "title": "GET /api/airtable/source", "status": "implemented" },
-        { "id": "script", "title": "scripts/airtable-sync.mjs", "status": "implemented" },
-        { "id": "workflow", "title": "GH Actions: airtable-sync.yml", "status": "implemented" },
-        { "id": "trigger", "title": "POST /api/airtable/sync (optional)", "status": "implemented" },
-        { "id": "verify", "title": "Run workflow dry-run + normal; confirm green", "status": "implemented" }
-      ]
-    },
-    "Job model + booking skeleton": {
-      "tasks": [
-        { "id": "wizard", "title": "Booking wizard skeleton", "status": "implemented" },
-        { "id": "job-draft", "title": "Create Job(draft) API", "status": "implemented" },
-        { "id": "soft-hold", "title": "Soft-hold service", "status": "implemented" }
-      ]
-    },
-    "Provider directory & eligibility": {
-      "tasks": [
-        { "id": "bootstrap", "title": "DB bootstrap creates providers, provider_services, provider_zips", "status": "implemented" },
-        { "id": "apply", "title": "POST /api/providers/apply (upsert services + ZIP rows)", "status": "implemented" },
-        { "id": "score", "title": "POST /api/providers/score (zip + services, sorted)", "status": "implemented" }
-      ]
-    },
-    "Assignment engine": {
-      "status": "in_progress",
-      "decisions": [
-        { "key": "table_namespace", "value": "assign_* (assign_jobs, assign_job_offers, assign_job_assignments, assign_logs)", "notes": "Isolated from any legacy jobs table to avoid collisions." },
-        { "key": "broadcast_model", "value": "soft-hold offers", "notes": "Offers expire at now() + (hold_minutes * 1 minute)." }
-      ],
-      "tasks": [
-        { "name": "broadcast endpoint", "path": "apps/portal/app/api/assign/broadcast/route.ts", "status": "implemented" },
-        { "name": "soft-hold semantics", "status": "implemented" },
-        { "name": "first-accept wins (atomic)", "path": "apps/portal/app/api/assign/accept/route.ts", "status": "implemented" },
-        { "name": "single-eligible auto-assign", "status": "implemented" },
-        { "name": "decline endpoint", "path": "apps/portal/app/api/assign/decline/route.ts", "status": "implemented" },
-        { "name": "minimal admin logs endpoint", "path": "apps/portal/app/api/assign/admin/logs/route.ts", "status": "implemented" },
-        { "name": "bootstrap (DDL) inline", "path": "apps/portal/app/api/db/bootstrap/route.ts", "status": "implemented" },
-        { "name": "safe rollbacks", "status": "documented" }
-      ],
-      "verifyNotes": [
-        "POST /api/assign/broadcast with telehealth_consult + 00901 returns job_id and eligible_count >= 2 after seeding.",
-        "POST /api/assign/accept twice: exactly one 200; the other 409 (winner echoed).",
-        "POST /api/assign/decline returns 200 on unexpired offer.",
-        "GET /api/assign/admin/logs?job_id= shows broadcast_offers_created, offer_accepted, offer_declined."
-      ]
-    }
+  "fileActions": {
+    "items": [
+      {
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fairtable.ts",
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/airtable.ts",
+        "exists": true,
+        "lastChecked": "2025-10-08",
+        "path": "lib/airtable.ts",
+        "purpose": "Airtable REST client (performUpsert)"
+      },
+      {
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Fairtable%2Fsource%2Froute.ts",
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/airtable/source/route.ts",
+        "exists": true,
+        "lastChecked": "2025-10-08",
+        "path": "app/api/airtable/source/route.ts",
+        "purpose": "JSON export for Airtable sync"
+      },
+      {
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=scripts%2Fairtable-sync.mjs",
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/airtable-sync.mjs",
+        "exists": true,
+        "lastChecked": "2025-10-08",
+        "path": "scripts/airtable-sync.mjs",
+        "purpose": "One-way sync CLI"
+      },
+      {
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fairtable-sync.yml",
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/airtable-sync.yml",
+        "exists": true,
+        "lastChecked": "2025-10-08",
+        "path": ".github/workflows/airtable-sync.yml",
+        "purpose": "CI workflow for Airtable sync"
+      },
+      {
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fbootstrap%2Froute.ts",
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/bootstrap/route.ts",
+        "exists": true,
+        "lastChecked": "2025-10-08",
+        "path": "apps/portal/app/api/providers/bootstrap/route.ts",
+        "purpose": "Idempotent DDL: providers, provider_services, provider_zips + indexes"
+      },
+      {
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fapply%2Froute.ts",
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/apply/route.ts",
+        "exists": true,
+        "lastChecked": "2025-10-10",
+        "path": "apps/portal/app/api/providers/apply/route.ts",
+        "purpose": "Create provider; upsert services; insert ZIP coverage rows"
+      },
+      {
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fdb%2Fbootstrap.sql",
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/db/bootstrap.sql",
+        "exists": true,
+        "lastChecked": "2025-10-08",
+        "path": "apps/portal/db/bootstrap.sql",
+        "purpose": "DDL mirror of provider tables/indexes (idempotent)"
+      },
+      {
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fdecide.yml",
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/decide.yml",
+        "exists": false,
+        "lastChecked": "2025-10-15",
+        "path": ".github/workflows/decide.yml",
+        "purpose": "Comment-driven updates to decisions.json via /decide"
+      },
+      {
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=scripts%2Fdecisions-apply.mjs",
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/decisions-apply.mjs",
+        "exists": false,
+        "lastChecked": "2025-10-15",
+        "path": "scripts/decisions-apply.mjs",
+        "purpose": "Helper that applies /decide ops (set/remove/add-history)"
+      },
+      {
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fsync-from-url.yml",
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/sync-from-url.yml",
+        "exists": false,
+        "lastChecked": "2025-10-15",
+        "path": ".github/workflows/sync-from-url.yml",
+        "purpose": "Import a ZIP or patch from a URL and open a PR"
+      }
+    ],
+    "policy": "Use EDIT links if file exists; otherwise use CREATE links."
   },
   "finances": {
     "currency": "USD",
+    "lastUpdated": "2025-10-10",
     "oneTime": {
       "items": [
-        { "date": "2025-09-26", "label": "New laptop", "amount": 175, "notes": "", "source": "user" },
-        { "date": "2025-08-23", "label": "Connecticut LLC filing fee", "amount": 120, "notes": "", "source": "user" },
-        { "date": "2025-09-26", "label": "Chat GPT credits", "amount": 100, "notes": "", "source": "user" }
+        {
+          "amount": 175,
+          "date": "2025-09-26",
+          "label": "New laptop",
+          "notes": "",
+          "source": "user"
+        },
+        {
+          "amount": 120,
+          "date": "2025-08-23",
+          "label": "Connecticut LLC filing fee",
+          "notes": "",
+          "source": "user"
+        },
+        {
+          "amount": 100,
+          "date": "2025-09-26",
+          "label": "Chat GPT credits",
+          "notes": "",
+          "source": "user"
+        }
       ],
       "total": 395
     },
     "subscriptions": {
-      "items": [
-        { "label": "ChatGPT Business", "plan": "Business", "billingInterval": "monthly", "amount": 60, "status": "active", "notes": "" },
-        { "label": "Vercel Pro Plan", "plan": "Pro", "billingInterval": "monthly", "amount": 20, "status": "active", "notes": "" },
-        { "label": "GitHub Base Plan", "plan": "Free", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "" },
-        { "label": "Porkbun", "plan": "Domain", "billingInterval": "annual", "amount": 11.08, "status": "active", "notes": "" },
-        { "label": "Cal.com", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "not_set_up", "notes": "" },
-        { "label": "Make", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "" },
-        { "label": "Stripe", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "not_set_up", "notes": "" },
-        { "label": "Airtable", "plan": "", "billingInterval": "monthly", "amount": 0, "status": "active", "notes": "" },
-        { "label": "Google Workspace", "plan": "", "billingInterval": "monthly", "amount": 39.6, "status": "active", "notes": "" }
-      ],
-      "monthlyTotal": 119.6,
       "annualOnlyTotal": 11.08,
-      "arr": 1446.28
-    },
-    "lastUpdated": "2025-10-10"
+      "arr": 1446.28,
+      "items": [
+        {
+          "amount": 60,
+          "billingInterval": "monthly",
+          "label": "ChatGPT Business",
+          "notes": "",
+          "plan": "Business",
+          "status": "active"
+        },
+        {
+          "amount": 20,
+          "billingInterval": "monthly",
+          "label": "Vercel Pro Plan",
+          "notes": "",
+          "plan": "Pro",
+          "status": "active"
+        },
+        {
+          "amount": 0,
+          "billingInterval": "monthly",
+          "label": "GitHub Base Plan",
+          "notes": "",
+          "plan": "Free",
+          "status": "active"
+        },
+        {
+          "amount": 11.08,
+          "billingInterval": "annual",
+          "label": "Porkbun",
+          "notes": "",
+          "plan": "Domain",
+          "status": "active"
+        },
+        {
+          "amount": 0,
+          "billingInterval": "monthly",
+          "label": "Cal.com",
+          "notes": "",
+          "plan": "",
+          "status": "not_set_up"
+        },
+        {
+          "amount": 0,
+          "billingInterval": "monthly",
+          "label": "Make",
+          "notes": "",
+          "plan": "",
+          "status": "active"
+        },
+        {
+          "amount": 0,
+          "billingInterval": "monthly",
+          "label": "Stripe",
+          "notes": "",
+          "plan": "",
+          "status": "not_set_up"
+        },
+        {
+          "amount": 0,
+          "billingInterval": "monthly",
+          "label": "Airtable",
+          "notes": "",
+          "plan": "",
+          "status": "active"
+        },
+        {
+          "amount": 39.6,
+          "billingInterval": "monthly",
+          "label": "Google Workspace",
+          "notes": "",
+          "plan": "",
+          "status": "active"
+        }
+      ],
+      "monthlyTotal": 119.6
+    }
   },
   "links": {
-    "editDecisions": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json",
-    "editPlaybook": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md",
-    "runReconciler": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml",
-    "pulls": "https://github.com/ComplianceLoop/complianceloop-site/pulls",
-    "vercelEnv": "https://vercel.com/compliance-loop/complianceloop-portal/settings/environment-variables",
-    "vercelDeployments": "https://vercel.com/compliance-loop/complianceloop-portal/deployments",
-    "handoffPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.md",
-    "handoffAgentPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.agent.md",
     "diagnoseDecisions": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/diagnose-decisions-json.yml",
     "editDecideWorkflow": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/decide.yml",
-    "editSyncFromUrlWorkflow": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/sync-from-url.yml",
+    "editDecisions": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json",
     "editDecisionsApplyScript": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/decisions-apply.mjs",
+    "editPlaybook": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md",
+    "editSyncFromUrlWorkflow": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/sync-from-url.yml",
+    "handoffAgentPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.agent.md",
+    "handoffPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.md",
+    "pulls": "https://github.com/ComplianceLoop/complianceloop-site/pulls",
     "runDecideWorkflow": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/decide.yml",
-    "runSyncFromUrl": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/sync-from-url.yml"
-  },
-  "fileActions": {
-    "policy": "Use EDIT links if file exists; otherwise use CREATE links.",
-    "items": [
-      {
-        "path": "lib/airtable.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/lib/airtable.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=lib%2Fairtable.ts",
-        "purpose": "Airtable REST client (performUpsert)",
-        "lastChecked": "2025-10-08"
-      },
-      {
-        "path": "app/api/airtable/source/route.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/app/api/airtable/source/route.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=app%2Fapi%2Fairtable%2Fsource%2Froute.ts",
-        "purpose": "JSON export for Airtable sync",
-        "lastChecked": "2025-10-08"
-      },
-      {
-        "path": "scripts/airtable-sync.mjs",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/airtable-sync.mjs",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=scripts%2Fairtable-sync.mjs",
-        "purpose": "One-way sync CLI",
-        "lastChecked": "2025-10-08"
-      },
-      {
-        "path": ".github/workflows/airtable-sync.yml",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/airtable-sync.yml",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fairtable-sync.yml",
-        "purpose": "CI workflow for Airtable sync",
-        "lastChecked": "2025-10-08"
-      },
-      {
-        "path": "apps/portal/app/api/providers/bootstrap/route.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/bootstrap/route.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fbootstrap%2Froute.ts",
-        "purpose": "Idempotent DDL: providers, provider_services, provider_zips + indexes",
-        "lastChecked": "2025-10-08"
-      },
-      {
-        "path": "apps/portal/app/api/providers/apply/route.ts",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/app/api/providers/apply/route.ts",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fapp%2Fapi%2Fproviders%2Fapply%2Froute.ts",
-        "purpose": "Create provider; upsert services; insert ZIP coverage rows",
-        "lastChecked": "2025-10-10"
-      },
-      {
-        "path": "apps/portal/db/bootstrap.sql",
-        "exists": true,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/apps/portal/db/bootstrap.sql",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fdb%2Fbootstrap.sql",
-        "purpose": "DDL mirror of provider tables/indexes (idempotent)",
-        "lastChecked": "2025-10-08"
-      },
-      {
-        "path": ".github/workflows/decide.yml",
-        "exists": false,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/decide.yml",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fdecide.yml",
-        "purpose": "Comment-driven updates to decisions.json via /decide",
-        "lastChecked": "2025-10-15"
-      },
-      {
-        "path": "scripts/decisions-apply.mjs",
-        "exists": false,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/decisions-apply.mjs",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=scripts%2Fdecisions-apply.mjs",
-        "purpose": "Helper that applies /decide ops (set/remove/add-history)",
-        "lastChecked": "2025-10-15"
-      },
-      {
-        "path": ".github/workflows/sync-from-url.yml",
-        "exists": false,
-        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/sync-from-url.yml",
-        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fsync-from-url.yml",
-        "purpose": "Import a ZIP or patch from a URL and open a PR",
-        "lastChecked": "2025-10-15"
-      }
-    ]
+    "runReconciler": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/reconcile-decisions-and-playbook.yml",
+    "runSyncFromUrl": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/sync-from-url.yml",
+    "vercelDeployments": "https://vercel.com/compliance-loop/complianceloop-portal/deployments",
+    "vercelEnv": "https://vercel.com/compliance-loop/complianceloop-portal/settings/environment-variables"
   },
   "operationalNotes": {
     "agentInstructionStyle": [
@@ -336,55 +244,28 @@
       "Prefer '@/lib/*', '@/db/*', or stable relatives.",
       "Redeploy on Vercel with Use existing Build Cache unchecked when debugging."
     ],
-    "reconcilerProcess": {
-      "summary": "Run once after edits; use reset protocol if needed.",
-      "normalRun": {
-        "commitTitle": "playbook: sync decisions",
-        "steps": ["Open links.runReconciler and run it", "Open links.pulls and merge the PR it opens"]
-      },
-      "resetRun": {
-        "when": "Only if prior runs report no changes or the block is stale.",
-        "steps": [
-          "Open links.editPlaybook and replace with '\\n', commit with 'playbook: reset generated block'",
-          "Open links.runReconciler and run it",
-          "Open links.pulls and merge the PR it opens"
-        ]
-      }
-    },
-    "jsonHygiene": {
-      "rules": [
-        "ASCII-only content (no smart quotes).",
-        "No trailing commas before ']' or '}'.",
-        "If a workflow reports a byte/line position, fix exactly there, then re-run validate-decisions.json."
-      ],
-      "diagnosticWorkflow": ".github/workflows/diagnose-decisions-json.yml",
-      "howToRun": [
-        "Open links.diagnoseDecisions, click 'Run workflow', set pos to the byte index from the failing job.",
-        "Read the window around pos to localize offending characters, then submit a full-file fix."
-      ]
-    },
-    "apiTesting": {
-      "baseUrlPolicy": "Prefer the Production alias for testing; preview URLs may be protected.",
-      "productionBase": "https://complianceloop-portal.vercel.app",
-      "previewBypassHeader": "x-vercel-protection-bypass:",
-      "hoppscotch": [
-        "Set Interceptor to Proxy.",
-        "POST /api/providers/score with empty JSON body => expect 400 invalid zip.",
-        "POST /api/providers/score with zip 00000 and services EXIT_SIGN,E_LIGHT => expect 200 with empty eligible list.",
-        "POST /api/providers/apply with a new provider for ZIP 11223; then POST /api/providers/score for that ZIP and those services => expect eligible count >= 1 sorted by status rank."
-      ]
-    },
     "airtableEnv": {
+      "note": "Set in Vercel (routes) and GitHub Actions (workflow).\nNever commit secrets.",
       "vars": [
         "AIRTABLE_API_KEY",
         "AIRTABLE_BASE_ID",
         "AIRTABLE_SYNC_KEY? (for POST /api/airtable/sync)",
         "BASE_URL? (scripts)",
         "SYNC_SOURCE_URL?"
-      ],
-      "note": "Set in Vercel (routes) and GitHub Actions (workflow).\nNever commit secrets."
+      ]
     },
-    "previewUrlPolicy": "Prefer Production alias https://complianceloop-portal.vercel.app; for protected previews use header X-Vercel-Protection-Bypass with secret stored out-of-band.",
+    "apiTesting": {
+      "baseUrlPolicy": "Prefer the Production alias for testing; preview URLs may be protected.",
+      "hoppscotch": [
+        "Set Interceptor to Proxy.",
+        "POST /api/providers/score with empty JSON body => expect 400 invalid zip.",
+        "POST /api/providers/score with zip 00000 and services EXIT_SIGN,E_LIGHT => expect 200 with empty eligible list.",
+        "POST /api/providers/apply with a new provider for ZIP 11223; then POST /api/providers/score for that ZIP and those services => expect eligible count >= 1 sorted by status rank."
+      ],
+      "previewBypassHeader": "x-vercel-protection-bypass:",
+      "productionBase": "https://complianceloop-portal.vercel.app"
+    },
+    "apiTestingNotes": "Append short lines to apiTestingResults after running checks, e.g., 'YYYY-MM-DD: score {} -> 400 invalid zip OK'",
     "apiTestingResults": [
       "2025-10-09: score {} -> 400",
       "2025-10-09: score 00000 EXIT_SIGN,E_LIGHT -> 200 count:0",
@@ -395,82 +276,605 @@
       "2025-10-12 - decline ok: job_id=e1dc1b62-c177-4215-b6ab-2c11cc297458, provider_id=cf582d89-caeb-4655-913f-43d0ed0e03c7, state=declined.",
       "2025-10-12 - logs ok: admin/logs reflects broadcast_offers_created, offer_accepted, offer_declined."
     ],
-    "apiTestingNotes": "Append short lines to apiTestingResults after running checks, e.g., 'YYYY-MM-DD: score {} -> 400 invalid zip OK'"
+    "jsonHygiene": {
+      "diagnosticWorkflow": ".github/workflows/diagnose-decisions-json.yml",
+      "howToRun": [
+        "Open links.diagnoseDecisions, click 'Run workflow', set pos to the byte index from the failing job.",
+        "Read the window around pos to localize offending characters, then submit a full-file fix."
+      ],
+      "rules": [
+        "ASCII-only content (no smart quotes).",
+        "No trailing commas before ']' or '}'.",
+        "If a workflow reports a byte/line position, fix exactly there, then re-run validate-decisions.json."
+      ]
+    },
+    "previewUrlPolicy": "Prefer Production alias https://complianceloop-portal.vercel.app; for protected previews use header X-Vercel-Protection-Bypass with secret stored out-of-band.",
+    "reconcilerProcess": {
+      "normalRun": {
+        "commitTitle": "playbook: sync decisions",
+        "steps": [
+          "Open links.runReconciler and run it",
+          "Open links.pulls and merge the PR it opens"
+        ]
+      },
+      "resetRun": {
+        "steps": [
+          "Open links.editPlaybook and replace with '\\n', commit with 'playbook: reset generated block'",
+          "Open links.runReconciler and run it",
+          "Open links.pulls and merge the PR it opens"
+        ],
+        "when": "Only if prior runs report no changes or the block is stale."
+      },
+      "summary": "Run once after edits; use reset protocol if needed."
+    }
   },
+  "phaseCatalog": [
+    {
+      "key": "design_skin",
+      "title": "Design Skin Kit"
+    },
+    {
+      "key": "auth_db",
+      "title": "Auth + DB base"
+    },
+    {
+      "key": "files_r2",
+      "title": "Files & Certificates (R2)"
+    },
+    {
+      "key": "airtable_bridge",
+      "title": "Airtable bridge (hybrid)"
+    },
+    {
+      "key": "job_model",
+      "title": "Job model + booking skeleton"
+    },
+    {
+      "key": "eligibility",
+      "title": "Provider directory & eligibility"
+    },
+    {
+      "key": "assignment",
+      "title": "Assignment engine"
+    },
+    {
+      "key": "cust_dashboard",
+      "title": "Customer dashboard"
+    },
+    {
+      "key": "prov_dashboard",
+      "title": "Provider dashboard"
+    },
+    {
+      "key": "payments",
+      "title": "Payments & invoices"
+    },
+    {
+      "key": "notifications",
+      "title": "Notifications (email/SMS)"
+    },
+    {
+      "key": "admin_console",
+      "title": "Admin console"
+    },
+    {
+      "key": "polish_launch",
+      "title": "Polish & launch"
+    }
+  ],
+  "phaseProgress": {
+    "Airtable bridge (hybrid)": {
+      "tasks": [
+        {
+          "id": "client",
+          "status": "implemented",
+          "title": "lib/airtable.ts"
+        },
+        {
+          "id": "source",
+          "status": "implemented",
+          "title": "GET /api/airtable/source"
+        },
+        {
+          "id": "script",
+          "status": "implemented",
+          "title": "scripts/airtable-sync.mjs"
+        },
+        {
+          "id": "workflow",
+          "status": "implemented",
+          "title": "GH Actions: airtable-sync.yml"
+        },
+        {
+          "id": "trigger",
+          "status": "implemented",
+          "title": "POST /api/airtable/sync (optional)"
+        },
+        {
+          "id": "verify",
+          "status": "implemented",
+          "title": "Run workflow dry-run + normal; confirm green"
+        }
+      ]
+    },
+    "Assignment engine": {
+      "decisions": [
+        {
+          "key": "table_namespace",
+          "notes": "Isolated from any legacy jobs table to avoid collisions.",
+          "value": "assign_* (assign_jobs, assign_job_offers, assign_job_assignments, assign_logs)"
+        },
+        {
+          "key": "broadcast_model",
+          "notes": "Offers expire at now() + (hold_minutes * 1 minute).",
+          "value": "soft-hold offers"
+        }
+      ],
+      "status": "in_progress",
+      "tasks": [
+        {
+          "name": "broadcast endpoint",
+          "path": "apps/portal/app/api/assign/broadcast/route.ts",
+          "status": "implemented"
+        },
+        {
+          "name": "soft-hold semantics",
+          "status": "implemented"
+        },
+        {
+          "name": "first-accept wins (atomic)",
+          "path": "apps/portal/app/api/assign/accept/route.ts",
+          "status": "implemented"
+        },
+        {
+          "name": "single-eligible auto-assign",
+          "status": "implemented"
+        },
+        {
+          "name": "decline endpoint",
+          "path": "apps/portal/app/api/assign/decline/route.ts",
+          "status": "implemented"
+        },
+        {
+          "name": "minimal admin logs endpoint",
+          "path": "apps/portal/app/api/assign/admin/logs/route.ts",
+          "status": "implemented"
+        },
+        {
+          "name": "bootstrap (DDL) inline",
+          "path": "apps/portal/app/api/db/bootstrap/route.ts",
+          "status": "implemented"
+        },
+        {
+          "name": "safe rollbacks",
+          "status": "documented"
+        }
+      ],
+      "verifyNotes": [
+        "POST /api/assign/broadcast with telehealth_consult + 00901 returns job_id and eligible_count >= 2 after seeding.",
+        "POST /api/assign/accept twice: exactly one 200; the other 409 (winner echoed).",
+        "POST /api/assign/decline returns 200 on unexpired offer.",
+        "GET /api/assign/admin/logs?job_id= shows broadcast_offers_created, offer_accepted, offer_declined."
+      ]
+    },
+    "Job model + booking skeleton": {
+      "tasks": [
+        {
+          "id": "wizard",
+          "status": "implemented",
+          "title": "Booking wizard skeleton"
+        },
+        {
+          "id": "job-draft",
+          "status": "implemented",
+          "title": "Create Job(draft) API"
+        },
+        {
+          "id": "soft-hold",
+          "status": "implemented",
+          "title": "Soft-hold service"
+        }
+      ]
+    },
+    "Provider directory & eligibility": {
+      "tasks": [
+        {
+          "id": "bootstrap",
+          "status": "implemented",
+          "title": "DB bootstrap creates providers, provider_services, provider_zips"
+        },
+        {
+          "id": "apply",
+          "status": "implemented",
+          "title": "POST /api/providers/apply (upsert services + ZIP rows)"
+        },
+        {
+          "id": "score",
+          "status": "implemented",
+          "title": "POST /api/providers/score (zip + services, sorted)"
+        }
+      ]
+    }
+  },
+  "phases": [
+    {
+      "name": "Foundations",
+      "status": "landed",
+      "title": "Foundations"
+    },
+    {
+      "name": "Auth & Session",
+      "status": "landed",
+      "title": "Auth & Session"
+    },
+    {
+      "landedAt": "2025-10-10",
+      "name": "Provider directory & eligibility",
+      "status": "landed",
+      "title": "Provider directory & eligibility"
+    },
+    {
+      "name": "Assignment engine",
+      "status": "in_progress",
+      "title": "Assignment engine"
+    },
+    {
+      "name": "Post-assignment ops",
+      "status": "planned",
+      "title": "Post-assignment ops"
+    },
+    {
+      "name": "Billing",
+      "status": "planned",
+      "title": "Billing"
+    },
+    {
+      "name": "Reporting",
+      "status": "planned",
+      "title": "Reporting"
+    },
+    {
+      "name": "Audit & exports",
+      "status": "planned",
+      "title": "Audit & exports"
+    },
+    {
+      "name": "Admin UX",
+      "status": "planned",
+      "title": "Admin UX"
+    },
+    {
+      "name": "Notifications",
+      "status": "planned",
+      "title": "Notifications"
+    },
+    {
+      "name": "Observability",
+      "status": "planned",
+      "title": "Observability"
+    },
+    {
+      "name": "SRE & runbooks",
+      "status": "planned",
+      "title": "SRE & runbooks"
+    },
+    {
+      "name": "Final hardening",
+      "status": "planned",
+      "title": "Final hardening"
+    }
+  ],
+  "phasesDetailed": [
+    {
+      "acceptance": [
+        "Preview renders",
+        "Tokens adjustable with hot reload"
+      ],
+      "deliverables": [
+        "theme.ts tokens",
+        "globals.css",
+        "Button/Input/Card",
+        "/design-playground"
+      ],
+      "landedAt": "2025-09-27",
+      "objective": "Theme tokens, brand, and UI primitives to speed all later pages.",
+      "phase": "Design Skin Kit",
+      "status": "landed"
+    },
+    {
+      "acceptance": [
+        "Vercel env DATABASE_URL set",
+        "Auth code roundtrip works",
+        "Dashboard gate honors session"
+      ],
+      "deliverables": [
+        "/api/auth/send-code",
+        "/api/auth/verify-code",
+        "users, sessions tables"
+      ],
+      "landedAt": "2025-09-26",
+      "objective": "Neon + Drizzle schema, passwordless email code, sessions.",
+      "phase": "Auth + DB base",
+      "status": "landed",
+      "verification": [
+        "DATABASE_URL set",
+        "send-code 200",
+        "verify-code 200 (session issued)"
+      ]
+    },
+    {
+      "acceptance": [
+        "Upload returns 200 and r2Key",
+        "Authorized GET streams 200; unauthorized 403"
+      ],
+      "deliverables": [
+        "/api/files/upload",
+        "/api/files/:key",
+        "R2 bucket + IAM"
+      ],
+      "landedAt": "2025-09-29",
+      "notes": [
+        "Signer uses R2_ACCOUNT_ID (or R2_ENDPOINT override).",
+        "POST /api/files/upload returns { r2Key, putUrl }.",
+        "GET /api/files/[key] streams when authed; 403 when unauth."
+      ],
+      "objective": "Private file storage with signed streaming.",
+      "phase": "Files & Certificates (R2)",
+      "status": "landed"
+    },
+    {
+      "acceptance": [
+        "One-way sync green in CI",
+        "Backfill job OK"
+      ],
+      "deliverables": [
+        "lib/airtable.ts",
+        "scripts/airtable-sync.mjs",
+        ".github/workflows/airtable-sync.yml",
+        "api/airtable/source",
+        "optional: api/airtable/sync"
+      ],
+      "landedAt": "2025-10-03",
+      "objective": "Mirror critical records for ops; Neon remains source of record.",
+      "phase": "Airtable bridge (hybrid)",
+      "status": "landed"
+    },
+    {
+      "acceptance": [
+        "30m hold for multi-property",
+        "Single-property flow ok"
+      ],
+      "deliverables": [
+        "/book wizard",
+        "create Job(draft) API",
+        "Soft-hold service"
+      ],
+      "landedAt": "2025-10-03",
+      "notes": [
+        "Stripe preauth flow verified (mock + live).",
+        "Jobs endpoints in place and green."
+      ],
+      "objective": "Booking wizard + soft hold creation.",
+      "phase": "Job model + booking skeleton",
+      "status": "landed"
+    },
+    {
+      "acceptance": [
+        "Pass/fail immediate",
+        "Declined path shows guidance",
+        "Scoring endpoint returns eligible providers"
+      ],
+      "deliverables": [
+        "criteria engine",
+        "provider onboarding form",
+        "how-to-qualify guidance",
+        "provider scoring endpoint"
+      ],
+      "landedAt": "2025-10-10",
+      "notes": [
+        "Production verified: POST /api/providers/apply persists provider, zips, services.",
+        "Production verified: POST /api/providers/score returns count>=1 for 11223 with EXIT_SIGN,E_LIGHT.",
+        "Status rank: active > approved > pending; sort by company_name; limit 100."
+      ],
+      "objective": "Eligibility rules + instant decision.",
+      "phase": "Provider directory & eligibility",
+      "startedAt": "2025-10-04",
+      "status": "landed"
+    },
+    {
+      "acceptance": [
+        "Race handled; winner locks; cascade on timeout/decline"
+      ],
+      "deliverables": [
+        "offer broadcast",
+        "accept endpoint",
+        "cascade logic"
+      ],
+      "objective": "First-accept wins + 15m soft-hold + single-eligible auto-assign.",
+      "phase": "Assignment engine",
+      "startedAt": "2025-10-10",
+      "status": "in_progress"
+    },
+    {
+      "acceptance": [
+        "Auth required",
+        "Documents stream correctly"
+      ],
+      "deliverables": [
+        "dashboard pages",
+        "job detail route"
+      ],
+      "objective": "List past/upcoming jobs + files/invoices.",
+      "phase": "Customer dashboard",
+      "status": "planned"
+    },
+    {
+      "acceptance": [
+        "Late submission possible",
+        "Conflict auto-cascade"
+      ],
+      "deliverables": [
+        "checklist form",
+        "conflict endpoint",
+        "email routing field"
+      ],
+      "objective": "Job queue + day-of checklist + conflict report + tech email routing.",
+      "phase": "Provider dashboard",
+      "status": "planned"
+    },
+    {
+      "acceptance": [
+        "Invoices viewable; payments later (toggle)"
+      ],
+      "deliverables": [
+        "invoice record",
+        "link on job page"
+      ],
+      "objective": "Invoice links and settlement (minimal MVP).",
+      "phase": "Payments & invoices",
+      "status": "planned"
+    },
+    {
+      "acceptance": [
+        "Email on accept, conflict, ready-to-download"
+      ],
+      "deliverables": [
+        "templates",
+        "event triggers"
+      ],
+      "objective": "Resend email events; SMS optional later.",
+      "phase": "Notifications (email/SMS)",
+      "status": "planned"
+    },
+    {
+      "acceptance": [
+        "Admin-only gate",
+        "Audit trail"
+      ],
+      "deliverables": [
+        "admin routes",
+        "impersonate (guarded)"
+      ],
+      "objective": "Search jobs/providers; manual override tools.",
+      "phase": "Admin console",
+      "status": "planned"
+    },
+    {
+      "acceptance": [
+        "Lighthouse >=90",
+        "No PII leaks",
+        "Runbook updated"
+      ],
+      "deliverables": [
+        "schema.org Business markup",
+        "robots, sitemaps",
+        "basic rate limiting"
+      ],
+      "objective": "SEO, accessibility, rate limits, QA.",
+      "phase": "Polish & launch",
+      "status": "planned"
+    }
+  ],
+  "project": "complianceloop-site",
   "providerIntake": {
-    "summary": "Provider intake + coverage captured and verified.",
+    "decisions": [
+      "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any unsafe SQL.",
+      "Idempotent DDL: CREATE TABLE IF NOT EXISTS, ON CONFLICT DO NOTHING for multi-row inserts."
+    ],
+    "endpoints": [
+      {
+        "method": "GET",
+        "name": "Bootstrap",
+        "path": "/api/providers/bootstrap"
+      },
+      {
+        "method": "POST-via-form",
+        "name": "Provider Apply (UI)",
+        "path": "/providers/apply"
+      },
+      {
+        "method": "POST",
+        "name": "Provider Apply (API)",
+        "path": "/api/providers/apply"
+      },
+      {
+        "method": "POST",
+        "name": "Provider Score (implemented)",
+        "path": "/api/providers/score"
+      }
+    ],
     "schema": {
+      "serviceCodes": [
+        "EXIT_SIGN",
+        "E_LIGHT",
+        "EXTINGUISHERS"
+      ],
       "tables": [
         {
-          "name": "providers",
-          "pk": ["id"],
           "columns": {
-            "id": "uuid primary key",
             "company_name": "text not null",
             "contact_email": "text not null",
             "contact_phone": "text",
+            "id": "uuid primary key",
             "status": "text not null default 'pending'"
-          }
+          },
+          "name": "providers",
+          "pk": [
+            "id"
+          ]
         },
         {
-          "name": "provider_services",
-          "pk": ["provider_id", "service_code"],
           "columns": {
             "provider_id": "uuid not null references providers(id) on delete cascade",
             "service_code": "text not null"
           },
-          "indexes": [{ "name": "idx_provider_services_service_code", "columns": ["service_code"] }]
+          "indexes": [
+            {
+              "columns": [
+                "service_code"
+              ],
+              "name": "idx_provider_services_service_code"
+            }
+          ],
+          "name": "provider_services",
+          "pk": [
+            "provider_id",
+            "service_code"
+          ]
         },
         {
-          "name": "provider_zips",
-          "pk": ["provider_id", "zip"],
           "columns": {
             "provider_id": "uuid not null references providers(id) on delete cascade",
             "zip": "text not null check (zip ~ '^[0-9]{5}$')"
           },
           "indexes": [
-            { "name": "idx_provider_zips_zip", "columns": ["zip"] },
-            { "name": "idx_provider_zips_provider_id", "columns": ["provider_id"] }
+            {
+              "columns": [
+                "zip"
+              ],
+              "name": "idx_provider_zips_zip"
+            },
+            {
+              "columns": [
+                "provider_id"
+              ],
+              "name": "idx_provider_zips_provider_id"
+            }
+          ],
+          "name": "provider_zips",
+          "pk": [
+            "provider_id",
+            "zip"
           ]
         }
-      ],
-      "serviceCodes": ["EXIT_SIGN", "E_LIGHT", "EXTINGUISHERS"]
-    },
-    "endpoints": [
-      { "name": "Bootstrap", "method": "GET", "path": "/api/providers/bootstrap" },
-      { "name": "Provider Apply (UI)", "method": "POST-via-form", "path": "/providers/apply" },
-      { "name": "Provider Apply (API)", "method": "POST", "path": "/api/providers/apply" },
-      { "name": "Provider Score (implemented)", "method": "POST", "path": "/api/providers/score" }
-    ],
-    "decisions": [
-      "Use @neondatabase/serverless inline in routes; avoid shared alias imports and any unsafe SQL.",
-      "Idempotent DDL: CREATE TABLE IF NOT EXISTS, ON CONFLICT DO NOTHING for multi-row inserts."
-    ]
-  },
-  "status": {
-    "playbookGeneratedAt": null,
-    "lastReconciledAt": null
-  },
-  "automation": {
-    "decide": {
-      "workflowPath": ".github/workflows/decide.yml",
-      "scriptPath": "scripts/decisions-apply.mjs",
-      "usage": [
-        "/decide set /<json-pointer> <value>",
-        "/decide remove /<json-pointer>",
-        "/decide add-history / {\"date\":\"YYYY-MM-DD\",\"decision\":\"...\",\"why\":\"...\"}"
-      ],
-      "notes": "Post the command as a comment on any Issue/PR in this repo."
-    },
-    "syncFromUrl": {
-      "workflowPath": ".github/workflows/sync-from-url.yml",
-      "runLink": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/sync-from-url.yml",
-      "inputs": [
-        "bundle_url: HTTPS URL to .zip or .patch",
-        "sha256: expected SHA256 of file",
-        "mode: zip|patch",
-        "target_branch: default agent-sync"
       ]
-    }
-  }
+    },
+    "summary": "Provider intake + coverage captured and verified."
+  },
+  "repo": "ComplianceLoop/complianceloop-site",
+  "status": {
+    "lastReconciledAt": null,
+    "playbookGeneratedAt": null
+  },
+  "version": "2025-10-15.1"
 }
