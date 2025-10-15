@@ -3,7 +3,6 @@
   "project": "complianceloop-site",
   "repo": "ComplianceLoop/complianceloop-site",
   "currentPhase": "Assignment engine",
-
   "phaseCatalog": [
     { "key": "design_skin", "title": "Design Skin Kit" },
     { "key": "auth_db", "title": "Auth + DB base" },
@@ -19,7 +18,6 @@
     { "key": "admin_console", "title": "Admin console" },
     { "key": "polish_launch", "title": "Polish & launch" }
   ],
-
   "phasesDetailed": [
     {
       "phase": "Design Skin Kit",
@@ -133,23 +131,21 @@
       "status": "planned"
     }
   ],
-
   "phases": [
-    { "title": "Foundations", "status": "landed" },
-    { "title": "Auth & Session", "status": "landed" },
-    { "title": "Provider directory & eligibility", "status": "landed", "landedAt": "2025-10-10" },
-    { "title": "Assignment engine", "status": "in_progress" },
-    { "title": "Post-assignment ops", "status": "planned" },
-    { "title": "Billing", "status": "planned" },
-    { "title": "Reporting", "status": "planned" },
-    { "title": "Audit & exports", "status": "planned" },
-    { "title": "Admin UX", "status": "planned" },
-    { "title": "Notifications", "status": "planned" },
-    { "title": "Observability", "status": "planned" },
-    { "title": "SRE & runbooks", "status": "planned" },
-    { "title": "Final hardening", "status": "planned" }
+    { "title": "Foundations", "name": "Foundations", "status": "landed" },
+    { "title": "Auth & Session", "name": "Auth & Session", "status": "landed" },
+    { "title": "Provider directory & eligibility", "name": "Provider directory & eligibility", "status": "landed", "landedAt": "2025-10-10" },
+    { "title": "Assignment engine", "name": "Assignment engine", "status": "in_progress" },
+    { "title": "Post-assignment ops", "name": "Post-assignment ops", "status": "planned" },
+    { "title": "Billing", "name": "Billing", "status": "planned" },
+    { "title": "Reporting", "name": "Reporting", "status": "planned" },
+    { "title": "Audit & exports", "name": "Audit & exports", "status": "planned" },
+    { "title": "Admin UX", "name": "Admin UX", "status": "planned" },
+    { "title": "Notifications", "name": "Notifications", "status": "planned" },
+    { "title": "Observability", "name": "Observability", "status": "planned" },
+    { "title": "SRE & runbooks", "name": "SRE & runbooks", "status": "planned" },
+    { "title": "Final hardening", "name": "Final hardening", "status": "planned" }
   ],
-
   "phaseProgress": {
     "Airtable bridge (hybrid)": {
       "tasks": [
@@ -203,11 +199,10 @@
         "POST /api/assign/broadcast with telehealth_consult + 00901 returns job_id and eligible_count >= 2 after seeding.",
         "POST /api/assign/accept twice: exactly one 200; the other 409 (winner echoed).",
         "POST /api/assign/decline returns 200 on unexpired offer.",
-        "GET /api/assign/admin/logs?job_id=<id> shows broadcast_offers_created, offer_accepted, offer_declined."
+        "GET /api/assign/admin/logs?job_id= shows broadcast_offers_created, offer_accepted, offer_declined."
       ]
     }
   },
-
   "finances": {
     "currency": "USD",
     "oneTime": {
@@ -236,7 +231,6 @@
     },
     "lastUpdated": "2025-10-10"
   },
-
   "links": {
     "editDecisions": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/decisions.json",
     "editPlaybook": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/playbook.md",
@@ -248,7 +242,6 @@
     "handoffAgentPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.agent.md",
     "diagnoseDecisions": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/diagnose-decisions-json.yml"
   },
-
   "fileActions": {
     "policy": "Use EDIT links if file exists; otherwise use CREATE links.",
     "items": [
@@ -310,7 +303,6 @@
       }
     ]
   },
-
   "operationalNotes": {
     "agentInstructionStyle": [
       "FULL-FILE REPLACEMENTS ONLY for all files (no partial snippets).",
@@ -332,7 +324,7 @@
       "resetRun": {
         "when": "Only if prior runs report no changes or the block is stale.",
         "steps": [
-          "Open links.editPlaybook and replace with '<!-- CL:START -->\\n<!-- CL:END -->', commit with 'playbook: reset generated block'",
+          "Open links.editPlaybook and replace with '\\n', commit with 'playbook: reset generated block'",
           "Open links.runReconciler and run it",
           "Open links.pulls and merge the PR it opens"
         ]
@@ -362,8 +354,14 @@
       ]
     },
     "airtableEnv": {
-      "vars": ["AIRTABLE_API_KEY", "AIRTABLE_BASE_ID", "AIRTABLE_SYNC_KEY? (for POST /api/airtable/sync)", "BASE_URL? (scripts)", "SYNC_SOURCE_URL?"],
-      "note": "Set in Vercel (routes) and GitHub Actions (workflow). Never commit secrets."
+      "vars": [
+        "AIRTABLE_API_KEY",
+        "AIRTABLE_BASE_ID",
+        "AIRTABLE_SYNC_KEY? (for POST /api/airtable/sync)",
+        "BASE_URL? (scripts)",
+        "SYNC_SOURCE_URL?"
+      ],
+      "note": "Set in Vercel (routes) and GitHub Actions (workflow).\nNever commit secrets."
     },
     "previewUrlPolicy": "Prefer Production alias https://complianceloop-portal.vercel.app; for protected previews use header X-Vercel-Protection-Bypass with secret stored out-of-band.",
     "apiTestingResults": [
@@ -378,7 +376,6 @@
     ],
     "apiTestingNotes": "Append short lines to apiTestingResults after running checks, e.g., 'YYYY-MM-DD: score {} -> 400 invalid zip OK'."
   },
-
   "providerIntake": {
     "summary": "Provider intake + coverage captured and verified.",
     "schema": {
@@ -429,7 +426,6 @@
       "Idempotent DDL: CREATE TABLE IF NOT EXISTS, ON CONFLICT DO NOTHING for multi-row inserts."
     ]
   },
-
   "status": {
     "playbookGeneratedAt": null,
     "lastReconciledAt": null
