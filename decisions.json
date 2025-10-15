@@ -1,5 +1,5 @@
 {
-  "version": "2025-10-14.0",
+  "version": "2025-10-15.0",
   "project": "complianceloop-site",
   "repo": "ComplianceLoop/complianceloop-site",
   "currentPhase": "Assignment engine",
@@ -174,16 +174,8 @@
     "Assignment engine": {
       "status": "in_progress",
       "decisions": [
-        {
-          "key": "table_namespace",
-          "value": "assign_* (assign_jobs, assign_job_offers, assign_job_assignments, assign_logs)",
-          "notes": "Isolated from any legacy jobs table to avoid collisions."
-        },
-        {
-          "key": "broadcast_model",
-          "value": "soft-hold offers",
-          "notes": "Offers expire at now() + (hold_minutes * 1 minute)."
-        }
+        { "key": "table_namespace", "value": "assign_* (assign_jobs, assign_job_offers, assign_job_assignments, assign_logs)", "notes": "Isolated from any legacy jobs table to avoid collisions." },
+        { "key": "broadcast_model", "value": "soft-hold offers", "notes": "Offers expire at now() + (hold_minutes * 1 minute)." }
       ],
       "tasks": [
         { "name": "broadcast endpoint", "path": "apps/portal/app/api/assign/broadcast/route.ts", "status": "implemented" },
@@ -240,7 +232,12 @@
     "vercelDeployments": "https://vercel.com/compliance-loop/complianceloop-portal/deployments",
     "handoffPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.md",
     "handoffAgentPrompt": "https://github.com/ComplianceLoop/complianceloop-site/blob/main/handoff/prompt.agent.md",
-    "diagnoseDecisions": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/diagnose-decisions-json.yml"
+    "diagnoseDecisions": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/diagnose-decisions-json.yml",
+    "editDecideWorkflow": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/decide.yml",
+    "editSyncFromUrlWorkflow": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/sync-from-url.yml",
+    "editDecisionsApplyScript": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/decisions-apply.mjs",
+    "runDecideWorkflow": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/decide.yml",
+    "runSyncFromUrl": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/sync-from-url.yml"
   },
   "fileActions": {
     "policy": "Use EDIT links if file exists; otherwise use CREATE links.",
@@ -300,6 +297,30 @@
         "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=apps%2Fportal%2Fdb%2Fbootstrap.sql",
         "purpose": "DDL mirror of provider tables/indexes (idempotent)",
         "lastChecked": "2025-10-08"
+      },
+      {
+        "path": ".github/workflows/decide.yml",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/decide.yml",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fdecide.yml",
+        "purpose": "Comment-driven updates to decisions.json via /decide",
+        "lastChecked": "2025-10-15"
+      },
+      {
+        "path": "scripts/decisions-apply.mjs",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/scripts/decisions-apply.mjs",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=scripts%2Fdecisions-apply.mjs",
+        "purpose": "Helper that applies /decide ops (set/remove/add-history)",
+        "lastChecked": "2025-10-15"
+      },
+      {
+        "path": ".github/workflows/sync-from-url.yml",
+        "exists": false,
+        "edit": "https://github.com/ComplianceLoop/complianceloop-site/edit/main/.github/workflows/sync-from-url.yml",
+        "create": "https://github.com/ComplianceLoop/complianceloop-site/new/main?filename=.github%2Fworkflows%2Fsync-from-url.yml",
+        "purpose": "Import a ZIP or patch from a URL and open a PR",
+        "lastChecked": "2025-10-15"
       }
     ]
   },
@@ -374,7 +395,7 @@
       "2025-10-12 - decline ok: job_id=e1dc1b62-c177-4215-b6ab-2c11cc297458, provider_id=cf582d89-caeb-4655-913f-43d0ed0e03c7, state=declined.",
       "2025-10-12 - logs ok: admin/logs reflects broadcast_offers_created, offer_accepted, offer_declined."
     ],
-    "apiTestingNotes": "Append short lines to apiTestingResults after running checks, e.g., 'YYYY-MM-DD: score {} -> 400 invalid zip OK'."
+    "apiTestingNotes": "Append short lines to apiTestingResults after running checks, e.g., 'YYYY-MM-DD: score {} -> 400 invalid zip OK'"
   },
   "providerIntake": {
     "summary": "Provider intake + coverage captured and verified.",
@@ -429,5 +450,27 @@
   "status": {
     "playbookGeneratedAt": null,
     "lastReconciledAt": null
+  },
+  "automation": {
+    "decide": {
+      "workflowPath": ".github/workflows/decide.yml",
+      "scriptPath": "scripts/decisions-apply.mjs",
+      "usage": [
+        "/decide set /<json-pointer> <value>",
+        "/decide remove /<json-pointer>",
+        "/decide add-history / {\"date\":\"YYYY-MM-DD\",\"decision\":\"...\",\"why\":\"...\"}"
+      ],
+      "notes": "Post the command as a comment on any Issue/PR in this repo."
+    },
+    "syncFromUrl": {
+      "workflowPath": ".github/workflows/sync-from-url.yml",
+      "runLink": "https://github.com/ComplianceLoop/complianceloop-site/actions/workflows/sync-from-url.yml",
+      "inputs": [
+        "bundle_url: HTTPS URL to .zip or .patch",
+        "sha256: expected SHA256 of file",
+        "mode: zip|patch",
+        "target_branch: default agent-sync"
+      ]
+    }
   }
 }
