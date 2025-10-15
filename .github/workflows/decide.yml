@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       command:
-        description: 'Type everything after "/decide ", e.g. set /version "2025-10-15.1"'
+        description: 'Everything after "/decide ", e.g. set /version "2025-10-15.1"'
         required: true
 
 permissions:
@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   run:
+    # For comments, only run if the body contains "/decide "
     if: github.event_name == 'workflow_dispatch' || contains(github.event.comment.body, '/decide ')
     runs-on: ubuntu-latest
     steps:
@@ -35,25 +36,45 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Parse command and export outputs (Node only)
+      - name: Parse command and export outputs (safe here-doc)
         id: parse
+        shell: bash
         run: |
-          node -e "(() => {
-            const fs = require('fs');
-            const body = process.env.BODY || '';
-            const m = body.match(/\/decide\s+([\s\S]*)/);
-            if (!m) { console.error('No /decide command found'); process.exit(1); }
-            const tail = m[1].trim();
-            const parts = tail.split(/\s+/);
-            const op = parts.shift() || '';
-            const path = parts.shift() || '';
-            const value = tail.slice((op + ' ' + path).length).trim();
-            if (!op || !path || !path.startsWith('/')) {
-              console.error('Expected: /decide <op> </jsonPointer> <value?>'); process.exit(1);
-            }
-            const out = `op=${op}\npath=${path}\nvalue=${value}\n`;
-            fs.writeFileSync(process.env.GITHUB_OUTPUT, out, { flag: 'a', encoding: 'utf8' });
-          })();"
+          node - <<'NODE'
+          const fs = require('fs');
+
+          const body = process.env.BODY || '';
+          const m = body.match(/\/decide\s+([\s\S]*)/);
+          if (!m) {
+            console.error('No /decide command found in BODY');
+            process.exit(1);
+          }
+          const tail = m[1].trim();
+
+          // Split op + path + (rest as value, may contain spaces/JSON)
+          const parts = tail.split(/\s+/);
+          const op = parts.shift() || '';
+          const path = parts.shift() || '';
+          const value = tail.slice((op + ' ' + path).length).trim();
+
+          if (!op || !path || !path.startsWith('/')) {
+            console.error('Expected: /decide <op> </jsonPointer> <value?>');
+            console.error('BODY was:', body);
+            process.exit(1);
+          }
+
+          // Write to GITHUB_OUTPUT with a unique heredoc marker for value (safe for newlines)
+          const outFile = process.env.GITHUB_OUTPUT;
+          const marker = 'EOF_' + Math.random().toString(36).slice(2);
+          const lines = [
+            `op=${op}`,
+            `path=${path}`,
+            `value<<${marker}`,
+            value,
+            marker
+          ].join('\n') + '\n';
+          fs.writeFileSync(outFile, lines, { flag: 'a', encoding: 'utf8' });
+          NODE
 
       - run: npm ci || npm i
 
