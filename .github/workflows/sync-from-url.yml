@@ -1,0 +1,74 @@
+name: Sync from URL (zip or patch)
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_url:
+        description: "HTTPS URL to zip or .patch file"
+        required: true
+      sha256:
+        description: "Expected SHA256 of the file"
+        required: true
+      mode:
+        description: "zip|patch"
+        required: true
+        default: "zip"
+      target_branch:
+        description: "Branch to create/update"
+        required: true
+        default: "agent-sync"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download
+        run: |
+          curl -fsSL "$BUNDLE_URL" -o bundle.bin
+          echo "$SHA256  bundle.bin" | sha256sum -c -
+        env:
+          BUNDLE_URL: ${{ github.event.inputs.bundle_url }}
+          SHA256: ${{ github.event.inputs.sha256 }}
+
+      - name: Apply (zip)
+        if: ${{ inputs.mode == 'zip' }}
+        run: |
+          rm -rf __incoming && mkdir __incoming
+          unzip -q bundle.bin -d __incoming
+          rsync -a --delete __incoming/ .
+          rm -rf __incoming
+
+      - name: Apply (patch)
+        if: ${{ inputs.mode == 'patch' }}
+        run: |
+          git apply --index bundle.bin
+
+      - name: Create commit
+        run: |
+          git checkout -B "${{ inputs.target_branch }}"
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git add -A
+            git commit -m "chore(sync): import from ${{ inputs.bundle_url }}"
+            git push -u origin "${{ inputs.target_branch }}" --force
+          else
+            echo "No changes to commit."
+          fi
+
+      - name: Open/Update PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: ${{ inputs.target_branch }}
+          title: "Agent Sync: ${{ inputs.target_branch }}"
+          body: |
+            Imported from: ${{ inputs.bundle_url }}
+            SHA256: ${{ inputs.sha256 }}
+          commit-message: "chore(sync): import from ${{ inputs.bundle_url }}"
+          delete-branch: false
