@@ -50,9 +50,9 @@ jobs:
             SRC="$(find "__incoming" -mindepth 1 -maxdepth 1 -type d)"
           fi
 
-          # Copy into repo; ignore rsync code 24 (vanished files) which happens with tiny zips on fast runners
+          # Copy into repo; *do not* touch .git/
           set +e
-          rsync -a --delete "$SRC"/ .
+          rsync -a --delete --exclude='.git/' "$SRC"/ .
           code=$?
           set -e
           if [ "$code" -ne 0 ] && [ "$code" -ne 24 ]; then
