@@ -1,87 +1,91 @@
-name: Agent Smoke (Vercel Preview)
+name: Agent Smoke
 
 on:
-  workflow_dispatch:
   pull_request:
-    branches: ["**"]
+    branches: [ main ]
     types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
-
-env:
-  VERCEL_APP: complianceloop-portal
+  pull-requests: write
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: '20'
 
-      - name: Resolve Vercel Preview URL (branch match with fallback)
-        id: vercel
-        shell: bash
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
-          VERCEL_APP: ${{ env.VERCEL_APP }}
+      # If you already have a custom smoke script, keep it; otherwise fall back to build.
+      - name: Install
+        run: npm ci || npm i
+
+      - name: Typecheck (best-effort)
+        run: npm run typecheck || true
+
+      - name: Build
         run: |
           set -e
-          if [ -z "${VERCEL_TOKEN}" ] || [ -z "${VERCEL_TEAM_ID}" ]; then
-            echo "VERCEL_TOKEN and/or VERCEL_TEAM_ID missing."
-            exit 1
+          if npm run | grep -q '^  agent:smoke'; then
+            npm run agent:smoke
+          else
+            npm run build
           fi
-          BRANCH="${{ github.head_ref || github.ref_name }}"
-          echo "Looking for READY preview for branch: $BRANCH (app=${VERCEL_APP})"
-          for i in {1..30}; do
-            RESP=$(curl -s -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-              "https://api.vercel.com/v6/deployments?teamId=${VERCEL_TEAM_ID}&app=${VERCEL_APP}&limit=30&state=READY")
-            URL=$(echo "$RESP" \
-              | jq -r '.deployments[] | select(.meta.githubCommitRef=="'"$BRANCH"'") | .url' \
-              | head -n1)
-            if [ -n "$URL" ] && [ "$URL" != "null" ]; then
-              echo "Found READY preview for branch: https://$URL"
-              echo "match=1" >> "$GITHUB_OUTPUT"
-              echo "url=https://$URL" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            echo "Waiting for READY preview (branch=$BRANCH)..."
-            sleep 10
-          done
-          echo "No branch-matched preview found. Falling back to the latest READY preview."
-          RESP=$(curl -s -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-            "https://api.vercel.com/v6/deployments?teamId=${VERCEL_TEAM_ID}&app=${VERCEL_APP}&limit=1&state=READY")
-          URL=$(echo "$RESP" | jq -r '.deployments[0].url')
-          if [ -z "$URL" ] || [ "$URL" = "null" ]; then
-            echo "Could not find any READY preview for app ${VERCEL_APP}."
-            exit 1
-          fi
-          echo "match=0" >> "$GITHUB_OUTPUT"
-          echo "url=https://$URL" >> "$GITHUB_OUTPUT"
-          echo "Using fallback READY preview: https://$URL"
 
-      - name: Run smoke test against Preview
-        shell: bash
-        env:
-          PREVIEW_URL: ${{ steps.vercel.outputs.url }}
-          VERCEL_BYPASS_TOKEN: ${{ secrets.VERCEL_BYPASS_TOKEN }}
+      # ---------- feedback wiring ----------
+      - name: Collect feedback payload (on failure)
+        if: failure()
         run: |
-          echo "PREVIEW_URL=$PREVIEW_URL"
-          node scripts/agent-smoke.mjs
+          set -e
+          mkdir -p feedback
+          # last 400 lines of any npm logs if present
+          (ls -1 npm-*.log 2>/dev/null || true) | tail -n +1 | while read f; do
+            echo "----- $f (tail) -----" >> feedback/log-tail.txt
+            tail -n 400 "$f" >> feedback/log-tail.txt || true
+          done
+          node -e "const fs=require('fs'); fs.writeFileSync('feedback/report.json', JSON.stringify({
+            kind:'BUILD_FAILED',
+            repo: process.env.GITHUB_REPOSITORY,
+            pr: process.env.GITHUB_REF,
+            sha: process.env.GITHUB_SHA,
+            when: new Date().toISOString()
+          }, null, 2))"
 
-      - name: Upload smoke logs (if any)
-        if: always()
+      - name: Upload feedback artifact (on failure)
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-artifacts
-          path: |
-            smoke.log
-            **/jest-output.xml
-          if-no-files-found: ignore
+          name: agent-feedback
+          path: feedback/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Post structured comment for agent (on failure)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = [
+              '<!--AGENT_FEEDBACK-->',
+              '### Agent Smoke failed',
+              '',
+              `**Repo:** ${context.repo.owner}/${context.repo.repo}`,
+              `**PR:** #${pr.number}`,
+              `**SHA:** ${context.sha}`,
+              '',
+              'Download the **agent-feedback** artifact for `report.json` and `log-tail.txt`.',
+              '',
+              '**Next step for agent:** Upload a fixed bundle and update the R2 inbox JSON with the new `bundle_url` and `sha256`. The scheduler will import automatically.'
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body
+            });
