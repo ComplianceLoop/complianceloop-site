@@ -71,6 +71,10 @@ jobs:
       - name: Create commit
         run: |
           set -euo pipefail
+          # Configure committer identity for this repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git checkout -B "${{ inputs.target_branch }}"
           if [[ -n "$(git status --porcelain)" ]]; then
             git add -A
