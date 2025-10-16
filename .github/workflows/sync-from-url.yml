@@ -32,27 +32,45 @@ jobs:
 
       - name: Download
         run: |
-          curl -fsSL "$BUNDLE_URL" -o bundle.bin
-          echo "$SHA256  bundle.bin" | sha256sum -c -
-        env:
-          BUNDLE_URL: ${{ github.event.inputs.bundle_url }}
-          SHA256: ${{ github.event.inputs.sha256 }}
+          set -euo pipefail
+          curl -fsSL "${{ github.event.inputs.bundle_url }}" -o bundle.bin
+          echo "${{ github.event.inputs.sha256 }}  bundle.bin" | sha256sum -c -
 
       - name: Apply (zip)
         if: ${{ inputs.mode == 'zip' }}
         run: |
+          set -euo pipefail
           rm -rf __incoming && mkdir __incoming
           unzip -q bundle.bin -d __incoming
-          rsync -a --delete __incoming/ .
+
+          # Flatten if archive has a single top-level folder
+          SRC="__incoming"
+          count=$(find "__incoming" -mindepth 1 -maxdepth 1 | wc -l)
+          if [ "$count" -eq 1 ] && [ -d "$(find "__incoming" -mindepth 1 -maxdepth 1 -type d)" ]; then
+            SRC="$(find "__incoming" -mindepth 1 -maxdepth 1 -type d)"
+          fi
+
+          # Copy into repo; ignore rsync code 24 (vanished files) which happens with tiny zips on fast runners
+          set +e
+          rsync -a --delete "$SRC"/ .
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ] && [ "$code" -ne 24 ]; then
+            echo "rsync failed with code $code"
+            exit "$code"
+          fi
+
           rm -rf __incoming
 
       - name: Apply (patch)
         if: ${{ inputs.mode == 'patch' }}
         run: |
+          set -euo pipefail
           git apply --index bundle.bin
 
       - name: Create commit
         run: |
+          set -euo pipefail
           git checkout -B "${{ inputs.target_branch }}"
           if [[ -n "$(git status --porcelain)" ]]; then
             git add -A
