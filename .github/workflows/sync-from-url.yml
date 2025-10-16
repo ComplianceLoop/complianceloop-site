@@ -71,7 +71,7 @@ jobs:
       - name: Create commit
         run: |
           set -euo pipefail
-          # Configure committer identity for this repo
+          # Committer identity
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -87,6 +87,7 @@ jobs:
       - name: Open/Update PR
         uses: peter-evans/create-pull-request@v6
         with:
+          base: main                    # 👈 ensure PR base is main
           branch: ${{ inputs.target_branch }}
           title: "Agent Sync: ${{ inputs.target_branch }}"
           body: |
