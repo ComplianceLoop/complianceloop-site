@@ -1,91 +1,173 @@
 name: Agent Smoke
 
 on:
+  # Auto on PRs; also allow manual runs
   pull_request:
-    branches: [ main ]
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch: {}
 
+# Least-privilege permissions for comments and artifacts
 permissions:
   contents: read
   pull-requests: write
+  actions: read
+
+concurrency:
+  # One smoke run per PR (or branch for manual runs); cancel in-flight on new pushes
+  group: agent-smoke-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   smoke:
+    name: run
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      NODE_ENV: ci
+      FORCE_COLOR: "1"
+      # Public Dev URL baked for agent context if your script wants it
+      R2_PUBLIC_BASE: https://pub-defef221f7d146ada31deea5b1eb2b4f.r2.dev
+      # PR feedback tag used across the repo
+      AGENT_FEEDBACK_TAG: "<!--AGENT_FEEDBACK-->"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
-      # If you already have a custom smoke script, keep it; otherwise fall back to build.
-      - name: Install
-        run: npm ci || npm i
-
-      - name: Typecheck (best-effort)
-        run: npm run typecheck || true
-
-      - name: Build
+      - name: Install deps
         run: |
-          set -e
-          if npm run | grep -q '^  agent:smoke'; then
-            npm run agent:smoke
+          set -euo pipefail
+          if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+            npm ci
           else
-            npm run build
+            npm i
           fi
 
-      # ---------- feedback wiring ----------
-      - name: Collect feedback payload (on failure)
-        if: failure()
+      - name: Prepare output folder
         run: |
-          set -e
-          mkdir -p feedback
-          # last 400 lines of any npm logs if present
-          (ls -1 npm-*.log 2>/dev/null || true) | tail -n +1 | while read f; do
-            echo "----- $f (tail) -----" >> feedback/log-tail.txt
-            tail -n 400 "$f" >> feedback/log-tail.txt || true
-          done
-          node -e "const fs=require('fs'); fs.writeFileSync('feedback/report.json', JSON.stringify({
-            kind:'BUILD_FAILED',
-            repo: process.env.GITHUB_REPOSITORY,
-            pr: process.env.GITHUB_REF,
-            sha: process.env.GITHUB_SHA,
-            when: new Date().toISOString()
-          }, null, 2))"
+          mkdir -p out
+          echo "{}" > out/report.json
+          echo "# Smoke Report" > out/report.md
 
-      - name: Upload feedback artifact (on failure)
-        if: failure()
+      - name: Run smoke (capture, never drop logs)
+        id: smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Your repo’s canonical script; keep output structured
+          # It should exit non-zero on failure and write report.{json,md}
+          # to ./out/. If the script is missing, we create a minimal report.
+          if [ -f scripts/agent-smoke.mjs ]; then
+            set +e
+            node scripts/agent-smoke.mjs --json out/report.json --md out/report.md 2>&1 | tee out/log.txt
+            code=${PIPESTATUS[0]}
+            set -e
+          else
+            echo "scripts/agent-smoke.mjs not found; creating placeholder report" | tee out/log.txt
+            echo '{"status":"missing","details":"scripts/agent-smoke.mjs not found"}' > out/report.json
+            printf "# Smoke Report\n\n- status: missing\n- details: script not found\n" > out/report.md
+            code=1
+          fi
+
+          # Redact anything that looks like a long token (simple heuristic)
+          sed -E -i 's/[A-Za-z0-9_\-]{24,}/[REDACTED]/g' out/log.txt
+
+          # Make last 80 lines easily digestible in the comment
+          tail -n 80 out/log.txt > out/log_tail.txt
+
+          # Normalize status for outputs
+          if [ "$code" -eq 0 ]; then
+            status="passed"
+          else
+            status="failed"
+          fi
+
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          echo "status=$status"   >> "$GITHUB_OUTPUT"
+
+      - name: Upload feedback artifact (always)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: agent-feedback
-          path: feedback/
           if-no-files-found: warn
           retention-days: 7
+          path: |
+            out/report.json
+            out/report.md
+            out/log.txt
+            out/log_tail.txt
 
-      - name: Post structured comment for agent (on failure)
-        if: failure()
+      - name: Post/Update PR feedback comment (always)
+        if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
-            const pr = context.payload.pull_request;
-            const body = [
-              '<!--AGENT_FEEDBACK-->',
-              '### Agent Smoke failed',
-              '',
-              `**Repo:** ${context.repo.owner}/${context.repo.repo}`,
-              `**PR:** #${pr.number}`,
-              `**SHA:** ${context.sha}`,
-              '',
-              'Download the **agent-feedback** artifact for `report.json` and `log-tail.txt`.',
-              '',
-              '**Next step for agent:** Upload a fixed bundle and update the R2 inbox JSON with the new `bundle_url` and `sha256`. The scheduler will import automatically.'
-            ].join('\n');
-            await github.rest.issues.createComment({
+            const fs = require('fs');
+            const status = core.getInput('status', { required: false }) || '${{ steps.smoke.outputs.status || '' }}';
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const tag    = process.env.AGENT_FEEDBACK_TAG || '<!--AGENT_FEEDBACK-->';
+
+            // Build summary from saved files
+            let md = '# Smoke Report\n';
+            try {
+              md = fs.readFileSync('out/report.md', 'utf8');
+            } catch (_) {}
+            let tail = '';
+            try {
+              tail = fs.readFileSync('out/log_tail.txt', 'utf8');
+            } catch (_) {}
+
+            const body = `${tag}
+**Status:** \`${status || 'unknown'}\`
+**Run:** ${runUrl}
+
+${md}
+
+<details><summary>Last 80 lines of log</summary>
+
+\`\`\`text
+${tail}
+\`\`\`
+</details>
+`;
+
+            // Upsert single feedback comment
+            const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: pr.number,
-              body
+              issue_number: context.issue.number
             });
+
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body && c.body.includes(tag)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
+
+      - name: Fail job if smoke failed
+        if: ${{ steps.smoke.outputs.exit_code != '0' }}
+        run: |
+          echo "Smoke failed with exit code ${{ steps.smoke.outputs.exit_code }}"; exit 1
