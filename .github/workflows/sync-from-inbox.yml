@@ -29,7 +29,7 @@ jobs:
           else
             # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
             # REPLACE THIS with your exact Public Dev URL host (copy from Cloudflare):
-            DEFAULT_PUBLIC_BASE="https://pub-REPLACE-ME.r2.dev"
+            DEFAULT_PUBLIC_BASE="https://pub-defef221f7d146ada31deea5b1eb2b4f.r2.dev"
             # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
             URL="${DEFAULT_PUBLIC_BASE}/inbox/agent-sync.json"
           fi
