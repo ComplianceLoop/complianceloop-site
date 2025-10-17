@@ -2,8 +2,8 @@ name: Sync from Inbox (scheduled)
 
 on:
   schedule:
-    - cron: "*/2 * * * *"  # every 2 minutes
-  workflow_dispatch:       # manual fallback if you ever want to poke it
+    - cron: "*/2 * * * *" # every 2 minutes
+  workflow_dispatch: {}   # manual fallback if you ever want to poke it
 
 permissions:
   contents: write
@@ -12,20 +12,24 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Resolve inbox URL (Public Dev URL by default)
         id: inbox
         run: |
           set -euo pipefail
-          # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-          # REPLACE this with your exact Public Dev URL from Cloudflare R2 Settings.
+          # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+          # REPLACE with your exact Public Dev URL from Cloudflare R2 Settings
           DEFAULT_PUBLIC_BASE="https://pub-defef221f7d146ada31deea5b1eb2b4f.r2.dev"
-          # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-          echo "url=${DEFAULT_PUBLIC_BASE}/inbox/agent-sync.json" >> $GITHUB_OUTPUT
-          echo "Using inbox URL: ${DEFAULT_PUBLIC_BASE}/inbox/agent-sync.json"
+          # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+          URL="${DEFAULT_PUBLIC_BASE}/inbox/agent-sync.json"
+          echo "url=${URL}" >> "$GITHUB_OUTPUT"
+          echo "Using inbox URL: ${URL}"
 
       - name: Download inbox JSON
         id: fetch
@@ -33,39 +37,43 @@ jobs:
           set -euo pipefail
           curl -fsSL "${{ steps.inbox.outputs.url }}" -o inbox.json
           jq -r '.' inbox.json
-          echo "bundle_url=$(jq -r '.bundle_url' inbox.json)" >> $GITHUB_OUTPUT
-          echo "sha256=$(jq -r '.sha256' inbox.json)" >> $GITHUB_OUTPUT
-          echo "mode=$(jq -r '.mode' inbox.json)" >> $GITHUB_OUTPUT
-          echo "target_branch=$(jq -r '.target_branch' inbox.json)" >> $GITHUB_OUTPUT
-          echo "version=$(jq -r '.version' inbox.json)" >> $GITHUB_OUTPUT
-          echo "note=$(jq -r '.note // empty' inbox.json)" >> $GITHUB_OUTPUT
-          echo "ts=$(jq -r '.ts // empty' inbox.json)" >> $GITHUB_OUTPUT
+          echo "bundle_url=$(jq -r '.bundle_url' inbox.json)" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(jq -r '.sha256' inbox.json)" >> "$GITHUB_OUTPUT"
+          echo "mode=$(jq -r '.mode' inbox.json)" >> "$GITHUB_OUTPUT"
+          echo "target_branch=$(jq -r '.target_branch' inbox.json)" >> "$GITHUB_OUTPUT"
+          echo "version=$(jq -r '.version' inbox.json)" >> "$GITHUB_OUTPUT"
+          echo "note=$(jq -r '.note // empty' inbox.json)" >> "$GITHUB_OUTPUT"
+          echo "ts=$(jq -r '.ts // empty' inbox.json)" >> "$GITHUB_OUTPUT"
 
       - name: Skip if same bundle as last time (anti-loop)
         id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           key="${{ steps.fetch.outputs.bundle_url }}|${{ steps.fetch.outputs.sha256 }}"
+          # keep a tiny state file in a release so it persists across runs
           if gh release view __agent_inbox_state__ >/dev/null 2>&1; then
             gh release download __agent_inbox_state__ -p state.txt -q >/dev/null 2>&1 || true
           fi
           touch state.txt
           if grep -qxF "$key" state.txt; then
-            echo "unchanged=true" >> $GITHUB_OUTPUT
+            echo "unchanged=true" >> "$GITHUB_OUTPUT"
             echo "No change in inbox; skipping."
           else
             echo "$key" >> state.txt
-            echo "unchanged=false" >> $GITHUB_OUTPUT
+            echo "unchanged=false" >> "$GITHUB_OUTPUT"
           fi
-        env: { GH_TOKEN: ${{ github.token }} }
 
       - name: Publish state (only on change)
         if: steps.gate.outputs.unchanged == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release view __agent_inbox_state__ >/dev/null 2>&1 || gh release create __agent_inbox_state__ -t "__agent_inbox_state__" -n "Do not delete"
+          gh release view __agent_inbox_state__ >/dev/null 2>&1 || \
+            gh release create __agent_inbox_state__ -t "__agent_inbox_state__" -n "Do not delete"
           gh release upload __agent_inbox_state__ state.txt --clobber
-        env: { GH_TOKEN: ${{ github.token }} }
 
       - name: Stop if unchanged
         if: steps.gate.outputs.unchanged == 'true'
