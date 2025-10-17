@@ -1,107 +1,130 @@
+#!/usr/bin/env node
 /**
- * Hardened smoke test for protected Vercel previews.
- * - Accepts a preview URL via env (preferred) or falls back to root fetch.
- * - Sets the Vercel protection-bypass cookie AND sends the header for every test request.
- * - Tolerates 401/302 flows and logs clean diagnostics.
+ * Agent smoke wrapper:
+ * - If scripts/smoke-vercel-preview.mjs exists, run it (preserves your legacy smoke).
+ * - Capture logs, write out/report.json + out/report.md for CI feedback contract.
+ * - Exit with the child’s exit code (keeps pass/fail semantics identical).
+ * - Fallback: run generic npm checks (lint/typecheck/build) if no child script.
+ *
+ * Usage: node scripts/agent-smoke.mjs --json out/report.json --md out/report.md
  */
+import { spawn } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 
-const {
-  PREVIEW_URL = '',
-  VERCEL_BYPASS_TOKEN = '',
-} = process.env;
+const args = process.argv.slice(2);
+const getArg = (name, def) => {
+  const i = args.indexOf(name);
+  return i >= 0 && args[i + 1] ? args[i + 1] : def;
+};
+const JSON_PATH = getArg("--json", "out/report.json");
+const MD_PATH   = getArg("--md",   "out/report.md");
 
-function die(msg, extra) {
-  console.error('❌', msg);
-  if (extra) console.error(extra);
-  process.exit(1);
+function ensureDir(p) {
+  try { mkdirSync(dirname(p), { recursive: true }); } catch {}
+}
+ensureDir(JSON_PATH); ensureDir(MD_PATH);
+
+function redact(s) { return s.replace(/[A-Za-z0-9_\-]{24,}/g, "[REDACTED]"); }
+
+function writeOutputs({ status, steps, advice, error }) {
+  const json = { status, ts: new Date().toISOString(), steps, advice, error };
+  writeFileSync(JSON_PATH, JSON.stringify(json, null, 2));
+  const md = [
+    "# Smoke Report",
+    `- **status:** \`${status}\``,
+    "",
+    "## Steps",
+    ...steps.map((s) =>
+      `### ${s.name}\n- exit: \`${s.exitCode}\`\n- duration: \`${s.durationMs}ms\`\n\n` +
+      (s.stderrTail ? "#### stderr (tail)\n```\n" + s.stderrTail + "\n```\n" : "") +
+      (s.stdoutTail ? "#### stdout (tail)\n```\n" + s.stdoutTail + "\n```\n" : "")
+    ),
+    "",
+    "## Advice",
+    advice || "—",
+    "",
+  ].join("\n");
+  writeFileSync(MD_PATH, md);
 }
 
-function log(msg, extra) {
-  console.log('ℹ️', msg);
-  if (extra) console.log(extra);
-}
-
-function mustUrl(s) {
-  try { return new URL(s); }
-  catch { die(`Invalid PREVIEW_URL: ${s}`); }
-}
-
-async function setBypassCookie(baseUrl) {
-  if (!VERCEL_BYPASS_TOKEN) {
-    die('Missing VERCEL_BYPASS_TOKEN. Add the project’s “Protection Bypass for Automation” value to repo secrets.');
-  }
-  const u = new URL(baseUrl);
-  // Use a deterministic path to avoid cookie path issues.
-  u.pathname = '/';
-  u.search = `x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=${encodeURIComponent(VERCEL_BYPASS_TOKEN)}`;
-
-  log('Setting Vercel bypass cookie…', u.toString());
-
-  // We send BOTH the query param and the header.
-  const res = await fetch(u.toString(), {
-    redirect: 'manual',
-    headers: { 'x-vercel-protection-bypass': VERCEL_BYPASS_TOKEN },
+async function runCmd(name, cmd, required = true) {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const child = spawn(cmd, { shell: true, env: { ...process.env, CI: "1" } });
+    let out = "", err = "";
+    child.stdout.on("data", (d) => (out += d.toString()));
+    child.stderr.on("data", (d) => (err += d.toString()));
+    child.on("close", (code) => {
+      const step = {
+        name,
+        exitCode: code ?? 1,
+        durationMs: Date.now() - started,
+        stdoutTail: redact(out).split("\n").slice(-40).join("\n"),
+        stderrTail: redact(err).split("\n").slice(-40).join("\n"),
+        required,
+      };
+      resolve(step);
+    });
   });
-
-  const okStatuses = [200, 204, 302, 307];
-  if (!okStatuses.includes(res.status)) {
-    const text = await res.text().catch(() => '');
-    die(`Bypass cookie request failed (status ${res.status}).`, text.slice(0, 600));
-  }
-  log(`Bypass cookie set (status ${res.status}).`);
 }
 
-async function tryEndpoint(baseUrl, path) {
-  const u = new URL(baseUrl);
-  u.pathname = path;
-  const res = await fetch(u.toString(), {
-    redirect: 'manual',
-    headers: { 'x-vercel-protection-bypass': VERCEL_BYPASS_TOKEN },
-  }).catch((e) => ({ ok: false, status: 0, _err: e }));
-
-  if (!res || !('status' in res)) {
-    die(`Fetch failed for ${u.toString()}`);
-  }
-  let body = '';
-  try { body = await res.text(); } catch {}
-
-  log(`GET ${u.pathname} → ${res.status}`);
-  return { status: res.status, body };
+function hasScript(n) {
+  try {
+    const pkg = JSON.parse(readFileSync("package.json","utf8"));
+    return !!(pkg.scripts && Object.prototype.hasOwnProperty.call(pkg.scripts, n));
+  } catch { return false; }
 }
 
-async function main() {
-  const base = PREVIEW_URL ? mustUrl(PREVIEW_URL).toString() : null;
-  if (!base) {
-    die('No PREVIEW_URL provided. When you run the workflow, paste the current preview URL in the input.');
-  }
+(async () => {
+  const steps = [];
+  let exitCode = 0;
+  let advice = "";
 
-  // 1) Set bypass cookie
-  await setBypassCookie(base);
-
-  // 2) Probe API first (if present), then fallback to root
-  const apiCandidates = ['/api/ping', '/api/ingest'];
-  for (const p of apiCandidates) {
-    const r = await tryEndpoint(base, p);
-    if (r.status >= 200 && r.status < 400) {
-      log(`API probe passed on ${p}`);
-      console.log('✅ smoke passed.');
-      process.exit(0);
-    }
-    // 404 is fine—might be a static site; we’ll try root next.
-    if (r.status === 401) {
-      // If we still get 401 after cookie+header, report clearly.
-      die(`Still unauthorized on ${p}. Verify the bypass token matches the project and the URL is this project’s preview.`);
+  const childPath = "scripts/smoke-vercel-preview.mjs";
+  if (existsSync(childPath)) {
+    // Preserve your existing Vercel smoke exactly as-is
+    const step = await runCmd("smoke-vercel-preview", `node ${childPath}`);
+    steps.push(step);
+    exitCode = step.exitCode;
+    advice = exitCode === 0
+      ? "Vercel preview smoke passed."
+      : "Vercel preview smoke failed. Check logs and verify PREVIEW_URL + VERCEL_BYPASS_TOKEN.";
+  } else {
+    // Fallback generic checks when no child script exists
+    const plan = [];
+    if (hasScript("lint"))      plan.push(["npm run lint", false, "lint"]);
+    if (hasScript("typecheck")) plan.push(["npm run typecheck", false, "typecheck"]);
+    if (hasScript("build"))     plan.push(["npm run build", true,  "build"]);
+    if (plan.length === 0) {
+      steps.push({ name: "noop", exitCode: 1, durationMs: 0,
+        stdoutTail: "", stderrTail: "No npm scripts found (lint/typecheck/build).",
+        required: true });
+      exitCode = 1;
+      advice = "Add build/typecheck/lint scripts or restore smoke-vercel-preview.mjs.";
+    } else {
+      for (const [cmd, required, name] of plan) {
+        const s = await runCmd(name, cmd, required);
+        steps.push(s);
+      }
+      const requiredFailed = steps.some(s => s.required && s.exitCode !== 0);
+      const anyFailed      = steps.some(s => s.exitCode !== 0);
+      exitCode = requiredFailed ? 1 : 0;
+      advice = requiredFailed ? "Fix required step failures (e.g., build)."
+             : anyFailed ? "Optional checks failed (lint/typecheck). Consider fixing."
+             : "All checks passed.";
     }
   }
 
-  // 3) Root page fallback (static sites)
-  const root = await tryEndpoint(base, '/');
-  if (root.status >= 200 && root.status < 400) {
-    log('Root page probe passed.');
-    console.log('✅ smoke passed.');
-    process.exit(0);
-  }
-  die(`Root page probe failed (status ${root.status}). First 600 chars:\n${root.body?.slice?.(0,600) ?? ''}`);
-}
-
-main().catch((err) => die('Unhandled error', err));
+  const status = exitCode === 0 ? "passed" : "failed";
+  writeOutputs({ status, steps, advice });
+  process.exit(exitCode);
+})().catch((e) => {
+  writeOutputs({
+    status: "failed",
+    steps: [],
+    advice: "Agent smoke wrapper crashed.",
+    error: String(e),
+  });
+  process.exit(1);
+});
