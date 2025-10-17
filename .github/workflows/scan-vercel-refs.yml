@@ -1,0 +1,35 @@
+name: scan: vercel refs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan for Vercel references
+        id: scan
+        run: |
+          # find common vercel references (ignore binary-ish files)
+          PATTERN='vercel\.app|VERCEL_|Vercel'
+          rg --version >/dev/null 2>&1 || sudo apt-get update && sudo apt-get install -y ripgrep
+          rg -n -I -S -e "$PATTERN" --glob '!**/*.{png,jpg,jpeg,gif,ico,pdf,woff,woff2,ttf}' > scan.txt || true
+          echo "matches<<EOF" >> $GITHUB_OUTPUT
+          cat scan.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create/Update issue with results
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: "Scan: Vercel references (urls/envs)"
+          content-filepath: scan.txt
+          labels: scan, vercel
+          assignees: ComplianceLoop
+
+      - name: Upload artifact (full scan)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vercel-scan
+          path: scan.txt
