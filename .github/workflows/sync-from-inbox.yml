@@ -1,13 +1,11 @@
-name: Sync from Inbox (R2)
+name: Sync from Inbox (manual)
 
 on:
-  schedule:
-    - cron: "*/2 * * * *"   # every 2 minutes
   workflow_dispatch:
     inputs:
       inbox_url:
-        description: "Public JSON with bundle_url/sha256/mode/target_branch"
-        required: false
+        description: "PRESIGNED GET URL to inbox JSON (s3://complianceloop-agent-dropzone/inbox/agent-sync.json)"
+        required: true
 
 permissions:
   contents: write
@@ -17,29 +15,16 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-
-      - name: Resolve inbox URL
-        id: inbox
-        run: |
-          if [ -n "${{ inputs.inbox_url }}" ]; then
-            echo "url=${{ inputs.inbox_url }}" >> $GITHUB_OUTPUT
-          else
-            # DEFAULT inbox for agent-sync (adjust <ACCOUNT_ID> if needed)
-            echo "url=https://<ACCOUNT_ID>.r2.cloudflarestorage.com/complianceloop-agent-dropzone/inbox/agent-sync.json" >> $GITHUB_OUTPUT
-          fi
-          echo "Using inbox: $(cat <<EOF
-${{ steps.inbox.outputs.url }}
-EOF
-)"
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download inbox JSON
         id: fetch
         run: |
           set -euo pipefail
-          curl -fsSL "${{ steps.inbox.outputs.url }}" -o inbox.json
-          jq -r '.' inbox.json
+          curl -fsSL "${{ inputs.inbox_url }}" -o inbox.json
           echo "bundle_url=$(jq -r '.bundle_url' inbox.json)" >> $GITHUB_OUTPUT
           echo "sha256=$(jq -r '.sha256' inbox.json)" >> $GITHUB_OUTPUT
           echo "mode=$(jq -r '.mode' inbox.json)" >> $GITHUB_OUTPUT
@@ -47,50 +32,20 @@ EOF
           echo "version=$(jq -r '.version' inbox.json)" >> $GITHUB_OUTPUT
           echo "note=$(jq -r '.note // empty' inbox.json)" >> $GITHUB_OUTPUT
           echo "ts=$(jq -r '.ts // empty' inbox.json)" >> $GITHUB_OUTPUT
+          echo "Inbox parsed:"
+          cat inbox.json
 
-      - name: Skip if not changed since last run
-        id: gate
-        run: |
-          set -euo pipefail
-          key="${{ steps.fetch.outputs.bundle_url }}|${{ steps.fetch.outputs.sha256 }}"
-          if gh release view __agent_inbox_state__ >/dev/null 2>&1; then
-            gh release download __agent_inbox_state__ -p state.txt -q >/dev/null 2>&1 || true
-          fi
-          touch state.txt
-          if grep -qxF "$key" state.txt; then
-            echo "unchanged=true" >> $GITHUB_OUTPUT
-            echo "No change in inbox; skipping."
-          else
-            echo "$key" >> state.txt
-            echo "unchanged=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      - name: Publish state (so we don't loop on same input)
-        if: steps.gate.outputs.unchanged == 'false'
-        run: |
-          set -euo pipefail
-          gh release view __agent_inbox_state__ >/dev/null 2>&1 || gh release create __agent_inbox_state__ -t "__agent_inbox_state__" -n "Do not delete"
-          gh release upload __agent_inbox_state__ state.txt --clobber
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      - name: Exit if unchanged
-        if: steps.gate.outputs.unchanged == 'true'
-        run: echo "Nothing to do."
-
-      - name: Import bundle (same logic as Sync-from-URL)
-        if: steps.gate.outputs.unchanged == 'false'
+      - name: Download bundle
         run: |
           set -euo pipefail
           curl -fsSL "${{ steps.fetch.outputs.bundle_url }}" -o bundle.bin
           echo "${{ steps.fetch.outputs.sha256 }}  bundle.bin" | sha256sum -c -
 
+      - name: Apply changes (zip or patch)
+        run: |
+          set -euo pipefail
           mode="${{ steps.fetch.outputs.mode }}"
-          target="${{ steps.fetch.outputs.target_branch }}"
           rm -rf __incoming && mkdir __incoming
-
           if [ "$mode" = "zip" ]; then
             unzip -q bundle.bin -d __incoming
             SRC="__incoming"
@@ -108,29 +63,28 @@ EOF
             git apply --index bundle.bin
           fi
 
-          # Commit
+      - name: Commit
+        run: |
+          set -euo pipefail
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -B "$target"
+          git checkout -B "${{ steps.fetch.outputs.target_branch }}"
           if [[ -n "$(git status --porcelain)" ]]; then
             git add -A
             git commit -m "chore(sync): import from inbox (${{ steps.fetch.outputs.version }})"
-            git push -u origin "$target" --force
+            git push -u origin "${{ steps.fetch.outputs.target_branch }}" --force
           else
             echo "No changes to commit."
           fi
 
       - name: Open/Update PR to main
-        if: steps.gate.outputs.unchanged == 'false'
         uses: peter-evans/create-pull-request@v6
         with:
           base: main
           branch: ${{ steps.fetch.outputs.target_branch }}
-          title: "Agent Sync: ${{ steps.fetch.outputs.target_branch }} (${{
-            steps.fetch.outputs.version }})"
+          title: "Agent Sync: ${{ steps.fetch.outputs.target_branch }} (${{ steps.fetch.outputs.version }})"
           body: |
-            Imported from: ${{ steps.inbox.outputs.url }}
-
+            **Inbox:** ${{ inputs.inbox_url }}
             **Bundle:** ${{ steps.fetch.outputs.bundle_url }}
             **SHA256:** ${{ steps.fetch.outputs.sha256 }}
             **Mode:** ${{ steps.fetch.outputs.mode }}
