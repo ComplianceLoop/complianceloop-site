@@ -1,11 +1,11 @@
-name: Sync from Inbox (manual)
+name: Sync from Inbox (manual + default)
 
 on:
   workflow_dispatch:
     inputs:
       inbox_url:
-        description: "PRESIGNED GET URL to inbox JSON (s3://complianceloop-agent-dropzone/inbox/agent-sync.json)"
-        required: true
+        description: "PRESIGNED GET URL to inbox JSON (leave blank to use Public Dev URL default)"
+        required: false
 
 permissions:
   contents: write
@@ -20,11 +20,28 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve inbox URL
+        id: inbox
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.inbox_url }}" ]; then
+            URL="${{ inputs.inbox_url }}"
+          else
+            # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+            # REPLACE THIS with your exact Public Dev URL host (copy from Cloudflare):
+            DEFAULT_PUBLIC_BASE="https://pub-REPLACE-ME.r2.dev"
+            # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            URL="${DEFAULT_PUBLIC_BASE}/inbox/agent-sync.json"
+          fi
+          echo "url=${URL}" >> $GITHUB_OUTPUT
+          echo "Using inbox URL: ${URL}"
+
       - name: Download inbox JSON
         id: fetch
         run: |
           set -euo pipefail
-          curl -fsSL "${{ inputs.inbox_url }}" -o inbox.json
+          curl -fsSL "${{ steps.inbox.outputs.url }}" -o inbox.json
+          jq -r '.' inbox.json
           echo "bundle_url=$(jq -r '.bundle_url' inbox.json)" >> $GITHUB_OUTPUT
           echo "sha256=$(jq -r '.sha256' inbox.json)" >> $GITHUB_OUTPUT
           echo "mode=$(jq -r '.mode' inbox.json)" >> $GITHUB_OUTPUT
@@ -32,8 +49,6 @@ jobs:
           echo "version=$(jq -r '.version' inbox.json)" >> $GITHUB_OUTPUT
           echo "note=$(jq -r '.note // empty' inbox.json)" >> $GITHUB_OUTPUT
           echo "ts=$(jq -r '.ts // empty' inbox.json)" >> $GITHUB_OUTPUT
-          echo "Inbox parsed:"
-          cat inbox.json
 
       - name: Download bundle
         run: |
@@ -84,7 +99,7 @@ jobs:
           branch: ${{ steps.fetch.outputs.target_branch }}
           title: "Agent Sync: ${{ steps.fetch.outputs.target_branch }} (${{ steps.fetch.outputs.version }})"
           body: |
-            **Inbox:** ${{ inputs.inbox_url }}
+            **Inbox:** ${{ steps.inbox.outputs.url }}
             **Bundle:** ${{ steps.fetch.outputs.bundle_url }}
             **SHA256:** ${{ steps.fetch.outputs.sha256 }}
             **Mode:** ${{ steps.fetch.outputs.mode }}
