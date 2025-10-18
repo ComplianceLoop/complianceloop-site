@@ -65,10 +65,11 @@ jobs:
       - name: Detect install command from lockfile
         id: install
         run: |
+          BASE="echo 'PWD='$(pwd); echo 'LS:'; ls -la; test -f package.json || (echo '::error::package.json missing in $(pwd)' && exit 1);"
           if [ -f package-lock.json ]; then
-            echo "cmd=npm ci --no-audit --no-fund" >> $GITHUB_OUTPUT
+            echo "cmd=bash -lc \"$BASE npm ci --no-audit --no-fund\"" >> $GITHUB_OUTPUT
           else
-            echo "cmd=npm install --no-audit --no-fund" >> $GITHUB_OUTPUT
+            echo "cmd=bash -lc \"$BASE npm install --no-audit --no-fund\"" >> $GITHUB_OUTPUT
           fi
 
       - name: Configure project (framework + root + install/build)
