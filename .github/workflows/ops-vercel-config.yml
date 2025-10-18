@@ -91,6 +91,7 @@ jobs:
 
       - name: Upsert environment variables (skip if value empty)
         run: |
+          set -euo pipefail
           TEAM_ID='${{ steps.team.outputs.id }}'
           PROJECT_ID='${{ steps.project.outputs.id }}'
 
@@ -99,29 +100,57 @@ jobs:
             if [ -z "$VALUE" ]; then
               echo "Skipping $NAME (no value)"; return 0
             fi
+
+            # Desired payload for all targets
             jq -n --arg k "$NAME" --arg v "$VALUE" \
               '{type:"plain", key:$k, value:$v, target:["production","preview","development"]}' > env.json
 
-            set +e
-            CODE=$(curl -sS -o /dev/stderr -w "%{http_code}" -X POST \
+            # 1) Try create
+            HTTP=$(curl -sS -o create.out -w "%{http_code}" -X POST \
               "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}" \
               -H "Authorization: Bearer ${VERCEL_TOKEN}" \
               -H "Content-Type: application/json" \
-              --data-binary @env.json)
-            set -e
+              --data-binary @env.json || true)
 
-            if [ "$CODE" != "200" ] && [ "$CODE" != "201" ]; then
-              curl -fsSL -X PATCH \
-                "https://api.vercel.com/v10/projects/${PROJECT_ID}/env/${NAME}?teamId=${TEAM_ID}" \
+            if [ "$HTTP" = "200" ] || [ "$HTTP" = "201" ]; then
+              echo "Created $NAME"; return 0
+            fi
+
+            if [ "$HTTP" != "409" ]; then
+              echo "::error::Failed to create $NAME (HTTP $HTTP)"; cat create.out; exit 1
+            fi
+
+            echo "$NAME exists; updating by id…"
+
+            # 2) Fetch existing envs and patch **by id** for all with this key
+            ENVS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?decrypt=false&teamId=${TEAM_ID}")
+
+            # Find all entries where key==NAME
+            IDS=$(echo "$ENVS" | jq -r --arg k "$NAME" '.envs[] | select(.key==$k) | .id')
+
+            if [ -z "$IDS" ]; then
+              echo "::warning::No existing ids found for $NAME after 409; skipping"
+              return 0
+            fi
+
+            for ID in $IDS; do
+              HTTP2=$(curl -sS -o patch.out -w "%{http_code}" -X PATCH \
+                "https://api.vercel.com/v10/projects/${PROJECT_ID}/env/${ID}?teamId=${TEAM_ID}" \
                 -H "Authorization: Bearer ${VERCEL_TOKEN}" \
                 -H "Content-Type: application/json" \
-                --data-binary @env.json
-            fi
+                --data-binary @env.json || true)
+              if [ "$HTTP2" = "200" ] || [ "$HTTP2" = "201" ]; then
+                echo "Patched $NAME (id=$ID)"
+              else
+                echo "::warning::Patch failed for $NAME id=$ID (HTTP $HTTP2)"; cat patch.out
+              fi
+            done
           }
 
           upsert "R2_PUBLIC_BASE" "${R2_PUBLIC_BASE}"
           upsert "VERCEL_BYPASS_TOKEN" "${VERCEL_BYPASS_TOKEN}"
-          # Add any others you really use:
+          # Add any others you actually use:
           # upsert "DATABASE_URL" "${{ secrets.DATABASE_URL }}"
           # upsert "AIRTABLE_API_KEY" "${{ secrets.AIRTABLE_API_KEY }}"
           # upsert "AIRTABLE_BASE_ID" "${{ secrets.AIRTABLE_BASE_ID }}"
