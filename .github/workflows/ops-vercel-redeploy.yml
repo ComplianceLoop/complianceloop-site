@@ -2,21 +2,65 @@ name: Ops – Redeploy & Print URL
 
 on:
   workflow_dispatch:
+    inputs:
+      teamSlug:
+        description: 'Vercel team slug'
+        required: false
+        default: 'compliance-loop'
+      projectName:
+        description: 'Vercel project name'
+        required: false
+        default: 'complianceloop-site'
 
 jobs:
   redeploy:
     runs-on: ubuntu-latest
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      TEAM_SLUG: compliance-loop
+
     steps:
+      - name: Resolve TEAM_ID
+        id: team
+        run: |
+          TEAM_SLUG="${{ inputs.teamSlug }}"
+          TEAM=$(curl -fsSL \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v2/teams?slug=${TEAM_SLUG}")
+          TEAM_ID=$(echo "$TEAM" | jq -r '.id // .team.id // empty')
+          if [ -z "$TEAM_ID" ] || [ "$TEAM_ID" = "null" ]; then
+            echo "Unable to resolve TEAM_ID from slug=${TEAM_SLUG}"
+            echo "$TEAM"
+            exit 1
+          fi
+          echo "id=$TEAM_ID" >> $GITHUB_OUTPUT
+          echo "TEAM_ID=$TEAM_ID"
+
+      - name: Resolve PROJECT_ID
+        id: project
+        run: |
+          TEAM_ID="${{ steps.team.outputs.id }}"
+          NAME="${{ inputs.projectName }}"
+          PROJS=$(curl -fsSL \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v9/projects?teamId=${TEAM_ID}&search=${NAME}")
+          PROJECT_ID=$(echo "$PROJS" | jq -r --arg n "$NAME" '.projects[] | select(.name==$n) | .id' | head -n1)
+          if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "null" ]; then
+            echo "Unable to resolve PROJECT_ID for $NAME"
+            echo "$PROJS"
+            exit 1
+          fi
+          echo "id=$PROJECT_ID" >> $GITHUB_OUTPUT
+          echo "PROJECT_ID=$PROJECT_ID"
+
       - name: Redeploy latest deployment
         id: rd
         run: |
-          # get latest deployment id (preview or production, preferring preview)
+          TEAM_ID="${{ steps.team.outputs.id }}"
+          PROJECT_ID="${{ steps.project.outputs.id }}"
+
           DEPLOY=$(curl -fsSL \
-            "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&limit=1&teamSlug=${TEAM_SLUG}")
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v6/deployments?projectId=${PROJECT_ID}&limit=1&teamId=${TEAM_ID}")
           ID=$(echo "$DEPLOY" | jq -r '.deployments[0].uid')
           if [ -z "$ID" ] || [ "$ID" = "null" ]; then
             echo "No deployment found to redeploy."
@@ -24,18 +68,21 @@ jobs:
           fi
 
           curl -fsSL -X POST \
-            "https://api.vercel.com/v13/deployments/${ID}/redeploy?teamSlug=${TEAM_SLUG}" \
             -H "Authorization: Bearer ${VERCEL_TOKEN}" \
             -H "Content-Type: application/json" \
+            "https://api.vercel.com/v13/deployments/${ID}/redeploy?teamId=${TEAM_ID}" \
             -d '{}'
 
           echo "id=$ID" >> $GITHUB_OUTPUT
 
       - name: Print latest preview URL
         run: |
+          TEAM_ID="${{ steps.team.outputs.id }}"
+          PROJECT_ID="${{ steps.project.outputs.id }}"
           sleep 5
           DEPLOY=$(curl -fsSL \
-            "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&target=preview&limit=1&teamSlug=${TEAM_SLUG}")
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v6/deployments?projectId=${PROJECT_ID}&target=preview&limit=1&teamId=${TEAM_ID}")
           URL=$(echo "$DEPLOY" | jq -r '.deployments[0].url')
           echo "Latest preview: https://${URL}"
           echo "::notice title=Preview URL::https://${URL}"
