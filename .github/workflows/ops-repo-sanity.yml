@@ -1,0 +1,50 @@
+name: Ops – Repo Sanity (vercel build hygiene)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sanity:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure .gitignore has .vercel
+        run: |
+          touch .gitignore
+          if ! grep -q '^[.]vercel$' .gitignore; then
+            echo ".vercel" >> .gitignore
+          fi
+
+      - name: Remove committed .vercel (if any)
+        run: |
+          if [ -d ".vercel" ]; then
+            rm -rf .vercel
+          fi
+
+      - name: Ensure package-lock.json at repo root
+        run: |
+          if [ ! -f package.json ]; then
+            echo "ERROR: No package.json at repo root – verify you deploy the root app."
+            exit 1
+          fi
+          # Generate a lockfile without installing deps
+          npm i --package-lock-only --no-audit --no-fund
+
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/repo-sanity-for-vercel
+          title: "chore(vercel): repo sanity (.vercel ignore + lockfile)"
+          body: |
+            - Add `.vercel` to `.gitignore`
+            - Remove committed `.vercel/` if present
+            - Generate root `package-lock.json` for deterministic installs on Vercel
+            - No app code changed
+          commit-message: "chore(vercel): repo sanity (.vercel ignore + lockfile)"
+          labels: ops/consolidation
