@@ -87,55 +87,54 @@ jobs:
             -H "Content-Type: application/json" \
             --data-binary @body.json
 
-      - name: Ensure environment variables exist (ignore 409 conflicts)
+      - name: Ensure environment variables exist (create only if missing)
         run: |
           set -euo pipefail
           TEAM_ID='${{ steps.team.outputs.id }}'
           PROJECT_ID='${{ steps.project.outputs.id }}'
 
-          create_env () {
+          # fetch envs once
+          ENVS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?decrypt=false&teamId=${TEAM_ID}")
+
+          has_key () {
+            KEY="$1"
+            echo "$ENVS" | jq -e --arg k "$KEY" '.envs[] | select(.key==$k)' >/dev/null
+          }
+
+          create_key () {
             NAME="$1"; VALUE="$2"
             if [ -z "$VALUE" ]; then
               echo "Skipping $NAME (no value)"; return 0
             fi
             jq -n --arg k "$NAME" --arg v "$VALUE" \
               '{type:"plain", key:$k, value:$v, target:["production","preview","development"]}' > env.json
-
-            # Create; treat 200/201 as success and **409 (exists) as success**
-            HTTP=$(curl -sS -o resp.out -w "%{http_code}" -X POST \
+            curl -fsSL -X POST \
               "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}" \
               -H "Authorization: Bearer ${VERCEL_TOKEN}" \
               -H "Content-Type: application/json" \
-              --data-binary @env.json || echo "curl_error")
-            if [ "$HTTP" = "curl_error" ]; then
-              echo "::error::Network error creating $NAME"; cat resp.out; exit 1
-            fi
-
-            case "$HTTP" in
-              200|201)
-                echo "Created $NAME"
-                ;;
-              409)
-                echo "$NAME already exists; leaving as-is"
-                ;;
-              *)
-                echo "::error::Create $NAME failed (HTTP $HTTP)"
-                cat resp.out
-                exit 1
-                ;;
-            esac
+              --data-binary @env.json >/dev/null
+            echo "Created $NAME"
           }
 
-          # Ensure only the keys we need right now exist.
-          create_env "R2_PUBLIC_BASE" "${R2_PUBLIC_BASE}"
-          create_env "VERCEL_BYPASS_TOKEN" "${VERCEL_BYPASS_TOKEN}"
-          # Uncomment any others when you have values to set:
-          # create_env "DATABASE_URL" "${{ secrets.DATABASE_URL }}"
-          # create_env "AIRTABLE_API_KEY" "${{ secrets.AIRTABLE_API_KEY }}"
-          # create_env "AIRTABLE_BASE_ID" "${{ secrets.AIRTABLE_BASE_ID }}"
-          # create_env "AIRTABLE_TABLE" "${{ secrets.AIRTABLE_TABLE }}"
-          # create_env "ORIGIN_ALLOWLIST" "${{ vars.ORIGIN_ALLOWLIST }}"
-          # create_env "USE_DIRECT_WEBHOOKS" "${{ vars.USE_DIRECT_WEBHOOKS }}"
+          ensure () {
+            NAME="$1"; VALUE="$2"
+            if has_key "$NAME"; then
+              echo "$NAME already present"
+            else
+              create_key "$NAME" "$VALUE"
+            fi
+          }
+
+          ensure "R2_PUBLIC_BASE" "${R2_PUBLIC_BASE}"
+          ensure "VERCEL_BYPASS_TOKEN" "${VERCEL_BYPASS_TOKEN}"
+          # Uncomment when values exist:
+          # ensure "DATABASE_URL" "${{ secrets.DATABASE_URL }}"
+          # ensure "AIRTABLE_API_KEY" "${{ secrets.AIRTABLE_API_KEY }}"
+          # ensure "AIRTABLE_BASE_ID" "${{ secrets.AIRTABLE_BASE_ID }}"
+          # ensure "AIRTABLE_TABLE" "${{ secrets.AIRTABLE_TABLE }}"
+          # ensure "ORIGIN_ALLOWLIST" "${{ vars.ORIGIN_ALLOWLIST }}"
+          # ensure "USE_DIRECT_WEBHOOKS" "${{ vars.USE_DIRECT_WEBHOOKS }}"
 
       - name: Reminder to align Preview Bypass secret in UI
         run: |
