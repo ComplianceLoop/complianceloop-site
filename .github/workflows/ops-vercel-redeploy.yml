@@ -1,0 +1,41 @@
+name: Ops – Redeploy & Print URL
+
+on:
+  workflow_dispatch:
+
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      TEAM_SLUG: compliance-loop
+    steps:
+      - name: Redeploy latest deployment
+        id: rd
+        run: |
+          # get latest deployment id (preview or production, preferring preview)
+          DEPLOY=$(curl -fsSL \
+            "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&limit=1&teamSlug=${TEAM_SLUG}")
+          ID=$(echo "$DEPLOY" | jq -r '.deployments[0].uid')
+          if [ -z "$ID" ] || [ "$ID" = "null" ]; then
+            echo "No deployment found to redeploy."
+            exit 1
+          fi
+
+          curl -fsSL -X POST \
+            "https://api.vercel.com/v13/deployments/${ID}/redeploy?teamSlug=${TEAM_SLUG}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+
+          echo "id=$ID" >> $GITHUB_OUTPUT
+
+      - name: Print latest preview URL
+        run: |
+          sleep 5
+          DEPLOY=$(curl -fsSL \
+            "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&target=preview&limit=1&teamSlug=${TEAM_SLUG}")
+          URL=$(echo "$DEPLOY" | jq -r '.deployments[0].url')
+          echo "Latest preview: https://${URL}"
+          echo "::notice title=Preview URL::https://${URL}"
