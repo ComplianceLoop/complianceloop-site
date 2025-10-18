@@ -87,89 +87,55 @@ jobs:
             -H "Content-Type: application/json" \
             --data-binary @body.json
 
-      - name: Upsert environment variables (skip if value empty)
+      - name: Ensure environment variables exist (ignore 409 conflicts)
         run: |
           set -euo pipefail
           TEAM_ID='${{ steps.team.outputs.id }}'
           PROJECT_ID='${{ steps.project.outputs.id }}'
 
-          create_payload () {
-            NAME="$1"; VALUE="$2"
-            jq -n --arg k "$NAME" --arg v "$VALUE" \
-              '{type:"plain", key:$k, value:$v, target:["production","preview","development"]}'
-          }
-
-          patch_payload () {
-            VALUE="$1"
-            jq -n --arg v "$VALUE" '{value:$v}'
-          }
-
-          upsert () {
+          create_env () {
             NAME="$1"; VALUE="$2"
             if [ -z "$VALUE" ]; then
               echo "Skipping $NAME (no value)"; return 0
             fi
+            jq -n --arg k "$NAME" --arg v "$VALUE" \
+              '{type:"plain", key:$k, value:$v, target:["production","preview","development"]}' > env.json
 
-            # 1) Try to CREATE (409 if exists)
-            create_payload "$NAME" "$VALUE" > env.create.json
-            set +e
-            HTTP=$(curl -sS -o create.out -w "%{http_code}" -X POST \
+            # Create; treat 200/201 as success and **409 (exists) as success**
+            HTTP=$(curl -sS -o resp.out -w "%{http_code}" -X POST \
               "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}" \
               -H "Authorization: Bearer ${VERCEL_TOKEN}" \
               -H "Content-Type: application/json" \
-              --data-binary @env.create.json)
-            RC=$?
-            set -e
-            if [ $RC -ne 0 ]; then
-              echo "::error::Network error creating $NAME"; cat create.out; exit 1
-            fi
-            if [ "$HTTP" = "200" ] || [ "$HTTP" = "201" ]; then
-              echo "Created $NAME"; return 0
-            fi
-            if [ "$HTTP" != "409" ]; then
-              echo "::error::Create $NAME failed (HTTP $HTTP)"; cat create.out; exit 1
+              --data-binary @env.json || echo "curl_error")
+            if [ "$HTTP" = "curl_error" ]; then
+              echo "::error::Network error creating $NAME"; cat resp.out; exit 1
             fi
 
-            echo "$NAME exists; updating all existing ids…"
-
-            # 2) Fetch existing env entries and PATCH each id with just {value}
-            ENVS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-              "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?decrypt=false&teamId=${TEAM_ID}")
-            IDS=$(echo "$ENVS" | jq -r --arg k "$NAME" '.envs[] | select(.key==$k) | .id')
-            if [ -z "$IDS" ]; then
-              echo "::warning::No ids found for $NAME after 409; nothing to patch"; return 0
-            fi
-
-            patch_payload "$VALUE" > env.patch.json
-            for ID in $IDS; do
-              set +e
-              HTTP2=$(curl -sS -o patch.out -w "%{http_code}" -X PATCH \
-                "https://api.vercel.com/v10/projects/${PROJECT_ID}/env/${ID}?teamId=${TEAM_ID}" \
-                -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-                -H "Content-Type: application/json" \
-                --data-binary @env.patch.json)
-              RC2=$?
-              set -e
-              if [ $RC2 -ne 0 ]; then
-                echo "::warning::Network error patching $NAME id=$ID"; cat patch.out; continue
-              fi
-              if [ "$HTTP2" = "200" ] || [ "$HTTP2" = "201" ]; then
-                echo "Patched $NAME (id=$ID)"
-              else
-                echo "::warning::Patch $NAME id=$ID failed (HTTP $HTTP2)"; cat patch.out
-              fi
-            done
+            case "$HTTP" in
+              200|201)
+                echo "Created $NAME"
+                ;;
+              409)
+                echo "$NAME already exists; leaving as-is"
+                ;;
+              *)
+                echo "::error::Create $NAME failed (HTTP $HTTP)"
+                cat resp.out
+                exit 1
+                ;;
+            esac
           }
 
-          upsert "R2_PUBLIC_BASE" "${R2_PUBLIC_BASE}"
-          upsert "VERCEL_BYPASS_TOKEN" "${VERCEL_BYPASS_TOKEN}"
-          # Add any others you actually use:
-          # upsert "DATABASE_URL" "${{ secrets.DATABASE_URL }}"
-          # upsert "AIRTABLE_API_KEY" "${{ secrets.AIRTABLE_API_KEY }}"
-          # upsert "AIRTABLE_BASE_ID" "${{ secrets.AIRTABLE_BASE_ID }}"
-          # upsert "AIRTABLE_TABLE" "${{ secrets.AIRTABLE_TABLE }}"
-          # upsert "ORIGIN_ALLOWLIST" "${{ vars.ORIGIN_ALLOWLIST }}"
-          # upsert "USE_DIRECT_WEBHOOKS" "${{ vars.USE_DIRECT_WEBHOOKS }}"
+          # Ensure only the keys we need right now exist.
+          create_env "R2_PUBLIC_BASE" "${R2_PUBLIC_BASE}"
+          create_env "VERCEL_BYPASS_TOKEN" "${VERCEL_BYPASS_TOKEN}"
+          # Uncomment any others when you have values to set:
+          # create_env "DATABASE_URL" "${{ secrets.DATABASE_URL }}"
+          # create_env "AIRTABLE_API_KEY" "${{ secrets.AIRTABLE_API_KEY }}"
+          # create_env "AIRTABLE_BASE_ID" "${{ secrets.AIRTABLE_BASE_ID }}"
+          # create_env "AIRTABLE_TABLE" "${{ secrets.AIRTABLE_TABLE }}"
+          # create_env "ORIGIN_ALLOWLIST" "${{ vars.ORIGIN_ALLOWLIST }}"
+          # create_env "USE_DIRECT_WEBHOOKS" "${{ vars.USE_DIRECT_WEBHOOKS }}"
 
       - name: Reminder to align Preview Bypass secret in UI
         run: |
