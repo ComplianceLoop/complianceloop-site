@@ -77,13 +77,13 @@ jobs:
           TEAM_ID="${{ steps.team.outputs.id }}"
           PROJECT_ID="${{ steps.project.outputs.id }}"
           cat > body.json <<'JSON'
-          {
-            "framework": "nextjs",
-            "rootDirectory": "",
-            "buildCommand": null,
-            "installCommand": "REPLACEME_INSTALL"
-          }
-          JSON
+{
+  "framework": "nextjs",
+  "rootDirectory": null,
+  "buildCommand": null,
+  "installCommand": "REPLACEME_INSTALL"
+}
+JSON
           # inject the computed install command
           sed -i "s|REPLACEME_INSTALL|${{ steps.install.outputs.cmd }}|g" body.json
 
