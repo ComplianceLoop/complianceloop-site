@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       teamSlug:
-        description: 'Vercel team slug'
+        description: Vercel team slug
         required: false
-        default: 'compliance-loop'
+        default: compliance-loop
       projectName:
-        description: 'Vercel project name'
+        description: Vercel project name
         required: false
-        default: 'complianceloop-site'
+        default: complianceloop-site
 
 jobs:
   configure:
@@ -24,7 +24,9 @@ jobs:
       - name: Fail early if secrets missing
         run: |
           for v in VERCEL_TOKEN; do
-            if [ -z "${!v}" ]; then echo "Missing $v"; exit 1; fi
+            if [ -z "${!v}" ]; then
+              echo "::error::Missing $v"; exit 1
+            fi
           done
 
       - uses: actions/checkout@v4
@@ -32,60 +34,54 @@ jobs:
       - name: Resolve TEAM_ID from team slug
         id: team
         run: |
-          TEAM_SLUG="${{ inputs.teamSlug }}"
-          TEAM=$(curl -fsSL \
-            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+          TEAM_SLUG='${{ inputs.teamSlug }}'
+          TEAM_JSON=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
             "https://api.vercel.com/v2/teams?slug=${TEAM_SLUG}")
-          TEAM_ID=$(echo "$TEAM" | jq -r '.id // .team.id // empty')
+          TEAM_ID=$(printf "%s" "$TEAM_JSON" | jq -r '.id // .team.id // empty')
           if [ -z "$TEAM_ID" ] || [ "$TEAM_ID" = "null" ]; then
-            echo "Unable to resolve TEAM_ID from slug=${TEAM_SLUG}"
-            echo "$TEAM"
+            echo "$TEAM_JSON"
+            echo "::error::Unable to resolve TEAM_ID from slug=${TEAM_SLUG}"
             exit 1
           fi
-          echo "id=$TEAM_ID" >> $GITHUB_OUTPUT
+          echo "id=$TEAM_ID" >> "$GITHUB_OUTPUT"
           echo "TEAM_ID=$TEAM_ID"
 
       - name: Resolve PROJECT_ID by project name
         id: project
         run: |
-          TEAM_ID="${{ steps.team.outputs.id }}"
-          NAME="${{ inputs.projectName }}"
-          PROJS=$(curl -fsSL \
-            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+          TEAM_ID='${{ steps.team.outputs.id }}'
+          NAME='${{ inputs.projectName }}'
+          PROJS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
             "https://api.vercel.com/v9/projects?teamId=${TEAM_ID}&search=${NAME}")
-          PROJECT_ID=$(echo "$PROJS" | jq -r --arg n "$NAME" '.projects[] | select(.name==$n) | .id' | head -n1)
+          PROJECT_ID=$(printf "%s" "$PROJS" | jq -r --arg n "$NAME" '.projects[] | select(.name==$n) | .id' | head -n1)
           if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "null" ]; then
-            echo "Unable to resolve PROJECT_ID for $NAME"
             echo "$PROJS"
+            echo "::error::Unable to resolve PROJECT_ID for $NAME"
             exit 1
           fi
-          echo "id=$PROJECT_ID" >> $GITHUB_OUTPUT
+          echo "id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
           echo "PROJECT_ID=$PROJECT_ID"
 
       - name: Detect install command from lockfile
         id: install
         run: |
-          BASE="echo 'PWD='$(pwd); echo 'LS:'; ls -la; test -f package.json || (echo '::error::package.json missing in $(pwd)' && exit 1);"
           if [ -f package-lock.json ]; then
-            echo "cmd=bash -lc \"$BASE npm ci --no-audit --no-fund\"" >> $GITHUB_OUTPUT
+            CMD='npm ci --no-audit --no-fund'
           else
-            echo "cmd=bash -lc \"$BASE npm install --no-audit --no-fund\"" >> $GITHUB_OUTPUT
+            CMD='npm install --no-audit --no-fund'
           fi
+          echo "cmd=$CMD" >> "$GITHUB_OUTPUT"
 
       - name: Configure project (framework + root + install/build)
         run: |
-          TEAM_ID="${{ steps.team.outputs.id }}"
-          PROJECT_ID="${{ steps.project.outputs.id }}"
-          cat > body.json <<'JSON'
-{
-  "framework": "nextjs",
-  "rootDirectory": null,
-  "buildCommand": null,
-  "installCommand": "REPLACEME_INSTALL"
-}
-JSON
-          # inject the computed install command
-          sed -i "s|REPLACEME_INSTALL|${{ steps.install.outputs.cmd }}|g" body.json
+          TEAM_ID='${{ steps.team.outputs.id }}'
+          PROJECT_ID='${{ steps.project.outputs.id }}'
+          CMD='${{ steps.install.outputs.cmd }}'
+
+          jq -n \
+            --arg install "$CMD" \
+            '{framework:"nextjs", rootDirectory:null, buildCommand:null, installCommand:$install}' \
+            > body.json
 
           curl -fsSL -X PATCH \
             "https://api.vercel.com/v9/projects/${PROJECT_ID}?teamId=${TEAM_ID}" \
@@ -95,32 +91,26 @@ JSON
 
       - name: Upsert environment variables (skip if value empty)
         run: |
-          TEAM_ID="${{ steps.team.outputs.id }}"
-          PROJECT_ID="${{ steps.project.outputs.id }}"
+          TEAM_ID='${{ steps.team.outputs.id }}'
+          PROJECT_ID='${{ steps.project.outputs.id }}'
 
           upsert () {
-            NAME="$1"; VALUE="$2"; TARGETS='["production","preview","development"]'
+            NAME="$1"; VALUE="$2"
             if [ -z "$VALUE" ]; then
-              echo "Skipping $NAME (no value)"
-              return 0
+              echo "Skipping $NAME (no value)"; return 0
             fi
-            cat > env.json <<JSON
-            {
-              "type": "plain",
-              "key": "$NAME",
-              "value": "$VALUE",
-              "target": $TARGETS
-            }
-            JSON
-            # Try create; on conflict, patch the key.
+            jq -n --arg k "$NAME" --arg v "$VALUE" \
+              '{type:"plain", key:$k, value:$v, target:["production","preview","development"]}' > env.json
+
             set +e
-            CREATE=$(curl -sS -o /dev/stderr -w "%{http_code}" -X POST \
+            CODE=$(curl -sS -o /dev/stderr -w "%{http_code}" -X POST \
               "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}" \
               -H "Authorization: Bearer ${VERCEL_TOKEN}" \
               -H "Content-Type: application/json" \
               --data-binary @env.json)
             set -e
-            if [ "$CREATE" != "200" ] && [ "$CREATE" != "201" ]; then
+
+            if [ "$CODE" != "200" ] && [ "$CODE" != "201" ]; then
               curl -fsSL -X PATCH \
                 "https://api.vercel.com/v10/projects/${PROJECT_ID}/env/${NAME}?teamId=${TEAM_ID}" \
                 -H "Authorization: Bearer ${VERCEL_TOKEN}" \
@@ -131,7 +121,7 @@ JSON
 
           upsert "R2_PUBLIC_BASE" "${R2_PUBLIC_BASE}"
           upsert "VERCEL_BYPASS_TOKEN" "${VERCEL_BYPASS_TOKEN}"
-          # Uncomment and wire any you actually use:
+          # Add any others you really use:
           # upsert "DATABASE_URL" "${{ secrets.DATABASE_URL }}"
           # upsert "AIRTABLE_API_KEY" "${{ secrets.AIRTABLE_API_KEY }}"
           # upsert "AIRTABLE_BASE_ID" "${{ secrets.AIRTABLE_BASE_ID }}"
@@ -142,4 +132,4 @@ JSON
       - name: Reminder to align Preview Bypass secret in UI
         run: |
           echo "Set the Protection Bypass secret to match VERCEL_BYPASS_TOKEN:"
-          echo "https://vercel.com/${{ inputs.teamSlug }}/complianceloop-site/settings/protection"
+          echo "https://vercel.com/${{ inputs.teamSlug }}/${{ inputs.projectName }}/settings/protection"
