@@ -1,3 +1,92 @@
+name: Ops – Configure Vercel (project + envs)
+
+on:
+  workflow_dispatch:
+    inputs:
+      teamSlug:
+        description: Vercel team slug
+        required: false
+        default: compliance-loop
+      projectName:
+        description: Vercel project name
+        required: false
+        default: complianceloop-site
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_BYPASS_TOKEN: ${{ secrets.VERCEL_BYPASS_TOKEN }}
+      R2_PUBLIC_BASE: https://pub-defef221f7d146ada31deea5b1eb2b4f.r2.dev
+
+    steps:
+      - name: Fail early if secrets missing
+        run: |
+          for v in VERCEL_TOKEN; do
+            if [ -z "${!v}" ]; then
+              echo "::error::Missing $v"; exit 1
+            fi
+          done
+
+      - uses: actions/checkout@v4
+
+      - name: Resolve TEAM_ID from team slug
+        id: team
+        run: |
+          TEAM_SLUG='${{ inputs.teamSlug }}'
+          TEAM_JSON=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v2/teams?slug=${TEAM_SLUG}")
+          TEAM_ID=$(printf "%s" "$TEAM_JSON" | jq -r '.id // .team.id // empty')
+          if [ -z "$TEAM_ID" ] || [ "$TEAM_ID" = "null" ]; then
+            echo "$TEAM_JSON"
+            echo "::error::Unable to resolve TEAM_ID from slug=${TEAM_SLUG}"
+            exit 1
+          fi
+          echo "id=$TEAM_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve PROJECT_ID by project name
+        id: project
+        run: |
+          TEAM_ID='${{ steps.team.outputs.id }}'
+          NAME='${{ inputs.projectName }}'
+          PROJS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v9/projects?teamId=${TEAM_ID}&search=${NAME}")
+          PROJECT_ID=$(printf "%s" "$PROJS" | jq -r --arg n "$NAME" '.projects[] | select(.name==$n) | .id' | head -n1)
+          if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "null" ]; then
+            echo "$PROJS"
+            echo "::error::Unable to resolve PROJECT_ID for $NAME"
+            exit 1
+          fi
+          echo "id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Detect install command from lockfile
+        id: install
+        run: |
+          if [ -f package-lock.json ]; then
+            CMD='npm ci --no-audit --no-fund'
+          else
+            CMD='npm install --no-audit --no-fund'
+          fi
+          echo "cmd=$CMD" >> "$GITHUB_OUTPUT"
+
+      - name: Configure project (framework + root + install/build)
+        run: |
+          TEAM_ID='${{ steps.team.outputs.id }}'
+          PROJECT_ID='${{ steps.project.outputs.id }}'
+          CMD='${{ steps.install.outputs.cmd }}'
+
+          jq -n \
+            --arg install "$CMD" \
+            '{framework:"nextjs", rootDirectory:null, buildCommand:null, installCommand:$install}' \
+            > body.json
+
+          curl -fsSL -X PATCH \
+            "https://api.vercel.com/v9/projects/${PROJECT_ID}?teamId=${TEAM_ID}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data-binary @body.json
+
       - name: Upsert environment variables (skip if value empty)
         run: |
           set -euo pipefail
@@ -21,7 +110,7 @@
               echo "Skipping $NAME (no value)"; return 0
             fi
 
-            # 1) Try to CREATE (will 409 if exists)
+            # 1) Try to CREATE (409 if exists)
             create_payload "$NAME" "$VALUE" > env.create.json
             set +e
             HTTP=$(curl -sS -o create.out -w "%{http_code}" -X POST \
@@ -31,31 +120,26 @@
               --data-binary @env.create.json)
             RC=$?
             set -e
-
             if [ $RC -ne 0 ]; then
-              echo "::error::network error creating $NAME"; cat create.out; exit 1
+              echo "::error::Network error creating $NAME"; cat create.out; exit 1
             fi
-
             if [ "$HTTP" = "200" ] || [ "$HTTP" = "201" ]; then
               echo "Created $NAME"; return 0
             fi
-
             if [ "$HTTP" != "409" ]; then
               echo "::error::Create $NAME failed (HTTP $HTTP)"; cat create.out; exit 1
             fi
 
             echo "$NAME exists; updating all existing ids…"
 
-            # 2) FETCH existing env entries for this key
+            # 2) Fetch existing env entries and PATCH each id with just {value}
             ENVS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
               "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?decrypt=false&teamId=${TEAM_ID}")
-
             IDS=$(echo "$ENVS" | jq -r --arg k "$NAME" '.envs[] | select(.key==$k) | .id')
             if [ -z "$IDS" ]; then
               echo "::warning::No ids found for $NAME after 409; nothing to patch"; return 0
             fi
 
-            # 3) PATCH each id with just the new value (do not send key/type/target)
             patch_payload "$VALUE" > env.patch.json
             for ID in $IDS; do
               set +e
@@ -66,11 +150,9 @@
                 --data-binary @env.patch.json)
               RC2=$?
               set -e
-
               if [ $RC2 -ne 0 ]; then
-                echo "::warning::network error patching $NAME id=$ID"; cat patch.out; continue
+                echo "::warning::Network error patching $NAME id=$ID"; cat patch.out; continue
               fi
-
               if [ "$HTTP2" = "200" ] || [ "$HTTP2" = "201" ]; then
                 echo "Patched $NAME (id=$ID)"
               else
@@ -88,3 +170,8 @@
           # upsert "AIRTABLE_TABLE" "${{ secrets.AIRTABLE_TABLE }}"
           # upsert "ORIGIN_ALLOWLIST" "${{ vars.ORIGIN_ALLOWLIST }}"
           # upsert "USE_DIRECT_WEBHOOKS" "${{ vars.USE_DIRECT_WEBHOOKS }}"
+
+      - name: Reminder to align Preview Bypass secret in UI
+        run: |
+          echo "Set the Protection Bypass secret to match VERCEL_BYPASS_TOKEN:"
+          echo "https://vercel.com/${{ inputs.teamSlug }}/${{ inputs.projectName }}/settings/protection"
