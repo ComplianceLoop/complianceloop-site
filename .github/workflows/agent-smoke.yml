@@ -1,50 +1,36 @@
 name: Agent Smoke
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       preview_url:
-        description: "Preview URL to probe (optional; your vercel smoke reads PREVIEW_URL)"
-        required: false
+        description: 'URL of the Vercel preview deployment to test (e.g. https://complianceloop-site-git-feature-branch-compliance-loop.vercel.app)'
+        required: true
         type: string
-
-permissions:
-  contents: read
-  pull-requests: write
-  actions: read
-
-concurrency:
-  group: agent-smoke-${{ github.event.pull_request.number || github.ref_name }}
-  cancel-in-progress: true
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   smoke:
-    name: run
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
+    timeout-minutes: 30
     env:
       NODE_ENV: ci
       FORCE_COLOR: "1"
       R2_PUBLIC_BASE: https://pub-defef221f7d146ada31deea5b1eb2b4f.r2.dev
       AGENT_FEEDBACK_TAG: "<!--AGENT_FEEDBACK-->"
-      # Pass PREVIEW_URL into your preserved smoke if user provided it on manual runs
-      PREVIEW_URL: ${{ inputs.preview_url }}
+      PREVIEW_URL: ${{ inputs.preview_url || github.head_ref && format('https://complianceloop-site-git-{0}-compliance-loop.vercel.app', github.head_ref) }}
+      VERCEL_BYPASS_TOKEN: ${{ secrets.VERCEL_BYPASS_TOKEN }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Setup Node
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-
-      - name: Install deps
+      - name: Install dependencies
         run: |
           set -euo pipefail
           if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
@@ -52,13 +38,11 @@ jobs:
           else
             npm i
           fi
-
       - name: Prepare output folder
         run: |
           mkdir -p out
           echo "{}" > out/report.json
           echo "# Smoke Report" > out/report.md
-
       - name: Run smoke (wrapper around your vercel smoke)
         id: smoke
         shell: bash
@@ -66,7 +50,7 @@ jobs:
           set -euo pipefail
           if [ -f scripts/agent-smoke.mjs ]; then
             set +e
-            node scripts/agent-smoke.mjs --json out/report.json --md out/report.md 2>&1 | tee out/log.txt
+            node scripts/agent-smoke.mjs --json out/report.json --md out/report.md --url "$PREVIEW_URL" 2>&1 | tee out/log.txt
             code=${PIPESTATUS[0]}
             set -e
           else
@@ -75,15 +59,12 @@ jobs:
             printf "# Smoke Report\n\n**status:** failed\n" > out/report.md
             code=1
           fi
-
           # Redact long tokens
-          sed -E -i 's/[A-Za-z0-9_\-]{24,}/[REDACTED]/g' out/log.txt
+          sed -E -i 's/[A-Za-z0-9_\\-]{24,}/[REDACTED]/g' out/log.txt
           tail -n 80 out/log.txt > out/log_tail.txt
-
           if [ "$code" -eq 0 ]; then status="passed"; else status="failed"; fi
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           echo "status=$status"   >> "$GITHUB_OUTPUT"
-
       - name: Upload feedback artifact (always)
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,17 +77,6 @@ jobs:
             out/report.md
             out/log.txt
             out/log_tail.txt
-
-      # --- Stable PR comment upsert (no inline JS) ---
-      - name: Find existing feedback comment
-        if: always() && github.event_name == 'pull_request'
-        id: fc
-        uses: peter-evans/find-comment@v3
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-author: 'github-actions[bot]'
-          body-includes: ${{ env.AGENT_FEEDBACK_TAG }}
-
       - name: Build comment body
         if: always() && github.event_name == 'pull_request'
         id: body
@@ -116,7 +86,6 @@ jobs:
           echo "RUN_URL=$RUN_URL" >> $GITHUB_OUTPUT
           echo "TAG=${AGENT_FEEDBACK_TAG}" >> $GITHUB_OUTPUT
           echo "STATUS=${{ steps.smoke.outputs.status || 'unknown' }}" >> $GITHUB_OUTPUT
-          # Safely embed markdown sections
           {
             echo "${AGENT_FEEDBACK_TAG}"
             echo "**Status:** \`${{ steps.smoke.outputs.status || 'unknown' }}\`"
@@ -132,17 +101,13 @@ jobs:
             echo
             echo "</details>"
           } > comment.md
-
-      - name: Create or update comment
+      - name: Create or update PR comment
         if: always() && github.event_name == 'pull_request'
         uses: peter-evans/create-or-update-comment@v4
         with:
-          comment-id: ${{ steps.fc.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number }}
           body-path: comment.md
           edit-mode: replace
-      # --- End stable comment upsert ---
-
       - name: Fail job if smoke failed
         if: ${{ steps.smoke.outputs.exit_code != '0' }}
         run: |
