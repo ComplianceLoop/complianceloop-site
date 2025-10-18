@@ -1,35 +1,29 @@
-name: scan: vercel refs
+name: Scan Vercel Refs
+
+# This workflow retrieves the latest preview deployment URL for the
+# canonical Vercel project and prints it in the workflow output. It
+# is triggered manually and can be used to quickly copy/paste the
+# URL when running smoke tests or debugging deployments.
 
 on:
   workflow_dispatch:
 
 jobs:
-  scan:
+  fetch-preview:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Scan for Vercel references
-        id: scan
-        run: |
-          # find common vercel references (ignore binary-ish files)
-          PATTERN='vercel\.app|VERCEL_|Vercel'
-          rg --version >/dev/null 2>&1 || sudo apt-get update && sudo apt-get install -y ripgrep
-          rg -n -I -S -e "$PATTERN" --glob '!**/*.{png,jpg,jpeg,gif,ico,pdf,woff,woff2,ttf}' > scan.txt || true
-          echo "matches<<EOF" >> $GITHUB_OUTPUT
-          cat scan.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Create/Update issue with results
-        uses: peter-evans/create-issue-from-file@v5
+      - uses: actions/checkout@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
         with:
-          title: "Scan: Vercel references (urls/envs)"
-          content-filepath: scan.txt
-          labels: scan, vercel
-          assignees: ComplianceLoop
-
-      - name: Upload artifact (full scan)
-        uses: actions/upload-artifact@v4
-        with:
-          name: vercel-scan
-          path: scan.txt
+          node-version: '20'
+      - name: Install dependencies
+        run: npm ci
+      - name: Print latest preview URL
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          # Provide either team ID or slug depending on configuration
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
+        run: node scripts/print-vercel-preview.mjs
