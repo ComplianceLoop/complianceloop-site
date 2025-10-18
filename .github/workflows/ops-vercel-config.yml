@@ -1,0 +1,105 @@
+name: Ops – Configure Vercel (project + envs)
+
+on:
+  workflow_dispatch:
+    inputs:
+      teamSlug:
+        description: 'Vercel team slug (default: compliance-loop)'
+        required: false
+        default: 'compliance-loop'
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      TEAM_SLUG: ${{ inputs.teamSlug || 'compliance-loop' }}
+      # repo-level secrets/vars you already set up:
+      VERCEL_BYPASS_TOKEN: ${{ secrets.VERCEL_BYPASS_TOKEN }}
+      R2_PUBLIC_BASE: https://pub-defef221f7d146ada31deea5b1eb2b4f.r2.dev
+
+    steps:
+      - name: Fail early if secrets missing
+        run: |
+          for v in VERCEL_TOKEN VERCEL_PROJECT_ID; do
+            if [ -z "${!v}" ]; then echo "Missing $v"; exit 1; fi
+          done
+
+      - uses: actions/checkout@v4
+
+      - name: Detect install command
+        id: install
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "cmd=npm ci --no-audit --no-fund" >> $GITHUB_OUTPUT
+          else
+            echo "cmd=npm install --no-audit --no-fund" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure project (framework + root + install/build)
+        run: |
+          cat > body.json <<'JSON'
+          {
+            "framework": "nextjs",
+            "rootDirectory": "",
+            "buildCommand": null,
+            "installCommand": "${{ steps.install.outputs.cmd }}"
+          }
+          JSON
+          curl -fsSL -X PATCH \
+            "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}?teamSlug=${TEAM_SLUG}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data-binary @body.json
+
+      - name: Upsert environment variables (skip if value empty)
+        run: |
+          upsert () {
+            NAME="$1"; VALUE="$2"; TARGETS='["production","preview","development"]'
+            if [ -z "$VALUE" ]; then
+              echo "Skipping $NAME (no value)"
+              return 0
+            fi
+            cat > env.json <<JSON
+            {
+              "type": "plain",
+              "key": "$NAME",
+              "value": "$VALUE",
+              "target": $TARGETS
+            }
+            JSON
+            # Try create; if key exists, patch it.
+            set +e
+            CREATE=$(curl -sS -o /dev/stderr -w "%{http_code}" -X POST \
+              "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/env?teamSlug=${TEAM_SLUG}" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data-binary @env.json)
+            set -e
+            if [ "$CREATE" != "200" ] && [ "$CREATE" != "201" ]; then
+              # Patch by key
+              curl -fsSL -X PATCH \
+                "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/env/${NAME}?teamSlug=${TEAM_SLUG}" \
+                -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data-binary @env.json
+            fi
+          }
+
+          # Required/used envs (add more as needed)
+          upsert "R2_PUBLIC_BASE" "${R2_PUBLIC_BASE}"
+          upsert "VERCEL_BYPASS_TOKEN" "${VERCEL_BYPASS_TOKEN}"
+
+          # examples (uncomment if you have values in repo secrets/vars)
+          # upsert "DATABASE_URL" "${{ secrets.DATABASE_URL }}"
+          # upsert "AIRTABLE_API_KEY" "${{ secrets.AIRTABLE_API_KEY }}"
+          # upsert "AIRTABLE_BASE_ID" "${{ secrets.AIRTABLE_BASE_ID }}"
+          # upsert "AIRTABLE_TABLE" "${{ secrets.AIRTABLE_TABLE }}"
+          # upsert "ORIGIN_ALLOWLIST" "${{ vars.ORIGIN_ALLOWLIST }}"
+          # upsert "USE_DIRECT_WEBHOOKS" "${{ vars.USE_DIRECT_WEBHOOKS }}"
+
+      - name: Note on bypass header/secret
+        run: |
+          echo "If Deployment Protection bypass secret isn't yet configured in the UI, set it to match VERCEL_BYPASS_TOKEN."
+          echo "Link: https://vercel.com/${TEAM_SLUG}/complianceloop-site/settings/protection"
