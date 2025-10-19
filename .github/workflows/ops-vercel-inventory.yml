@@ -129,41 +129,9 @@ jobs:
             printf '%s\n' '- complianceloop-root-v2 → https://vercel.com/compliance-loop/complianceloop-root-v2'
             printf '%s\n' '- complianceloop-site-ievg → https://vercel.com/compliance-loop/complianceloop-site-ievg'
             printf '%s\n' '- complianceloop-site-zhbs → https://vercel.com/compliance-loop/complianceloop-site-zhbs'
-            printf '%s\n' '- complianceloop-starter-root → https://vercel.com/compliance-loop/complianceloop-starter-root'
-            printf '%s\n' ''
+            printf '%s\n' '- complianceloop-starter-root → https://vercel.com/compliance-loop/complianceloop-starter-root' ''
             printf '%s\n' '> Roll-back note: if anything breaks, flip the Primary domain back to the previous project and/or re-enable its Git link. No destructive deletes until we’re green.'
           } > issue.md
-# Decommission legacy Vercel projects
-
-**Canonical project:** `complianceloop-site`
-
-## Vercel Inventory
-(Generated automatically)
-
-${{ steps.inv.outputs.table }}
-
----
-
-## Checklist (execute in order)
-- [ ] Keep deploying to **complianceloop-site** only (root directory = blank, Framework = Next.js).
-- [ ] Ensure required envs on canonical project: `R2_PUBLIC_BASE`, `VERCEL_BYPASS_TOKEN` (and any others flagged above).
-- [ ] Confirm production domains all live on **complianceloop-site**; move any leftover domains off legacy projects.
-- [ ] Lock previews on legacy projects (Protection → enable, add bypass or disallow).
-- [ ] Leave a banner note on legacy projects: “Consolidated into complianceloop-site”.
-- [ ] After **7 days of green deploys**, archive/remove legacy projects.
-
-### Quick Links
-- complianceloop-site → https://vercel.com/compliance-loop/complianceloop-site
-- complianceloop-portal → https://vercel.com/compliance-loop/complianceloop-portal
-- complianceloop-next-root → https://vercel.com/compliance-loop/complianceloop-next-root
-- complianceloop-next-root-v2 → https://vercel.com/compliance-loop/complianceloop-next-root-v2
-- complianceloop-root-v2 → https://vercel.com/compliance-loop/complianceloop-root-v2
-- complianceloop-site-ievg → https://vercel.com/compliance-loop/complianceloop-site-ievg
-- complianceloop-site-zhbs → https://vercel.com/compliance-loop/complianceloop-site-zhbs
-- complianceloop-starter-root → https://vercel.com/compliance-loop/complianceloop-starter-root
-
-> Roll-back note: if anything breaks, flip the Primary domain back to the previous project and/or re-enable its Git link. No destructive deletes until we’re green.
-MD
 
       - name: Create/Update issue "Decommission legacy Vercel projects"
         uses: peter-evans/create-issue-from-file@v5
