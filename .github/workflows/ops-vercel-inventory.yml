@@ -104,7 +104,35 @@ jobs:
         id: issue
         run: |
           set -euo pipefail
-          cat > issue.md <<'MD'
+
+          TABLE='${{ steps.inv.outputs.table }}'
+
+          {
+            printf '%s\n' '# Decommission legacy Vercel projects' ''
+            printf '%s\n' '**Canonical project:** `complianceloop-site`' ''
+            printf '%s\n' '## Vercel Inventory'
+            printf '%s\n' '(Generated automatically)' ''
+            printf '%s\n' "$TABLE" ''
+            printf '%s\n' '---' ''
+            printf '%s\n' '## Checklist (execute in order)'
+            printf '%s\n' '- [ ] Keep deploying to **complianceloop-site** only (root directory = blank, Framework = Next.js).'
+            printf '%s\n' '- [ ] Ensure required envs on canonical project: `R2_PUBLIC_BASE`, `VERCEL_BYPASS_TOKEN` (and any others flagged above).'
+            printf '%s\n' '- [ ] Confirm production domains all live on **complianceloop-site**; move any leftover domains off legacy projects.'
+            printf '%s\n' '- [ ] Lock previews on legacy projects (Protection → enable, add bypass or disallow).'
+            printf '%s\n' '- [ ] Leave a banner note on legacy projects: “Consolidated into complianceloop-site”.'
+            printf '%s\n' '- [ ] After **7 days of green deploys**, archive/remove legacy projects.' ''
+            printf '%s\n' '### Quick Links'
+            printf '%s\n' '- complianceloop-site → https://vercel.com/compliance-loop/complianceloop-site'
+            printf '%s\n' '- complianceloop-portal → https://vercel.com/compliance-loop/complianceloop-portal'
+            printf '%s\n' '- complianceloop-next-root → https://vercel.com/compliance-loop/complianceloop-next-root'
+            printf '%s\n' '- complianceloop-next-root-v2 → https://vercel.com/compliance-loop/complianceloop-next-root-v2'
+            printf '%s\n' '- complianceloop-root-v2 → https://vercel.com/compliance-loop/complianceloop-root-v2'
+            printf '%s\n' '- complianceloop-site-ievg → https://vercel.com/compliance-loop/complianceloop-site-ievg'
+            printf '%s\n' '- complianceloop-site-zhbs → https://vercel.com/compliance-loop/complianceloop-site-zhbs'
+            printf '%s\n' '- complianceloop-starter-root → https://vercel.com/compliance-loop/complianceloop-starter-root'
+            printf '%s\n' ''
+            printf '%s\n' '> Roll-back note: if anything breaks, flip the Primary domain back to the previous project and/or re-enable its Git link. No destructive deletes until we’re green.'
+          } > issue.md
 # Decommission legacy Vercel projects
 
 **Canonical project:** `complianceloop-site`
