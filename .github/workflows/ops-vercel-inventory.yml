@@ -38,13 +38,15 @@ jobs:
       - name: Build inventory
         id: inv
         run: |
+          set -euo pipefail
           TEAM_ID='${{ steps.team.outputs.id }}'
           IFS=',' read -r -a NAMES <<< "${{ inputs.projectsCSV }}"
 
-          header='| Project | Repo | Prod Branch | Root Dir | Framework | Output | Custom Domains | Preview Sample | Protected? | Missing Env? | Notes |
-|---|---|---|---|---|---|---|---|---|---|---|'
-
-          echo "$header" > table.md
+          # Write the table header (keep this inside the script)
+          cat > table.md <<'EOF'
+| Project | Repo | Prod Branch | Root Dir | Framework | Output | Custom Domains | Preview Sample | Protected? | Missing Env? | Notes |
+|---|---|---|---|---|---|---|---|---|---|---|
+EOF
 
           for NAME in "${NAMES[@]}"; do
             NAME=$(echo "$NAME" | xargs)
@@ -53,6 +55,7 @@ jobs:
             PROJS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
               "https://api.vercel.com/v9/projects?teamId=${TEAM_ID}&search=${NAME}")
             PID=$(echo "$PROJS" | jq -r --arg n "$NAME" '.projects[] | select(.name==$n) | .id' | head -n1)
+
             if [ -z "$PID" ] || [ "$PID" = "null" ]; then
               echo "| ${NAME} | – | – | – | – | – | – | – | – | – | not found |" >> table.md
               continue
@@ -61,48 +64,39 @@ jobs:
             PJSON=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
               "https://api.vercel.com/v9/projects/${PID}?teamId=${TEAM_ID}")
 
-            # fields
             REPO=$(echo "$PJSON" | jq -r '.link.repo // .gitRepository.repo // "-"')
             BRANCH=$(echo "$PJSON" | jq -r '.gitRepository.productionBranch // .link.productionBranch // "-"')
             ROOT=$(echo "$PJSON" | jq -r 'if .rootDirectory == null then "" else .rootDirectory end')
             FRAME=$(echo "$PJSON" | jq -r '.framework // "-"')
 
-            # domains
             DOMS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-              "https://api.vercel.com/v10/projects/${PID}/domains?teamId=${TEAM_ID}" | jq -r '[.domains[].name] | join(", ")' 2>/dev/null)
+              "https://api.vercel.com/v10/projects/${PID}/domains?teamId=${TEAM_ID}" \
+              | jq -r '[.domains[].name] | join(", ")' 2>/dev/null)
             [ -n "$DOMS" ] || DOMS=""
 
-            # latest preview URL
             DEP=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
               "https://api.vercel.com/v6/deployments?projectId=${PID}&target=preview&limit=1&teamId=${TEAM_ID}")
-            PURL=$(echo "$DEP" | jq -r '.deployments[0].url' 2>/dev/null)
+            PURL=$(echo "$DEP" | jq -r '.deployments[0].url')
             [ "$PURL" = "null" ] && PURL=""
             [ -n "$PURL" ] && PURL="https://${PURL}"
 
-            # protection? (best-effort; if any password protection is configured)
             PROTECTED=$(echo "$PJSON" | jq -r '.deploymentProtection?.enabled // .passwordProtection?.enabled // "-"')
 
-            # envs
             ENVS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
               "https://api.vercel.com/v10/projects/${PID}/env?teamId=${TEAM_ID}")
             HAVE=$(echo "$ENVS" | jq -r '[.envs[].key]')
-
-            MISS=$(jq -n --argjson have "$HAVE" --argjson req "$REQUIRED_ENVS" \
-              '$req - ($have // [])' | jq -r 'join(", ")')
+            MISS=$(jq -n --argjson have "$HAVE" --argjson req "${REQUIRED_ENVS}" '$req - ($have // [])' | jq -r 'join(", ")')
             [ -z "$MISS" ] && MISS=""
 
-            # output dir (not exposed via API; blank unless we later parse settings)
             OUT=""
-
-            # notes
             NOTES="id:${PID}"
 
             echo "| ${NAME} | ${REPO} | ${BRANCH} | ${ROOT} | ${FRAME} | ${OUT} | ${DOMS} | ${PURL} | ${PROTECTED} | ${MISS} | ${NOTES} |" >> table.md
           done
 
-          echo "table<<EOF" >> $GITHUB_OUTPUT
-          cat table.md >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "table<<EOF" >> "$GITHUB_OUTPUT"
+          cat table.md >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Write issue body
         id: issue
