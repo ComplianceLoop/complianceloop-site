@@ -1,5 +1,2 @@
-// lib/auth.ts
-// Re-export the real auth helpers from the portal app.
-// Adjust the path if your repo structure differs.
+// Re-export named auth helpers from the portal package
 export * from "../apps/portal/lib/auth";
-export { default } from "../apps/portal/lib/auth";
