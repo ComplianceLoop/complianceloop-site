@@ -1,0 +1,25 @@
+name: Smoke
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Hit Production homepage
+        run: |
+          set -euxo pipefail
+          curl -I --fail --max-time 20 https://complianceloop.com | tee /tmp/prod.headers
+
+      - name: Hit Preview redirect (www)
+        run: |
+          set -euxo pipefail
+          curl -I --fail --max-time 20 https://www.complianceloop.com | tee /tmp/www.headers
+
+      # OPTIONAL: Add more critical endpoints as needed
+      # - name: Hit Portal app (if public)
+      #   run: |
+      #     set -euxo pipefail
+      #     curl -I --fail --max-time 20 https://portal.complianceloop.com | tee /tmp/portal.headers
