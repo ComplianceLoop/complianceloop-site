@@ -1,0 +1,59 @@
+name: Ops – Quarantine legacy Vercel projects (non-destructive)
+
+on:
+  workflow_dispatch:
+    inputs:
+      teamSlug:
+        description: Vercel team slug
+        required: false
+        default: compliance-loop
+      projectsCSV:
+        description: Comma-separated legacy project names to quarantine
+        required: true
+        default: "complianceloop-portal,complianceloop-next-root,complianceloop-next-root-v2,complianceloop-root-v2,complianceloop-site-ievg,complianceloop-site-zhbs,complianceloop-starter-root"
+      bannerText:
+        description: Project consolidated into 'complianceloop-site' – do not use
+        required: false
+        default: "Consolidated into 'complianceloop-site' – do not use."
+
+jobs:
+  quarantine:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Resolve TEAM_ID
+        id: team
+        run: |
+          TEAM_SLUG='${{ inputs.teamSlug }}'
+          TEAM=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" "https://api.vercel.com/v2/teams?slug=${TEAM_SLUG}")
+          TEAM_ID=$(echo "$TEAM" | jq -r '.id // .team.id // empty')
+          [ -n "$TEAM_ID" ] || { echo "::error::Cannot resolve team id"; exit 1; }
+          echo "id=$TEAM_ID" >> $GITHUB_OUTPUT
+
+      - name: Apply quarantine settings
+        run: |
+          TEAM_ID='${{ steps.team.outputs.id }}'
+          IFS=',' read -r -a NAMES <<< "${{ inputs.projectsCSV }}"
+          for NAME in "${NAMES[@]}"; do
+            NAME=$(echo "$NAME" | xargs)
+            PROJS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v9/projects?teamId=${TEAM_ID}&search=${NAME}")
+            PID=$(echo "$PROJS" | jq -r --arg n "$NAME" '.projects[] | select(.name==$n) | .id' | head -n1)
+            if [ -z "$PID" ] || [ "$PID" = "null" ]; then
+              echo "::warning::Project not found: $NAME"; continue
+            fi
+
+            # Turn on preview protection; add a banner note (best-effort fields)
+            jq -n \
+              --arg banner "${{ inputs.bannerText }}" \
+              '{passwordProtection:{enabled:true}, bannerText:$banner}' > body.json
+
+            curl -fsSL -X PATCH \
+              "https://api.vercel.com/v9/projects/${PID}?teamId=${TEAM_ID}" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data-binary @body.json
+
+            echo "Quarantined $NAME (id=$PID)"
+          done
