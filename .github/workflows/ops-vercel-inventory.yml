@@ -1,0 +1,156 @@
+name: Ops – Vercel Inventory (projects + envs + domains)
+
+on:
+  workflow_dispatch:
+    inputs:
+      teamSlug:
+        description: Vercel team slug
+        required: false
+        default: compliance-loop
+      # Keep complianceloop-site first; the rest are legacy candidates
+      projectsCSV:
+        description: Comma-separated project names to inventory
+        required: false
+        default: "complianceloop-site,complianceloop-portal,complianceloop-next-root,complianceloop-next-root-v2,complianceloop-root-v2,complianceloop-site-ievg,complianceloop-site-zhbs,complianceloop-starter-root"
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      REQUIRED_ENVS: '["R2_PUBLIC_BASE","VERCEL_BYPASS_TOKEN","DATABASE_URL","AIRTABLE_API_KEY","AIRTABLE_BASE_ID","AIRTABLE_TABLE","ORIGIN_ALLOWLIST"]'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve TEAM_ID
+        id: team
+        run: |
+          TEAM_SLUG='${{ inputs.teamSlug }}'
+          TEAM=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" "https://api.vercel.com/v2/teams?slug=${TEAM_SLUG}")
+          TEAM_ID=$(echo "$TEAM" | jq -r '.id // .team.id // empty')
+          [ -n "$TEAM_ID" ] || { echo "::error::Cannot resolve team id"; echo "$TEAM"; exit 1; }
+          echo "id=$TEAM_ID" >> $GITHUB_OUTPUT
+          echo "TEAM_ID=$TEAM_ID"
+
+      - name: Build inventory
+        id: inv
+        run: |
+          TEAM_ID='${{ steps.team.outputs.id }}'
+          IFS=',' read -r -a NAMES <<< "${{ inputs.projectsCSV }}"
+
+          header='| Project | Repo | Prod Branch | Root Dir | Framework | Output | Custom Domains | Preview Sample | Protected? | Missing Env? | Notes |
+|---|---|---|---|---|---|---|---|---|---|---|'
+
+          echo "$header" > table.md
+
+          for NAME in "${NAMES[@]}"; do
+            NAME=$(echo "$NAME" | xargs)
+
+            # project lookup
+            PROJS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v9/projects?teamId=${TEAM_ID}&search=${NAME}")
+            PID=$(echo "$PROJS" | jq -r --arg n "$NAME" '.projects[] | select(.name==$n) | .id' | head -n1)
+            if [ -z "$PID" ] || [ "$PID" = "null" ]; then
+              echo "| ${NAME} | – | – | – | – | – | – | – | – | – | not found |" >> table.md
+              continue
+            fi
+
+            PJSON=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v9/projects/${PID}?teamId=${TEAM_ID}")
+
+            # fields
+            REPO=$(echo "$PJSON" | jq -r '.link.repo // .gitRepository.repo // "-"')
+            BRANCH=$(echo "$PJSON" | jq -r '.gitRepository.productionBranch // .link.productionBranch // "-"')
+            ROOT=$(echo "$PJSON" | jq -r 'if .rootDirectory == null then "" else .rootDirectory end')
+            FRAME=$(echo "$PJSON" | jq -r '.framework // "-"')
+
+            # domains
+            DOMS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v10/projects/${PID}/domains?teamId=${TEAM_ID}" | jq -r '[.domains[].name] | join(", ")' 2>/dev/null)
+            [ -n "$DOMS" ] || DOMS=""
+
+            # latest preview URL
+            DEP=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v6/deployments?projectId=${PID}&target=preview&limit=1&teamId=${TEAM_ID}")
+            PURL=$(echo "$DEP" | jq -r '.deployments[0].url' 2>/dev/null)
+            [ "$PURL" = "null" ] && PURL=""
+            [ -n "$PURL" ] && PURL="https://${PURL}"
+
+            # protection? (best-effort; if any password protection is configured)
+            PROTECTED=$(echo "$PJSON" | jq -r '.deploymentProtection?.enabled // .passwordProtection?.enabled // "-"')
+
+            # envs
+            ENVS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v10/projects/${PID}/env?teamId=${TEAM_ID}")
+            HAVE=$(echo "$ENVS" | jq -r '[.envs[].key]')
+
+            MISS=$(jq -n --argjson have "$HAVE" --argjson req "$REQUIRED_ENVS" \
+              '$req - ($have // [])' | jq -r 'join(", ")')
+            [ -z "$MISS" ] && MISS=""
+
+            # output dir (not exposed via API; blank unless we later parse settings)
+            OUT=""
+
+            # notes
+            NOTES="id:${PID}"
+
+            echo "| ${NAME} | ${REPO} | ${BRANCH} | ${ROOT} | ${FRAME} | ${OUT} | ${DOMS} | ${PURL} | ${PROTECTED} | ${MISS} | ${NOTES} |" >> table.md
+          done
+
+          echo "table<<EOF" >> $GITHUB_OUTPUT
+          cat table.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Write issue body
+        id: issue
+        run: |
+          cat > issue.md <<'MD'
+# Decommission legacy Vercel projects
+
+**Canonical project:** `complianceloop-site`
+
+## Vercel Inventory
+(Generated automatically)
+
+${{ steps.inv.outputs.table }}
+
+---
+
+## Checklist (execute in order)
+- [ ] Keep deploying to **complianceloop-site** only (root directory = blank, Framework = Next.js).
+- [ ] Ensure required envs on canonical project: `R2_PUBLIC_BASE`, `VERCEL_BYPASS_TOKEN` (and any others flagged above).
+- [ ] Confirm production domains all live on **complianceloop-site**; move any leftover domains off legacy projects.
+- [ ] Lock previews on legacy projects (Protection → enable, add bypass or disallow).
+- [ ] Leave a banner note on legacy projects: “Consolidated into complianceloop-site”.
+- [ ] After **7 days of green deploys**, archive/remove legacy projects.
+
+### Quick Links (per project)
+- complianceloop-site → https://vercel.com/compliance-loop/complianceloop-site
+- complianceloop-portal → https://vercel.com/compliance-loop/complianceloop-portal
+- complianceloop-next-root → https://vercel.com/compliance-loop/complianceloop-next-root
+- complianceloop-next-root-v2 → https://vercel.com/compliance-loop/complianceloop-next-root-v2
+- complianceloop-root-v2 → https://vercel.com/compliance-loop/complianceloop-root-v2
+- complianceloop-site-ievg → https://vercel.com/compliance-loop/complianceloop-site-ievg
+- complianceloop-site-zhbs → https://vercel.com/compliance-loop/complianceloop-site-zhbs
+- complianceloop-starter-root → https://vercel.com/compliance-loop/complianceloop-starter-root
+
+> Roll-back note: if anything breaks, flip the Primary domain back to the previous project and/or re-enable its Git link. No destructive deletes until we’re green.
+MD
+
+      - name: Create/Update issue "Decommission legacy Vercel projects"
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: Decommission legacy Vercel projects
+          content-filepath: issue.md
+          labels: ops/consolidation
+          assignees: ${{ github.actor }}
+          update-existing: true
+
+      - name: Upload inventory artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vercel-inventory-table
+          path: table.md
