@@ -7,7 +7,6 @@ on:
         description: Vercel team slug
         required: false
         default: compliance-loop
-      # Keep complianceloop-site first; the rest are legacy candidates
       projectsCSV:
         description: Comma-separated project names to inventory
         required: false
@@ -22,18 +21,19 @@ jobs:
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       REQUIRED_ENVS: '["R2_PUBLIC_BASE","VERCEL_BYPASS_TOKEN","DATABASE_URL","AIRTABLE_API_KEY","AIRTABLE_BASE_ID","AIRTABLE_TABLE","ORIGIN_ALLOWLIST"]'
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Resolve TEAM_ID
         id: team
         run: |
+          set -euo pipefail
           TEAM_SLUG='${{ inputs.teamSlug }}'
           TEAM=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" "https://api.vercel.com/v2/teams?slug=${TEAM_SLUG}")
           TEAM_ID=$(echo "$TEAM" | jq -r '.id // .team.id // empty')
           [ -n "$TEAM_ID" ] || { echo "::error::Cannot resolve team id"; echo "$TEAM"; exit 1; }
-          echo "id=$TEAM_ID" >> $GITHUB_OUTPUT
-          echo "TEAM_ID=$TEAM_ID"
+          echo "id=$TEAM_ID" >> "$GITHUB_OUTPUT"
 
       - name: Build inventory
         id: inv
@@ -42,32 +42,31 @@ jobs:
           TEAM_ID='${{ steps.team.outputs.id }}'
           IFS=',' read -r -a NAMES <<< "${{ inputs.projectsCSV }}"
 
-          # Write the table header (keep this inside the script)
-          cat > table.md <<'EOF'
-| Project | Repo | Prod Branch | Root Dir | Framework | Output | Custom Domains | Preview Sample | Protected? | Missing Env? | Notes |
-|---|---|---|---|---|---|---|---|---|---|---|
-EOF
+          # Write header safely (no heredoc => no YAML confusion)
+          printf '%s\n' \
+            '| Project | Repo | Prod Branch | Root Dir | Framework | Output | Custom Domains | Preview Sample | Protected? | Missing Env? | Notes |' \
+            '|---|---|---|---|---|---|---|---|---|---|---|' > table.md
 
           for NAME in "${NAMES[@]}"; do
             NAME=$(echo "$NAME" | xargs)
 
-            # project lookup
+            # Project lookup
             PROJS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
               "https://api.vercel.com/v9/projects?teamId=${TEAM_ID}&search=${NAME}")
             PID=$(echo "$PROJS" | jq -r --arg n "$NAME" '.projects[] | select(.name==$n) | .id' | head -n1)
 
             if [ -z "$PID" ] || [ "$PID" = "null" ]; then
-              echo "| ${NAME} | – | – | – | – | – | – | – | – | – | not found |" >> table.md
+              printf '| %s | – | – | – | – | – | – | – | – | – | not found |\n' "$NAME" >> table.md
               continue
             fi
 
             PJSON=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
               "https://api.vercel.com/v9/projects/${PID}?teamId=${TEAM_ID}")
 
-            REPO=$(echo "$PJSON" | jq -r '.link.repo // .gitRepository.repo // "-"')
+            REPO=$(echo "$PJSON"   | jq -r '.link.repo // .gitRepository.repo // "-"')
             BRANCH=$(echo "$PJSON" | jq -r '.gitRepository.productionBranch // .link.productionBranch // "-"')
-            ROOT=$(echo "$PJSON" | jq -r 'if .rootDirectory == null then "" else .rootDirectory end')
-            FRAME=$(echo "$PJSON" | jq -r '.framework // "-"')
+            ROOT=$(echo "$PJSON"   | jq -r 'if .rootDirectory == null then "" else .rootDirectory end')
+            FRAME=$(echo "$PJSON"  | jq -r '.framework // "-"')
 
             DOMS=$(curl -fsSL -H "Authorization: Bearer ${VERCEL_TOKEN}" \
               "https://api.vercel.com/v10/projects/${PID}/domains?teamId=${TEAM_ID}" \
@@ -91,16 +90,20 @@ EOF
             OUT=""
             NOTES="id:${PID}"
 
-            echo "| ${NAME} | ${REPO} | ${BRANCH} | ${ROOT} | ${FRAME} | ${OUT} | ${DOMS} | ${PURL} | ${PROTECTED} | ${MISS} | ${NOTES} |" >> table.md
+            printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n' \
+              "$NAME" "$REPO" "$BRANCH" "$ROOT" "$FRAME" "$OUT" "$DOMS" "$PURL" "$PROTECTED" "$MISS" "$NOTES" >> table.md
           done
 
-          echo "table<<EOF" >> "$GITHUB_OUTPUT"
-          cat table.md >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          {
+            echo "table<<EOF"
+            cat table.md
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Write issue body
         id: issue
         run: |
+          set -euo pipefail
           cat > issue.md <<'MD'
 # Decommission legacy Vercel projects
 
@@ -121,7 +124,7 @@ ${{ steps.inv.outputs.table }}
 - [ ] Leave a banner note on legacy projects: “Consolidated into complianceloop-site”.
 - [ ] After **7 days of green deploys**, archive/remove legacy projects.
 
-### Quick Links (per project)
+### Quick Links
 - complianceloop-site → https://vercel.com/compliance-loop/complianceloop-site
 - complianceloop-portal → https://vercel.com/compliance-loop/complianceloop-portal
 - complianceloop-next-root → https://vercel.com/compliance-loop/complianceloop-next-root
