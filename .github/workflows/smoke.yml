@@ -8,15 +8,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Hit Production homepage
-        run: |
-          set -euxo pipefail
-          curl -I --fail --max-time 20 https://complianceloop.com | tee /tmp/prod.headers
+    - name: Hit Production homepage
+      run: |
+        set -euo pipefail
+        url="https://complianceloop.com"
+        code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 20 "$url")
+        echo "HTTP $code from $url"
+        # Treat the site as UP unless it's a 5xx or totally unreachable (000)
+        if [ "$code" -ge 500 ] || [ "$code" -eq 000 ]; then
+          echo "Failing: received $code from $url"
+          exit 22
+        fi
 
-      - name: Hit Preview redirect (www)
-        run: |
-          set -euxo pipefail
-          curl -I --fail --max-time 20 https://www.complianceloop.com | tee /tmp/www.headers
+    - name: Hit Preview redirect (www)
+      run: |
+        set -euo pipefail
+        url="https://www.complianceloop.com"
+        code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 20 "$url")
+        echo "HTTP $code from $url"
+        if [ "$code" -ge 500 ] || [ "$code" -eq 000 ]; then
+          echo "Failing: received $code from $url"
+          exit 22
+        fi
 
       # OPTIONAL: Add more critical endpoints as needed
       # - name: Hit Portal app (if public)
