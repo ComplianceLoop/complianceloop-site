@@ -81,12 +81,27 @@ jobs:
           set -euo pipefail
           TABLE="${{ steps.plan.outputs.TABLE }}"
           DELS="${{ steps.plan.outputs.DEL_LIST }}"
-          BODY=$'Domain attachments by project:\n\nProject|ID|Domains\n---|---|---\n'"$(echo "$TABLE" | sed 's/^/- /')" \
-$'\n\nPlanned deletions (dry_run='"$DRY_RUN"$'):\n'"${DELS:-<none>}"
-          BODY=$(printf "%s" "$BODY" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
+
+          {
+            echo "Domain attachments by project:"
+            echo
+            echo "Project|ID|Domains"
+            echo "---|---|---"
+            printf "%s\n" "$TABLE"
+            echo
+            echo "Planned deletions (dry_run=${DRY_RUN}):"
+            if [ -n "${DELS:-}" ]; then
+              printf "%s\n" "$DELS"
+            else
+              echo "<none>"
+            fi
+          } > /tmp/body.md
+
+          BODY=$(jq -Rs . /tmp/body.md)
+
           curl -sS -X POST -H "Authorization: token $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            -d "{\"body\":\"$BODY\"}" \
+            -d "{\"body\":${BODY}}" \
             "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments"
 
       - name: (Optional) Detach portal.complianceloop.com if on legacy portal
