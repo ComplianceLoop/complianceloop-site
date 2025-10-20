@@ -1,0 +1,147 @@
+name: Ops – Decommission Vercel (API-only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "If true, only report—no deletions"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  decommission:
+    runs-on: ubuntu-latest
+    environment: Production
+    env:
+      TEAM_SLUG: compliance-loop
+      CANONICAL: complianceloop-site
+      ISSUE_NUMBER: "62"
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # built-in; used to comment on the issue
+      DRY_RUN: ${{ github.event.inputs.dry_run }}
+    steps:
+      - name: Preflight – verify token and reachability
+        run: |
+          set -euo pipefail
+          test -n "${VERCEL_TOKEN:-}" || (echo "Missing VERCEL_TOKEN" && exit 1)
+          curl -sS https://api.vercel.com/v2/user -H "Authorization: Bearer $VERCEL_TOKEN" >/dev/null
+          echo "VERCEL_TOKEN OK & api.vercel.com reachable"
+
+      - name: Fetch all projects (team)
+        id: projects
+        run: |
+          set -euo pipefail
+          curl -sS "https://api.vercel.com/v9/projects?teamId=$TEAM_SLUG&limit=200" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" -o projects.json
+          echo "Wrote projects.json"
+          # Build a newline list of legacy project names (exclude canonical)
+          LEGACY=$(jq -r --arg CAN "$CANONICAL" '.projects[].name | select(. != $CAN)' projects.json)
+          echo "LEGACY<<EOF" >> $GITHUB_OUTPUT; echo "$LEGACY" >> $GITHUB_OUTPUT; echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Comment inventory summary to issue
+        run: |
+          set -euo pipefail
+          CANID=$(jq -r --arg CAN "$CANONICAL" '.projects[] | select(.name==$CAN) | .id' projects.json)
+          COUNT=$(jq -r '.projects | length' projects.json)
+          LIST=$(jq -r '.projects[].name' projects.json | paste -sd ", " -)
+          BODY=$(jq -rn --arg c "$COUNT" --arg list "$LIST" --arg can "$CANONICAL" --arg canid "$CANID" '
+            "Decommission preflight (dry_run=" + env.DRY_RUN + ")\nTeam projects ("+\($c)+"): " + $list + "\nCanonical: " + $can + " (" + $canid + ")"
+          ')
+          curl -sS -X POST -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"body\":\"$BODY\"}" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments"
+
+      - name: Build domain table & choose deletions
+        id: plan
+        run: |
+          set -euo pipefail
+          # Pull domain lists for each project
+          jq -r '.projects[].id + " " + .projects[].name' projects.json | while read -r ID NAME; do
+            DOMS=$(curl -sS "https://api.vercel.com/v10/projects/$ID/domains?teamId=$TEAM_SLUG" \
+                     -H "Authorization: Bearer $VERCEL_TOKEN" | jq -r '.domains[].name? // empty' | paste -sd "," -)
+            echo "$NAME|$ID|${DOMS:-<none>}" >> domain_table.txt
+          done
+          echo "Wrote domain_table.txt"
+          echo "TABLE<<EOF" >> $GITHUB_OUTPUT; cat domain_table.txt >> $GITHUB_OUTPUT; echo "EOF" >> $GITHUB_OUTPUT
+          # Filter projects safe to delete: not canonical AND no custom domains (only *.vercel.app allowed)
+          DEL_LIST=$(awk -F'|' -v CAN="$CANONICAL" '
+            $1!=CAN {
+              if ($3=="<none>" || $3 ~ /^([[:alnum:]-]+\.vercel\.app)(,|$)/) print $1
+            }
+          ' domain_table.txt)
+          echo "DEL_LIST<<EOF" >> $GITHUB_OUTPUT; echo "$DEL_LIST" >> $GITHUB_OUTPUT; echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Comment domain table & planned deletions
+        run: |
+          set -euo pipefail
+          TABLE="${{ steps.plan.outputs.TABLE }}"
+          DELS="${{ steps.plan.outputs.DEL_LIST }}"
+          BODY=$'Domain attachments by project:\n\nProject|ID|Domains\n---|---|---\n'"$(echo "$TABLE" | sed 's/^/- /')" \
+$'\n\nPlanned deletions (dry_run='"$DRY_RUN"$'):\n'"${DELS:-<none>}"
+          BODY=$(printf "%s" "$BODY" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
+          curl -sS -X POST -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"body\":\"$BODY\"}" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments"
+
+      - name: (Optional) Detach portal.complianceloop.com if on legacy portal
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          # Find project named complianceloop-portal
+          PID=$(jq -r '.projects[] | select(.name=="complianceloop-portal") | .id' projects.json)
+          if [ -z "$PID" ]; then
+            echo "No complianceloop-portal project found. Skipping detach."
+            exit 0
+          fi
+          DOMS=$(curl -sS "https://api.vercel.com/v10/projects/$PID/domains?teamId=$TEAM_SLUG" \
+                    -H "Authorization: Bearer $VERCEL_TOKEN")
+          HAS=$(echo "$DOMS" | jq -r '.domains[]?.name=="portal.complianceloop.com"' | grep -c true || true)
+          if [ "$HAS" -eq 1 ]; then
+            if [ "${DRY_RUN}" = "true" ]; then
+              echo "Would detach portal.complianceloop.com from $PID (dry-run)."
+            else
+              curl -sS -X DELETE \
+                "https://api.vercel.com/v10/projects/$PID/domains/portal.complianceloop.com?teamId=$TEAM_SLUG" \
+                -H "Authorization: Bearer $VERCEL_TOKEN" >/dev/null
+              echo "Detached portal.complianceloop.com from $PID"
+            fi
+          else
+            echo "portal.complianceloop.com not attached. Skipping."
+          fi
+
+      - name: Delete legacy projects without custom domains
+        run: |
+          set -euo pipefail
+          CAN="$CANONICAL"
+          while read -r P; do
+            [ -z "$P" ] && continue
+            [ "$P" = "$CAN" ] && continue
+            if [ "${DRY_RUN}" = "true" ]; then
+              echo "Would DELETE $P"
+            else
+              curl -sS -X DELETE \
+                "https://api.vercel.com/v9/projects/$P?teamId=$TEAM_SLUG" \
+                -H "Authorization: Bearer $VERCEL_TOKEN" >/dev/null
+              echo "Deleted $P"
+            fi
+          done <<< "${{ steps.plan.outputs.DEL_LIST }}"
+
+      - name: Post after-inventory & links
+        if: always()
+        run: |
+          set -euo pipefail
+          # After snapshot
+          curl -sS "https://api.vercel.com/v9/projects?teamId=$TEAM_SLUG&limit=200" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" -o after.json
+          LIST=$(jq -r '.projects[].name' after.json | paste -sd ", " -)
+          BODY=$(jq -rn --arg list "$LIST" ' "After actions, projects present: " + $list ')
+          curl -sS -X POST -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"body\":\"$BODY\n\nRe-run recommended:\n- Inventory: https://github.com/${{ github.repository }}/actions/workflows/ops-vercel-inventory.yml\n- Repo Sanity: https://github.com/${{ github.repository }}/actions/workflows/ops-repo-sanity.yml\n- Smoke: https://github.com/${{ github.repository }}/actions/workflows/smoke.yml\"}" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments"
