@@ -43,18 +43,33 @@ jobs:
           echo "LEGACY<<EOF" >> $GITHUB_OUTPUT; echo "$LEGACY" >> $GITHUB_OUTPUT; echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Comment inventory summary to issue
+        env:
+          ISSUE_NUMBER: ${{ env.ISSUE_NUMBER }}
+          DRY_RUN: ${{ env.DRY_RUN }}
+          # Map these to whatever outputs you already create earlier:
+          PROJ_COUNT: ${{ steps.inventory.outputs.PROJECT_COUNT }}
+          PROJ_LIST:  ${{ steps.inventory.outputs.PROJECT_LIST }}
+          CAN_NAME:   ${{ steps.inventory.outputs.CANONICAL_NAME }}
+          CAN_ID:     ${{ steps.inventory.outputs.CANONICAL_ID }}
         run: |
           set -euo pipefail
-          CANID=$(jq -r --arg CAN "$CANONICAL" '.projects[] | select(.name==$CAN) | .id' projects.json)
-          COUNT=$(jq -r '.projects | length' projects.json)
-          LIST=$(jq -r '.projects[].name' projects.json | paste -sd ", " -)
-          BODY=$(jq -rn --arg c "$COUNT" --arg list "$LIST" --arg can "$CANONICAL" --arg canid "$CANID" '
-            "Decommission preflight (dry_run=" + env.DRY_RUN + ")\nTeam projects ("+\($c)+"): " + $list + "\nCanonical: " + $can + " (" + $canid + ")"
-          ')
-          curl -sS -X POST -H "Authorization: token $GITHUB_TOKEN" \
+
+          {
+            echo "Decommission preflight (dry_run=${DRY_RUN})"
+            echo
+            echo "Team projects (${PROJ_COUNT}):"
+            printf "%s\n" "${PROJ_LIST}"
+            echo
+            echo "Canonical: ${CAN_NAME} (${CAN_ID})"
+          } > /tmp/body.md
+
+          BODY=$(jq -Rs . /tmp/body.md)
+
+          curl -sS -X POST \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
-            -d "{\"body\":\"$BODY\"}" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments"
+            -d "{\"body\":${BODY}}" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/comments"
 
       - name: Build domain table & choose deletions
         id: plan
