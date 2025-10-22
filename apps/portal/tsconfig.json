@@ -14,7 +14,7 @@
     "jsx": "preserve",
     "incremental": true,
 
-    /* ==== IMPORTANT: local alias setup for apps/portal ==== */
+    /* ---- IMPORTANT: local alias setup for apps/portal ---- */
     "baseUrl": ".",
     "paths": {
       "@/*": ["*"],
