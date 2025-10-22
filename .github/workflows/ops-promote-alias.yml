@@ -1,0 +1,43 @@
+name: Ops – Promote via Alias (no rebuild)
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_url:
+        description: "Preview URL to serve (e.g., https://complianceloop-site-git-agent-sync-compliance-loop.vercel.app)"
+        required: true
+      domains:
+        description: "Comma-separated domains"
+        default: "complianceloop.com,www.complianceloop.com"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  alias:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare
+        run: |
+          echo "DEPLOYMENT_URL=${{ github.event.inputs.deployment_url }}" >> $GITHUB_ENV
+          echo "DOMAINS=${{ github.event.inputs.domains }}" >> $GITHUB_ENV
+
+      - name: Assign alias to each domain (no rebuild)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_URL: ${{ env.DEPLOYMENT_URL }}
+          DOMAINS: ${{ env.DOMAINS }}
+        run: |
+          npx --yes vercel --version
+          IFS=',' read -ra DARR <<< "$DOMAINS"
+          for d in "${DARR[@]}"; do
+            d_trimmed="$(echo "$d" | xargs)"
+            echo "Assigning $d_trimmed to $DEPLOYMENT_URL..."
+            npx --yes vercel alias set "$DEPLOYMENT_URL" "$d_trimmed" \
+              --scope compliance-loop --token "$VERCEL_TOKEN"
+          done
+
+      - name: Next step
+        run: |
+          echo "Refresh caches: https://vercel.com/compliance-loop/complianceloop-site/settings/domains"
