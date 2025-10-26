@@ -2,11 +2,6 @@ name: Agent Smoke
 
 on:
   workflow_dispatch:
-    inputs:
-      preview_url:
-        description: 'URL of the Vercel preview deployment to test (e.g. https://complianceloop-site-git-feature-branch-compliance-loop.vercel.app)'
-        required: true
-        type: string
   pull_request:
     types: [opened, synchronize, reopened]
 
