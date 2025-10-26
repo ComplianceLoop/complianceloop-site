@@ -7,13 +7,13 @@ on:
 
 jobs:
   notify:
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    if: github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
     permissions:
       issues: write
     steps:
       - name: Call orchestrator webhook (if configured)
-        if: ${{ secrets.ORCHESTRATOR_WEBHOOK_URL != '' }}
+        if: vars.ORCHESTRATOR_WEBHOOK_URL != ''
         run: |
           payload=$(jq -n \
             --arg repo "${{ github.repository }}" \
@@ -25,10 +25,10 @@ jobs:
             --arg logs_raw_url "${{ github.event.workflow_run.logs_url }}" \
             '{repo:$repo, run_id:$run_id, head_sha:$head_sha, branch:$branch, pr_number:$pr_number, logs_url:$logs_url, logs_raw_url:$logs_raw_url}')
           curl -X POST -H "Content-Type: application/json" \
-               -d "$payload" "${{ secrets.ORCHESTRATOR_WEBHOOK_URL }}"
+               -d "$payload" "${{ vars.ORCHESTRATOR_WEBHOOK_URL }}"
 
       - name: Fallback - open a triage issue (if no webhook)
-        if: ${{ secrets.ORCHESTRATOR_WEBHOOK_URL == '' }}
+        if: vars.ORCHESTRATOR_WEBHOOK_URL == ''
         uses: actions/github-script@v7
         with:
           script: |
