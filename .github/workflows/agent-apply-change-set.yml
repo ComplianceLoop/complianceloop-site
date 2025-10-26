@@ -25,37 +25,55 @@ jobs:
       - name: Download change set
         run: |
           set -euo pipefail
-          curl -L -f "${{ github.event.inputs.change_set_url }}" -o change-set.json
-          if [ ! -s change-set.json ]; then
-            echo "Error: Downloaded change set is empty"
-            exit 1
-          fi
+          curl -L "${{ github.event.inputs.change_set_url }}" -o change-set.json
 
-      - name: Validate change set schema
+      - name: Validate change set schema (supports deletes)
         run: |
+          set -euo pipefail
+          # Must have a files array; each entry must have a path and EITHER delete=true OR content
           jq -e 'has("files") and (.files | type=="array") and
-                 all(.files[]; has("path") and has("content"))' change-set.json >/dev/null
+                 all(.files[]; has("path") and
+                   ((has("delete") and .delete==true and (has("content")|not)) or
+                    (has("content") and ((has("delete")|not) or .delete==false)))
+                 ))' change-set.json >/dev/null
 
-      - name: Apply files (full-file write only)
+      - name: Apply files (delete first, then write)
         id: apply
         run: |
           set -euo pipefail
-          while IFS= read -r p; do
+
+          # 1) Deletes (entries like {"path":"...", "delete":true})
+          jq -r '.files[] | select(.delete==true) | .path' change-set.json | while read -r p; do
+            if [ -e "$p" ]; then
+              rm -f "$p"
+              echo "Deleted $p"
+              # Clean up empty directories upwards (best-effort)
+              dir="$(dirname "$p")"
+              while [ "$dir" != "." ] && [ "$dir" != "/" ]; do
+                rmdir "$dir" 2>/dev/null || break
+                dir="$(dirname "$dir")"
+              done
+            else
+              echo "Skip delete (not found): $p"
+            fi
+          done
+
+          # 2) Writes (entries with content; supports base64)
+          jq -r '.files[] | select((.delete|not) or .delete==false) | .path' change-set.json | while read -r p; do
             mkdir -p "$(dirname "$p")"
             jq -r --arg p "$p" \
-              '.files[] | select(.path==$p) | if .encoding=="base64" then .content | @base64d else .content end' \
+              '.files[] | select(.path==$p) |
+                if .encoding=="base64" then .content | @base64d else .content end' \
               change-set.json > "$p"
-          done < <(jq -r '.files[].path' change-set.json)
+            echo "Wrote $p"
+          done
+
           BRANCH="agent/${GITHUB_RUN_ID}"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Create branch and commit
         run: |
           set -euo pipefail
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "No changes to commit"
-            exit 0
-          fi
           git checkout -b "${{ steps.apply.outputs.branch }}"
           git add -A
           git -c user.name="github-actions[bot]" \
@@ -63,17 +81,13 @@ jobs:
               commit -m "feat: apply agent change set"
           git push origin "${{ steps.apply.outputs.branch }}"
 
-      - name: Create pull request
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh pr create \
-            --base main \
-            --head "${{ steps.apply.outputs.branch }}" \
-            --title "Agent build: change set ${{ github.run_id }}" \
-            --body "This pull request was created by the agent Committer workflow.
-          
-          Change set URL: ${{ github.event.inputs.change_set_url }}
-          
-          Please review checks and preview." \
-            --label agent,auto-fix
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: ${{ steps.apply.outputs.branch }}
+          title: "Agent build: change set ${{ github.run_id }}"
+          body: |
+            This pull request was created by the agent Committer workflow.
+            Change set URL: ${{ github.event.inputs.change_set_url }}
+            Please review checks and preview.
+          labels: agent, auto-fix
