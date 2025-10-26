@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "files": [
+    { "path": "ops/inbox/change-set.bad.json", "delete": true },
+    {
+      "path": "README.md",
+      "content": "# ComplianceLoop\n\nDelete test ran.\n"
+    }
+  ],
+  "notes": "Delete + write test"
+}
