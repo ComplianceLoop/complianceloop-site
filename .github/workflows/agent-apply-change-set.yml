@@ -3,9 +3,14 @@ name: Apply Agent Change Set
 on:
   workflow_dispatch:
     inputs:
+      change_set_json:
+        description: "PASTE the full change-set JSON here (preferred). Leave blank if using URL."
+        required: false
+        type: string
       change_set_url:
-        description: "URL to change-set.json (or .zip with /files entries)"
-        required: true
+        description: "Alternative: URL to change-set.json (used only if JSON above is blank)."
+        required: false
+        type: string
 
 concurrency:
   group: apply-agent-changes
@@ -22,18 +27,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download change set
+      # If inline JSON was pasted, save it as change-set.json
+      - name: Save inline change set (if provided)
+        if: ${{ inputs.change_set_json != '' }}
+        uses: actions/github-script@v7
+        env:
+          CHANGE_SET_JSON: ${{ github.event.inputs.change_set_json }}
+        with:
+          script: |
+            const fs = require('fs');
+            const data = process.env.CHANGE_SET_JSON;
+            if (!data || data.trim() === '') {
+              core.setFailed('Inline change_set_json was empty');
+              return;
+            }
+            fs.writeFileSync('change-set.json', data, { encoding: 'utf8' });
+
+      # Otherwise, download from URL
+      - name: Download change set from URL (fallback)
+        if: ${{ inputs.change_set_json == '' && inputs.change_set_url != '' }}
         run: |
           set -euo pipefail
           curl -L "${{ github.event.inputs.change_set_url }}" -o change-set.json
 
-      # Simple, robust schema check:
-      # - must have a .files array
-      # - each entry must have .path
-      # - entry is valid if:
-      #     delete==true (content ignored), OR
-      #     has content (delete missing/false)
-      - name: Validate change set schema (supports deletes)
+      # Guard: ensure we actually have the file
+      - name: Ensure change-set.json exists
+        run: |
+          set -euo pipefail
+          test -s change-set.json || { echo "No change-set provided. Paste JSON or supply a URL."; exit 1; }
+
+      # Simple, robust schema check (supports deletes)
+      - name: Validate change set schema
         run: |
           set -euo pipefail
           jq -e '
@@ -54,26 +78,25 @@ jobs:
         run: |
           set -euo pipefail
 
-          # 1) Deletes (entries like {"path":"...", "delete":true})
+          # 1) Deletes
           jq -r '.files[] | select(.delete==true) | .path' change-set.json | while read -r p; do
-            if [ -z "${p}" ]; then continue; fi
+            [ -z "$p" ] && continue
             if [ -e "$p" ]; then
               rm -f "$p"
               echo "Deleted $p"
-              # Clean up empty directories upwards (best-effort)
-              dir="$(dirname "$p")"
-              while [ "$dir" != "." ] && [ "$dir" != "/" ]; do
-                rmdir "$dir" 2>/dev/null || break
-                dir="$(dirname "$dir")"
+              d="$(dirname "$p")"
+              while [ "$d" != "." ] && [ "$d" != "/" ]; do
+                rmdir "$d" 2>/dev/null || break
+                d="$(dirname "$d")"
               done
             else
               echo "Skip delete (not found): $p"
             fi
           done
 
-          # 2) Writes (entries with content; supports base64)
+          # 2) Writes (supports base64)
           jq -r '.files[] | select((.delete|not) or (.delete==false)) | .path' change-set.json | while read -r p; do
-            if [ -z "${p}" ]; then continue; fi
+            [ -z "$p" ] && continue
             mkdir -p "$(dirname "$p")"
             jq -r --arg p "$p" '
               .files[] | select(.path==$p)
@@ -95,13 +118,27 @@ jobs:
               commit -m "feat: apply agent change set"
           git push origin "${{ steps.apply.outputs.branch }}"
 
-      - name: Open pull request
-        uses: peter-evans/create-pull-request@v6
+      - name: Open pull request from agent branch to main
+        uses: actions/github-script@v7
         with:
-          branch: ${{ steps.apply.outputs.branch }}
-          title: "Agent build: change set ${{ github.run_id }}"
-          body: |
-            This pull request was created by the agent Committer workflow.
-            Change set URL: ${{ github.event.inputs.change_set_url }}
-            Please review checks and preview.
-          labels: agent, auto-fix
+          script: |
+            const head = `${{ steps.apply.outputs.branch }}`;
+            const base = 'main';
+            const title = `Agent build: change set ${context.runId}`;
+            const body = `This pull request was created by the agent Committer workflow.\n\nSource: ${
+              (context.payload.inputs && context.payload.inputs.change_set_json && 'inline JSON') ||
+              (context.payload.inputs && context.payload.inputs.change_set_url) ||
+              'unknown'
+            }\n\nPlease review checks and preview.`;
+            const { owner, repo } = context.repo;
+
+            // If a PR already exists for this head -> just comment and exit
+            const prs = await github.paginate(github.rest.pulls.list, { owner, repo, state: 'open', head: `${owner}:${head}`, base });
+            if (prs.length > 0) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: prs[0].number, body: `New commit from workflow run ${context.runId}.` });
+              core.notice(`PR already exists: ${prs[0].html_url}`);
+              return;
+            }
+
+            const pr = await github.rest.pulls.create({ owner, repo, head, base, title, body });
+            core.notice(`Opened PR: ${pr.data.html_url}`);
