@@ -27,15 +27,27 @@ jobs:
           set -euo pipefail
           curl -L "${{ github.event.inputs.change_set_url }}" -o change-set.json
 
+      # Simple, robust schema check:
+      # - must have a .files array
+      # - each entry must have .path
+      # - entry is valid if:
+      #     delete==true (content ignored), OR
+      #     has content (delete missing/false)
       - name: Validate change set schema (supports deletes)
         run: |
           set -euo pipefail
-          # Must have a files array; each entry must have a path and EITHER delete=true OR content
-          jq -e 'has("files") and (.files | type=="array") and
-                 all(.files[]; has("path") and
-                   ((has("delete") and .delete==true and (has("content")|not)) or
-                    (has("content") and ((has("delete")|not) or .delete==false)))
-                 ))' change-set.json >/dev/null
+          jq -e '
+            (.files | type=="array") and
+            (
+              ([.files[] | select(
+                  (has("path")) and
+                  (
+                    (.delete==true) or
+                    (has("content") and ((.delete|not) or (.delete==false)))
+                  )
+                )] | length) == (.files | length)
+            )
+          ' change-set.json > /dev/null
 
       - name: Apply files (delete first, then write)
         id: apply
@@ -44,6 +56,7 @@ jobs:
 
           # 1) Deletes (entries like {"path":"...", "delete":true})
           jq -r '.files[] | select(.delete==true) | .path' change-set.json | while read -r p; do
+            if [ -z "${p}" ]; then continue; fi
             if [ -e "$p" ]; then
               rm -f "$p"
               echo "Deleted $p"
@@ -59,12 +72,13 @@ jobs:
           done
 
           # 2) Writes (entries with content; supports base64)
-          jq -r '.files[] | select((.delete|not) or .delete==false) | .path' change-set.json | while read -r p; do
+          jq -r '.files[] | select((.delete|not) or (.delete==false)) | .path' change-set.json | while read -r p; do
+            if [ -z "${p}" ]; then continue; fi
             mkdir -p "$(dirname "$p")"
-            jq -r --arg p "$p" \
-              '.files[] | select(.path==$p) |
-                if .encoding=="base64" then .content | @base64d else .content end' \
-              change-set.json > "$p"
+            jq -r --arg p "$p" '
+              .files[] | select(.path==$p)
+              | if .encoding=="base64" then .content | @base64d else .content end
+            ' change-set.json > "$p"
             echo "Wrote $p"
           done
 
