@@ -1,8 +1,10 @@
 name: Smoke
-
 on:
   workflow_dispatch: {}
-
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -19,7 +21,6 @@ jobs:
           echo "Failing: received $code from $url"
           exit 22
         fi
-
     - name: Hit Preview redirect (www)
       run: |
         set -euo pipefail
@@ -30,7 +31,6 @@ jobs:
           echo "Failing: received $code from $url"
           exit 22
         fi
-
       # OPTIONAL: Add more critical endpoints as needed
       # - name: Hit Portal app (if public)
       #   run: |
