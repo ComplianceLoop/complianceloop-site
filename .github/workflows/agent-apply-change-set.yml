@@ -152,3 +152,33 @@ jobs:
             }
             const pr = await github.rest.pulls.create({ owner, repo, head, base, title, body });
             core.notice(`Opened PR: ${pr.data.html_url}`);
+      - name: Trigger Smoke for agent PR
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ secrets.ORCHESTRATOR_PAT }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          # Figure out the agent branch and PR number
+          # We use the conventional naming "agent/<run_id>" created earlier.
+          AGENT_BRANCH="agent/${{ github.run_id }}"
+
+          # Fetch PR number for that branch (returns just the number)
+          PR_NUMBER=$(gh pr view "$AGENT_BRANCH" --repo "$REPO" --json number -q .number)
+
+          if [[ -z "$PR_NUMBER" ]]; then
+            echo "Could not find PR for $AGENT_BRANCH. Listing open agent PRs for debugging:"
+            gh pr list --repo "$REPO" --search "is:open head:agent/" --limit 5
+            exit 1
+          fi
+
+          echo "Dispatching Smoke for PR #$PR_NUMBER ($AGENT_BRANCH)…"
+          # Dispatch the smoke workflow file with inputs (runs on 'main' to use the workflow from default branch)
+          gh api \
+            -X POST \
+            "repos/$REPO/actions/workflows/smoke.yml/dispatches" \
+            -f ref=main \
+            -f inputs[pr_number]="$PR_NUMBER" \
+            -f inputs[head_ref]="$AGENT_BRANCH"
+
+          echo "Smoke dispatched."
