@@ -1,35 +1,22 @@
 name: Smoke
 
 on:
-  # Your existing PR trigger (kept as-is)
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
     paths:
-      - '**'   # ensure README-only PRs still trigger
+      - '**'   # make sure README-only PRs still trigger
+  workflow_dispatch: {}  # optional manual button
 
-  # Run automatically right after the agent workflow completes
-  workflow_run:
-    workflows: ["Apply Agent Change Set"]
-    types: [completed]
-
-  # Safety net: run if someone pushes directly to an agent/* branch
-  push:
-    branches:
-      - "agent/**"
-
-  # Still allow manual runs from the UI or via API
-  workflow_dispatch:
-
+# Ensure only one Smoke run per PR (or ref) at a time.
 concurrency:
-  group: smoke-${{ github.ref || github.run_id }}
+  group: smoke-${{ github.event.pull_request.number || github.ref_name || github.run_id }}
   cancel-in-progress: true
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Hit Production homepage
         run: |
@@ -53,9 +40,3 @@ jobs:
             echo "Failing: received $code from $url"
             exit 22
           fi
-
-      # OPTIONAL: Add more critical endpoints as needed
-      # - name: Hit Portal app (if public)
-      #   run: |
-      #     set -euxo pipefail
-      #     curl -I --fail --max-time 20 https://portal.complianceloop.com | tee /tmp/portal.headers
