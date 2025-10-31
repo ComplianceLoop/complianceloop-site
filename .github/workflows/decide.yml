@@ -11,88 +11,89 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
   issues: read
+
+# Prevent overlapping runs per PR comment thread and avoid “canceled” noise
+concurrency:
+  group: decide-${{ github.event.issue.number || 'manual' }}
+  cancel-in-progress: true
 
 jobs:
   run:
-    # For comments, only run if the body contains "/decide "
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.comment.body, '/decide ')
+    # Only run when:
+    # - manually dispatched, OR
+    # - a comment was added on a PR by a human (not a bot) AND it contains "/decide "
+    if: >-
+      (github.event_name == 'workflow_dispatch') ||
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request &&
+        !endsWith(github.actor, '[bot]') &&
+        contains(github.event.comment.body, '/decide ')
+      )
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout default branch
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Prepare BODY
+      - name: Compose BODY
         id: prep
+        shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "BODY=/decide ${{ inputs.command }}" >> $GITHUB_ENV
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "BODY=/decide ${{ inputs.command }}" >> "$GITHUB_ENV"
           else
-            printf "BODY=%s\n" "${{ github.event.comment.body }}" >> $GITHUB_ENV
+            printf 'BODY=%s\n' "${{ github.event.comment.body }}" >> "$GITHUB_ENV"
           fi
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Parse command and export outputs (safe here-doc)
+      - name: Parse command
         id: parse
         shell: bash
         run: |
           node - <<'NODE'
           const fs = require('fs');
-
           const body = process.env.BODY || '';
-          const m = body.match(/\/decide\s+([\s\S]*)/);
+          // /decide <op> </jsonPointer> [value...]
+          const m = body.match(/\/decide\s+(\S+)\s+(\/\S+)(?:\s+([\s\S]*))?/);
           if (!m) {
-            console.error('No /decide command found in BODY');
-            process.exit(1);
+            console.error('No /decide command found'); process.exit(1);
           }
-          const tail = m[1].trim();
-
-          // Split op + path + (rest as value, may contain spaces/JSON)
-          const parts = tail.split(/\s+/);
-          const op = parts.shift() || '';
-          const path = parts.shift() || '';
-          const value = tail.slice((op + ' ' + path).length).trim();
-
-          if (!op || !path || !path.startsWith('/')) {
-            console.error('Expected: /decide <op> </jsonPointer> <value?>');
-            console.error('BODY was:', body);
-            process.exit(1);
-          }
-
-          // Write to GITHUB_OUTPUT with a unique heredoc marker for value (safe for newlines)
-          const outFile = process.env.GITHUB_OUTPUT;
-          const marker = 'EOF_' + Math.random().toString(36).slice(2);
-          const lines = [
-            `op=${op}`,
-            `path=${path}`,
-            `value<<${marker}`,
-            value,
-            marker
-          ].join('\n') + '\n';
-          fs.writeFileSync(outFile, lines, { flag: 'a', encoding: 'utf8' });
+          const [, op, path, value = ''] = m;
+          const out = process.env.GITHUB_OUTPUT;
+          const marker = 'VAL_' + Math.random().toString(36).slice(2);
+          fs.appendFileSync(out,
+            `op=${op}\npath=${path}\nvalue<<${marker}\n${value}\n${marker}\n`
+          );
           NODE
 
-      - run: npm ci || npm i
+      - name: Install deps (best-effort)
+        run: npm ci || npm i
 
       - name: Apply decision
         run: |
           node scripts/decisions-apply.mjs \
-            --op "${{ steps.parse.outputs.op }}" \
+            --op   "${{ steps.parse.outputs.op }}" \
             --path "${{ steps.parse.outputs.path }}" \
             --value "${{ steps.parse.outputs.value }}"
 
-      - name: Commit
+      - name: Commit changes
+        shell: bash
         run: |
           if [[ -n "$(git status --porcelain)" ]]; then
-            git config user.name "github-actions[bot]"
+            git config user.name  "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add decisions.json
             git commit -m "chore(decision): ${{ steps.parse.outputs.op }} ${{ steps.parse.outputs.path }}"
             git push
           else
-            echo "No changes"
+            echo "No changes to commit"
           fi
