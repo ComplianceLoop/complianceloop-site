@@ -1,40 +1,64 @@
 name: Smoke
 
 on:
-  # Primary: run on PRs targeting main
+  # Run automatically for PRs targeting main
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
     paths:
       - '**'
-  # Optional: allow manual runs (useful for testing)
+  # Allow manual runs (you can pick a branch/ref)
   workflow_dispatch:
 
+# Avoid duplicate runs on the same PR
 concurrency:
-  # Cancel earlier runs for the same PR or same commit
   group: smoke-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
+permissions:
+  # Needed so we can write the explicit status context "smoke"
+  statuses: write
+  contents: read
+
 jobs:
   smoke:
-    # NOTE: The job id IS the required check name (“smoke”)
+    # The job id doubles as the desired required check context
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
+      # --- Mark status as PENDING on the PR commit (if this is a PR run) ---
+      - name: Mark smoke status as pending
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const sha = context.payload.pull_request.head.sha;
+            await github.repos.createCommitStatus({
+              owner, repo, sha,
+              state: 'pending',
+              context: 'smoke',
+              description: 'Smoke checks running',
+              target_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+            });
+
+      # --- Your checks ---
       - name: Hit Production homepage
+        shell: bash
         run: |
           set -euo pipefail
           url="https://complianceloop.com"
           code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 20 "$url")
           echo "HTTP $code from $url"
-          # Treat the site as UP unless it's a 5xx or totally unreachable (000)
+          # Fail only on 5xx or unreachable (000)
           if [ "$code" -ge 500 ] || [ "$code" -eq 000 ]; then
             echo "Failing: received $code from $url"
             exit 22
           fi
 
       - name: Hit Preview redirect (www)
+        shell: bash
         run: |
           set -euo pipefail
           url="https://www.complianceloop.com"
@@ -45,5 +69,19 @@ jobs:
             exit 22
           fi
 
-      # Add more targets here as you expose them publicly.
-      # Keep them short and tolerant of transient hiccups.
+      # --- Finalize status to SUCCESS/FAILURE on the PR commit ---
+      - name: Finalize smoke status
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const sha = context.payload.pull_request.head.sha;
+            const state = '${{ job.status }}' === 'success' ? 'success' : 'failure';
+            await github.repos.createCommitStatus({
+              owner, repo, sha,
+              state,
+              context: 'smoke',
+              description: state === 'success' ? 'Smoke checks passed' : 'Smoke checks failed',
+              target_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+            });
