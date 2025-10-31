@@ -1,23 +1,19 @@
 name: Smoke
 
 on:
-  # Primary: run on PRs targeting main
+  # Run automatically on PRs that target main (open, update, reopen)
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [main]
+    branches:
+      - main
+    # Run for any file change in the PR
     paths:
       - '**'
-  # Optional: allow manual runs (useful for testing)
+  # Keep manual trigger for ad-hoc runs (does not count for PR checks)
   workflow_dispatch:
-
-concurrency:
-  # Cancel earlier runs for the same PR or same commit
-  group: smoke-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: true
 
 jobs:
   smoke:
-    # NOTE: The job id IS the required check name (“smoke”)
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -44,6 +40,3 @@ jobs:
             echo "Failing: received $code from $url"
             exit 22
           fi
-
-      # Add more targets here as you expose them publicly.
-      # Keep them short and tolerant of transient hiccups.
