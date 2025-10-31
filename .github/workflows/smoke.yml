@@ -1,38 +1,59 @@
 name: Smoke
 
 on:
+  # Your existing PR trigger (kept as-is)
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
     paths:
       - '**'   # ensure README-only PRs still trigger
+
+  # Run automatically right after the agent workflow completes
+  workflow_run:
+    workflows: ["Apply Agent Change Set"]
+    types: [completed]
+
+  # Safety net: run if someone pushes directly to an agent/* branch
+  push:
+    branches:
+      - "agent/**"
+
+  # Still allow manual runs from the UI or via API
   workflow_dispatch:
+
+concurrency:
+  group: smoke-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
     steps:
-    - name: Hit Production homepage
-      run: |
-        set -euo pipefail
-        url="https://complianceloop.com"
-        code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 20 "$url")
-        echo "HTTP $code from $url"
-        # Treat the site as UP unless it's a 5xx or totally unreachable (000)
-        if [ "$code" -ge 500 ] || [ "$code" -eq 000 ]; then
-          echo "Failing: received $code from $url"
-          exit 22
-        fi
-    - name: Hit Preview redirect (www)
-      run: |
-        set -euo pipefail
-        url="https://www.complianceloop.com"
-        code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 20 "$url")
-        echo "HTTP $code from $url"
-        if [ "$code" -ge 500 ] || [ "$code" -eq 000 ]; then
-          echo "Failing: received $code from $url"
-          exit 22
-        fi
+      - name: Hit Production homepage
+        run: |
+          set -euo pipefail
+          url="https://complianceloop.com"
+          code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 20 "$url")
+          echo "HTTP $code from $url"
+          # Treat the site as UP unless it's a 5xx or totally unreachable (000)
+          if [ "$code" -ge 500 ] || [ "$code" -eq 000 ]; then
+            echo "Failing: received $code from $url"
+            exit 22
+          fi
+
+      - name: Hit Preview redirect (www)
+        run: |
+          set -euo pipefail
+          url="https://www.complianceloop.com"
+          code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 20 "$url")
+          echo "HTTP $code from $url"
+          if [ "$code" -ge 500 ] || [ "$code" -eq 000 ]; then
+            echo "Failing: received $code from $url"
+            exit 22
+          fi
+
       # OPTIONAL: Add more critical endpoints as needed
       # - name: Hit Portal app (if public)
       #   run: |
