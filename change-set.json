@@ -1,0 +1,1 @@
+{   "version": 1,   "files": [     { "path": "ops/inbox/change-set.bad.json", "delete": true },     {       "path": "README.md",       "content": "# ComplianceLoop\n\nInline change-set test ran.\n"     }   ],   "notes": "Inline JSON run" }
